@@ -716,6 +716,13 @@
       }
     },
     {
+      "name": "ypy-on::ready",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:ready` fires. Fires once on `document.body`, after YPY processed the page for the first time. Needs the `ypy-boot` extension."
+      }
+    },
+    {
       "name": "ypy-on::cache:hit",
       "description": {
         "kind": "markdown",

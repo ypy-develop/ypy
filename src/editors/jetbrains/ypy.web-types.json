@@ -1508,6 +1508,10 @@
           "description": "Author code (`ypy-on`, a `js:` value or a `[filter]` trigger) was not compiled because of `config.callbacks`, or a redirect or WebSocket URL was refused (`reason` `redirect`, `websocket-origin`)."
         },
         {
+          "name": "ready",
+          "description": "Fires once on `document.body`, after YPY processed the page for the first time. Needs the `ypy-boot` extension. Requires the `ypy-boot` extension."
+        },
+        {
           "name": "cache:hit",
           "description": "A stored copy answers the request. `age` is in ms; `offline` is true when the network failed and the copy was shown for that reason. Requires the `ypy-cache` extension."
         },
