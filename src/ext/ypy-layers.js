@@ -387,6 +387,12 @@
                 if (t.escape) t.dismiss('escape');
             }
         });
+        // The page behind a modal cannot take the focus. The dialog makes it inert, but Safari does so after
+        // the next render: until then a script (or a click) can still focus something behind it.
+        document.addEventListener('focusin', e => {
+            let t = stack.findLast(l => l.mode != 'popup');
+            if (t?.shown && !t.element.contains(e.target)) focus(t);
+        });
         document.addEventListener('pointerdown', e => {
             let t = stack.at(-1);
             if (t?.mode == 'popup' && t.outside && !t.element.contains(e.target) && !t.source?.contains?.(e.target)) t.dismiss('outside');
