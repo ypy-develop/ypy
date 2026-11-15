@@ -49,9 +49,32 @@ go run ./cmd/ypy build --check   # writes nothing, exits 1 on drift
 go run ./cmd/ypy build --sizes   # the min+gzip table; exits 1 over a budget
 ```
 
+`dist/` also carries the files without the source map comment, under `dist/embed/`
+(`ypy.min.js`, `ypy.esm.min.js`, `ypy.max.min.js`, `ext/*.min.js`). The files of
+`dist/` end with `//# sourceMappingURL=...map` and sit next to their `.map`, which
+is what a CDN needs; someone who embeds only the `.min.js` would get a 404 in
+DevTools, so tell them to take the `embed/` copy (README, "Source maps"). The
+`embed/` files have no `.br`, no `.map` and no budget of their own; the sizes
+gate measures the others.
+
 Commit the rebuilt `dist/` in its own commit, after the commit that changed
 `src/`, so the history says which change moved which bytes. `src/skills/**/*.md`
 is copied as it is to `dist/skills/`; `src/editors/**` too.
+
+## The version
+
+The version of the framework is written once, in the file `VERSION` at the
+root. The build stamps it into `this.version` of the core, so `dist/ypy.js`,
+`dist/ypy.min.js`, the ES module and `ypy.max` (`-max` is added) all report it;
+`ypy gen` writes it into `src/editors/jetbrains/ypy.web-types.json`; `cmd/ypy`
+reads it with `go:embed` (package `ypy` at the root, `ypy.Version()`).
+`src/ypy.js` keeps the same literal so the tests run from `src/`, and
+`version_test.go` fails when VERSION, `src/ypy.js`, the web-types and the files
+of `dist/` disagree. To release a version, in this order: edit `VERSION` and the
+`this.version` line of `src/ypy.js`, run `go run ./cmd/ypy gen` and
+`go run ./cmd/ypy build`, commit `dist/`, and only then does the orchestrator
+tag. Never tag before `dist/` was rebuilt: a tag must publish a build that
+reports its own version.
 
 ## The budgets
 

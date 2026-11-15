@@ -9,6 +9,9 @@ package build
 const (
 	// coreSource is the framework source, relative to the repository root.
 	coreSource = "src/ypy.js"
+	// versionFile holds the one version of the repository; the build stamps it
+	// into the core.
+	versionFile = "VERSION"
 	// typesSource is copied as-is next to the core.
 	typesSource = "src/ypy.d.ts"
 	// extDir holds one file per extension; every *.js in it is published.
@@ -30,6 +33,8 @@ const (
 	outExtDir     = "ext"
 	outEditorsDir = "editors"
 	outSkillsDir  = "skills"
+	// outEmbedDir mirrors every minified script without the source map comment.
+	outEmbedDir = "embed"
 )
 
 // maxExtensions is the list of extensions bundled into ypy.max, in order.

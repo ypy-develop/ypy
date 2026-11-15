@@ -1,6 +1,5 @@
 {
   "$comment": "Single source for the YPY names: attributes, elements, events, headers, ypy.config keys and CSS classes of the core. Extensions add theirs in src/attributes.d/<extension>.json. 'ypy gen' turns this into the VS Code and JetBrains data and the config JSON schema; 'ypy gen --check' fails when they drift, or when src/ypy.d.ts disagrees. Format: https://ypy.dev/docs/reference/editors.",
-  "version": "0.1.0-dev",
   "elements": [
     {
       "name": "ypy-partial",
@@ -446,13 +445,13 @@
     },
     {
       "name": "ypy:before:cleanup",
-      "description": "Fires before YPY removes listeners and internal data from an element, on removal during a swap or before reprocessing.",
+      "description": "Fires before YPY removes listeners and internal data from an element, on removal during a swap or before reprocessing. It reaches only elements YPY processed, that is, elements with a `ypy-*` or `data-ypy-*` attribute (and their `ypy-on` handlers); an element without one gets no event. To follow the departure of the others, observe the document with a `MutationObserver` and read `removedNodes`.",
       "detail": {},
       "target": "element"
     },
     {
       "name": "ypy:after:cleanup",
-      "description": "Fires after YPY removed the listeners and internal data of an element.",
+      "description": "Fires after YPY removed the listeners and internal data of an element. Like `ypy:before:cleanup`, it reaches only elements YPY processed (with a `ypy-*` attribute); use a `MutationObserver` for the others.",
       "detail": {},
       "target": "element"
     },
@@ -518,7 +517,7 @@
     },
     {
       "name": "ypy:after:swap",
-      "description": "Fires after new content is in the DOM, before its elements are processed.",
+      "description": "Fires once per swap, after every task of the response has inserted its content, settled it (`ypy:before:settle` and `ypy:after:settle` fired for each task) and processed it (`ypy:after:process`). The focus, the title and the scroll are applied right after. It fires after `ypy:after:settle`, not before.",
       "detail": {"ctx": "YpyRequestCtx"},
       "target": "element"
     },
@@ -536,7 +535,7 @@
     },
     {
       "name": "ypy:after:settle",
-      "description": "Fires after the settle phase, including every CSS transition. The DOM is stable.",
+      "description": "Fires after the settle phase of one task, including every CSS transition, once per swapped target (the main swap, each out-of-band element and each partial). It fires before the new content is processed and before `ypy:after:swap`, which fires once for the whole swap. The DOM is stable.",
       "detail": {"task": "YpySwapTask", "newContent": "ChildNode[]", "settleTasks": "(() => void)[]"},
       "target": "element"
     },

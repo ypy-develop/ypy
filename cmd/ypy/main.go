@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/ypy-develop/ypy"
 	"github.com/ypy-develop/ypy/internal/assets"
 	"github.com/ypy-develop/ypy/internal/bench"
 	"github.com/ypy-develop/ypy/internal/build"
@@ -19,7 +20,7 @@ import (
 )
 
 // version is the version of the tools; the rules and the build change with it.
-const version = "0.1.0-dev"
+var version = ypy.Version()
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

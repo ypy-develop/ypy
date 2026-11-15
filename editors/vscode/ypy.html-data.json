@@ -481,14 +481,14 @@
       "name": "ypy-on::before:cleanup",
       "description": {
         "kind": "markdown",
-        "value": "Runs the JavaScript when `ypy:before:cleanup` fires. Fires before YPY removes listeners and internal data from an element, on removal during a swap or before reprocessing."
+        "value": "Runs the JavaScript when `ypy:before:cleanup` fires. Fires before YPY removes listeners and internal data from an element, on removal during a swap or before reprocessing. It reaches only elements YPY processed, that is, elements with a `ypy-*` or `data-ypy-*` attribute (and their `ypy-on` handlers); an element without one gets no event. To follow the departure of the others, observe the document with a `MutationObserver` and read `removedNodes`."
       }
     },
     {
       "name": "ypy-on::after:cleanup",
       "description": {
         "kind": "markdown",
-        "value": "Runs the JavaScript when `ypy:after:cleanup` fires. Fires after YPY removed the listeners and internal data of an element."
+        "value": "Runs the JavaScript when `ypy:after:cleanup` fires. Fires after YPY removed the listeners and internal data of an element. Like `ypy:before:cleanup`, it reaches only elements YPY processed (with a `ypy-*` attribute); use a `MutationObserver` for the others."
       }
     },
     {
@@ -558,7 +558,7 @@
       "name": "ypy-on::after:swap",
       "description": {
         "kind": "markdown",
-        "value": "Runs the JavaScript when `ypy:after:swap` fires. Fires after new content is in the DOM, before its elements are processed."
+        "value": "Runs the JavaScript when `ypy:after:swap` fires. Fires once per swap, after every task of the response has inserted its content, settled it (`ypy:before:settle` and `ypy:after:settle` fired for each task) and processed it (`ypy:after:process`). The focus, the title and the scroll are applied right after. It fires after `ypy:after:settle`, not before."
       }
     },
     {
@@ -579,7 +579,7 @@
       "name": "ypy-on::after:settle",
       "description": {
         "kind": "markdown",
-        "value": "Runs the JavaScript when `ypy:after:settle` fires. Fires after the settle phase, including every CSS transition. The DOM is stable."
+        "value": "Runs the JavaScript when `ypy:after:settle` fires. Fires after the settle phase of one task, including every CSS transition, once per swapped target (the main swap, each out-of-band element and each partial). It fires before the new content is processed and before `ypy:after:swap`, which fires once for the whole swap. The DOM is stable."
       }
     },
     {

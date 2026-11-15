@@ -49,7 +49,8 @@ func fixtureRoot(t *testing.T) string {
 			t.Fatal(err)
 		}
 	}
-	write("src/ypy.js", "// SPDX-License-Identifier: MIT\nvar ypy = (() => {\n  class Y { __n = 1; get() { return this.__n } }\n  return { version: '1', config: {}, y: new Y(), proto: { __proto__: null } }\n})()\n")
+	write("VERSION", "2.3.4\n")
+	write("src/ypy.js", "// SPDX-License-Identifier: MIT\nvar ypy = (() => {\n  class Y { __n = 1; get() { return this.__n } }\n  return { init() { this.version = '1' }, config: {}, y: new Y(), proto: { __proto__: null } }\n})()\n")
 	write("src/ypy.d.ts", "export {}\n")
 	write("src/editors/jetbrains/ypy.web-types.json", "{}\n")
 	write("src/skills/ypy-guide/SKILL.md", "# guide\n")
@@ -92,6 +93,29 @@ func TestGenerateAllParts(t *testing.T) {
 	if !strings.HasSuffix(string(out["ypy.min.js"]), "//# sourceMappingURL=ypy.min.js.map\n") {
 		t.Error("minified file must point at its source map")
 	}
+	if strings.Contains(string(out["ypy.js"]), "this.version = '1'") || !strings.Contains(string(out["ypy.js"]), "this.version = '2.3.4'") {
+		t.Errorf("the core must report the version of the VERSION file:\n%s", out["ypy.js"])
+	}
+	if !strings.Contains(string(out["ypy.max.js"]), "this.version = '2.3.4'") {
+		t.Error("the max bundle must report the version of the VERSION file")
+	}
+	// embed/ has the same code without the source map comment
+	for _, name := range []string{"ypy.min.js", "ypy.esm.min.js", "ypy.max.min.js", "ext/ypy-sse.min.js"} {
+		got, ok := out["embed/"+name]
+		if !ok {
+			t.Errorf("missing embed/%s", name)
+			continue
+		}
+		if strings.Contains(string(got), "sourceMappingURL") {
+			t.Errorf("embed/%s must not point at a source map", name)
+		}
+		if want := strings.SplitN(string(out[name]), "//# sourceMappingURL", 2)[0]; string(got) != want {
+			t.Errorf("embed/%s differs from %s without the comment", name, name)
+		}
+		if _, ok := out["embed/"+name+".br"]; ok {
+			t.Errorf("embed/%s has no brotli copy", name)
+		}
+	}
 	if !bytes.Contains(out["ypy.min.js.map"], []byte(`"sources":["ypy.js"]`)) {
 		t.Errorf("source map must name ypy.js: %s", out["ypy.min.js.map"])
 	}
@@ -107,9 +131,9 @@ func TestGenerateOnly(t *testing.T) {
 	root := fixtureRoot(t)
 	// the files each part may produce, by name prefix
 	prefixes := map[Part][]string{
-		PartCore: {"ypy.js", "ypy.min.js", "ypy.esm", "ypy.d.ts", "editors/", "skills/"},
-		PartExt:  {"ext/"},
-		PartMax:  {"ypy.max"},
+		PartCore: {"ypy.js", "ypy.min.js", "ypy.esm", "ypy.d.ts", "editors/", "skills/", "embed/ypy.min.js", "embed/ypy.esm"},
+		PartExt:  {"ext/", "embed/ext/"},
+		PartMax:  {"ypy.max", "embed/ypy.max"},
 	}
 	must := map[Part]string{PartCore: "ypy.esm.js", PartExt: "ext/ypy-sse.js", PartMax: "ypy.max.min.js"}
 	for part, allowed := range prefixes {
@@ -237,7 +261,7 @@ func TestCommand(t *testing.T) {
 	if code, out, _ := runCmd(t, root, "--check"); code != cli.ExitOK || !strings.Contains(out, "up to date") {
 		t.Errorf("--check after a build: code %d %s", code, out)
 	}
-	if err := os.WriteFile(filepath.Join(root, "src/ypy.js"), []byte("var ypy = {}\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "src/ypy.js"), []byte("var ypy = { v() { this.version = '1' } }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if code, _, errs := runCmd(t, root, "--check"); code != cli.ExitFailure || !strings.Contains(errs, "changed: ypy.js") {
@@ -294,6 +318,38 @@ func TestExtensionsDoNotReachForPrivateMembers(t *testing.T) {
 				continue
 			}
 			t.Errorf("%s:%d reaches for a private member of the core: %s", filepath.Base(f), i+1, strings.TrimSpace(line))
+		}
+	}
+}
+
+func TestGenerateWithoutVersionFile(t *testing.T) {
+	root := fixtureRoot(t)
+	if err := os.Remove(filepath.Join(root, "VERSION")); err != nil {
+		t.Fatal(err)
+	}
+	out, err := Generate(Options{Root: root, Only: PartCore})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out["ypy.js"]), "this.version = '1'") {
+		t.Error("without VERSION the core keeps its own version")
+	}
+}
+
+func TestStampVersion(t *testing.T) {
+	core := []byte("a;\nthis.version = '0.1.0-dev'\nb;")
+	got, err := stampVersion(core, "0.1.1")
+	if err != nil || string(got) != "a;\nthis.version = '0.1.1'\nb;" {
+		t.Errorf("stamped: %q, %v", got, err)
+	}
+	for _, bad := range []string{"", "1.2", "v1.2.3", "1.2.3 "} {
+		if _, err := stampVersion(core, bad); err == nil {
+			t.Errorf("version %q accepted", bad)
+		}
+	}
+	for _, src := range []string{"none", "this.version = '1'\nthis.version = '2'"} {
+		if _, err := stampVersion([]byte(src), "1.2.3"); err == nil {
+			t.Errorf("source %q accepted", src)
 		}
 	}
 }

@@ -66,7 +66,7 @@ func TestRepositoryTableIsConsistent(t *testing.T) {
 	}
 }
 
-// Every name in the table is spelled the way the contract of names says, and the version is the one the core reports.
+// The table takes its version from the file VERSION, which is the one the core reports.
 func TestTableVersionIsTheCoreVersion(t *testing.T) {
 	root := repoRoot(t)
 	table, err := Load(root)
@@ -194,6 +194,9 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 func writeTree(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
+	if _, ok := files["VERSION"]; !ok {
+		files["VERSION"] = "1.0.0\n"
+	}
 	for name, body := range files {
 		p := filepath.Join(root, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -207,7 +210,6 @@ func writeTree(t *testing.T, files map[string]string) string {
 }
 
 const miniCore = `{
-  "version": "1.0.0",
   "attributes": [{"name": "ypy-get", "description": "Gets.", "valueType": "url"}],
   "events": [{"name": "ypy:before:request", "description": "Before.", "detail": {"ctx": "YpyRequestCtx"}, "target": "element"}],
   "config": [{"name": "logAll", "description": "Logs.", "schema": {"type": "boolean"}, "default": false}]
