@@ -2497,14 +2497,21 @@
       "name": "ypy-signals-send",
       "description": {
         "kind": "markdown",
-        "value": "On the element or an ancestor, set to `false` to keep the signals out of the requests it sends. Signals are never sent to another origin.\n\nRequires the `ypy-signals` extension.\n\n**Values**\n\n- `false`: The requests of this element and its descendants do not carry the signals."
+        "value": "Asks for the signals in scope to go with the requests of this element. Signals are sent only when asked: with this attribute on the element, with `ypy-signals-send:inherited` on a container (the nearest value wins), or for the whole page with the config `signals.send`. `false` turns it off again for the element or the container. Signals are never sent to another origin.\n\nRequires the `ypy-signals` extension.\n\nSyntax: `[true|false]`\n\n**Values**\n\n- `true`: The requests of this element (and of its descendants, when written `:inherited`) carry the signals. An empty value means the same.\n- `false`: The requests of this element and its descendants do not carry the signals, even when the config asks for them.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-signals-send:inherited`) to apply this attribute to YPY requests in child elements."
       },
       "values": [
+        {
+          "name": "true",
+          "description": {
+            "kind": "markdown",
+            "value": "The requests of this element (and of its descendants, when written `:inherited`) carry the signals. An empty value means the same."
+          }
+        },
         {
           "name": "false",
           "description": {
             "kind": "markdown",
-            "value": "The requests of this element and its descendants do not carry the signals."
+            "value": "The requests of this element and its descendants do not carry the signals, even when the config asks for them."
           }
         }
       ]

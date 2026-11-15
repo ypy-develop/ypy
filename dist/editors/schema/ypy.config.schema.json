@@ -937,6 +937,20 @@
       "markdownDescription": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.",
       "type": "boolean"
     },
+    "signals": {
+      "additionalProperties": false,
+      "description": "Settings of the signals extension. Requires the `ypy-signals` extension.",
+      "markdownDescription": "Settings of the signals extension. Requires the `ypy-signals` extension.",
+      "properties": {
+        "send": {
+          "default": false,
+          "description": "Send the signals in scope with every same-origin request, with no attribute. `ypy-signals-send=\"false\"` turns it off for an element or a container (`:inherited`). Requires the `ypy-signals` extension.",
+          "markdownDescription": "Send the signals in scope with every same-origin request, with no attribute. `ypy-signals-send=\"false\"` turns it off for an element or a container (`:inherited`). Requires the `ypy-signals` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "sort": {
       "additionalProperties": false,
       "description": "Settings of sortable lists. Requires the `ypy-sort` extension.",

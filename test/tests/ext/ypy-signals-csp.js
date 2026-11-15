@@ -72,7 +72,7 @@ describe('ypy-signals under a strict CSP and callbacks "none"', function () {
 
     it('sends the signals and applies a JSON patch, with a real Response', async function () {
         await open(`<div ypy-signals="a:1, _local:9, user:{name:'x'}">
-            <button id="g" ypy-get="/g">g</button><button id="p" ypy-post="/p">p</button>
+            <button id="g" ypy-signals-send ypy-get="/g">g</button><button id="p" ypy-signals-send ypy-post="/p">p</button>
             <b id="t" ypy-text="$a + ':' + $user.name"></b>
         </div>`);
         let calls = [];

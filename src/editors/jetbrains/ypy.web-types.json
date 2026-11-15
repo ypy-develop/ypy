@@ -1164,9 +1164,11 @@
         },
         {
           "name": "ypy-signals-send",
-          "description": "On the element or an ancestor, set to `false` to keep the signals out of the requests it sends. Signals are never sent to another origin. Requires the `ypy-signals` extension.",
+          "description": "Asks for the signals in scope to go with the requests of this element. Signals are sent only when asked: with this attribute on the element, with `ypy-signals-send:inherited` on a container (the nearest value wins), or for the whole page with the config `signals.send`. `false` turns it off again for the element or the container. Signals are never sent to another origin. Requires the `ypy-signals` extension.",
           "description-sections": {
-            "Values": "- `false`: The requests of this element and its descendants do not carry the signals."
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-signals-send:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`[true|false]`",
+            "Values": "- `true`: The requests of this element (and of its descendants, when written `:inherited`) carry the signals. An empty value means the same.\n- `false`: The requests of this element and its descendants do not carry the signals, even when the config asks for them."
           },
           "value": {
             "kind": "plain",

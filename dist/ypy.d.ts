@@ -2374,3 +2374,19 @@ export interface YpyWsConnectionConfig {
   heartbeat?: number | string;
 }
 // #endregion
+
+// #region TASK-085 signals opt-in, navigation safety, list focus
+/** Settings of the `ypy-signals` extension, in `ypy.config.signals`. */
+export interface YpySignalsConfig {
+  /**
+   * Send the signals in scope with every same-origin request. Off: they go only with `ypy-signals-send`
+   * (on the element, or `ypy-signals-send:inherited` on a container). `ypy-signals-send="false"` turns it off again.
+   * @default false
+   */
+  send?: boolean;
+}
+
+export interface YpyConfig {
+  signals?: YpySignalsConfig;
+}
+// #endregion
