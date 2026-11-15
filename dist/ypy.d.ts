@@ -2153,3 +2153,112 @@ export interface YpyNativeEventMap {
   'ypy:switch': { shown: boolean };
 }
 // #endregion
+
+// #region TASK-079 batch lazy loading, YPY-Commands, ypy-sort, ypy-dedupe, encrypted history cache
+
+/** Settings of `ypy-lazy` grouping. */
+export interface YpyLazyConfig {
+  /** How long a region of a group waits for the others to come into view before the group is requested, in ms or as `"50ms"`. @default 50 */
+  window?: number | string;
+}
+
+/** One command of the `YPY-Commands` response header (see https://ypy.dev/docs/reference/commands). */
+export type YpyCommand =
+  | { type: 'addClass' | 'removeClass'; target: string; class: string }
+  | { type: 'toggleClass'; target: string; class: string; force?: boolean }
+  | { type: 'setAttribute'; target: string; name: string; value?: string | number | boolean }
+  | { type: 'removeAttribute'; target: string; name: string }
+  | { type: 'focus' | 'remove' | 'show' | 'hide'; target: string }
+  | { type: 'scrollIntoView'; target: string; behavior?: string; block?: string; inline?: string }
+  | { type: 'dispatch'; target?: string; event: string; detail?: unknown; bubbles?: boolean };
+
+/** Settings of the `YPY-Commands` header, in `ypy.config.commands`. */
+export interface YpyCommandsConfig {
+  /** Most commands a list may hold; a longer list is ignored as a whole. @default 100 */
+  max?: number;
+}
+
+export interface YpyConfig {
+  commands?: YpyCommandsConfig;
+}
+
+export interface Ypy {
+  /** `ypy-commands` extension API, available when the extension is loaded. */
+  commands?: {
+    /** Runs a list of commands, or its JSON text, as the header does. `source` is the element the events fire on. */
+    run(list: YpyCommand[] | string, source?: Element): void;
+  };
+}
+
+export interface YpyNativeEventMap {
+  /** A group request of `ypy-lazy` is about to be sent. Fired on the first region of the batch. */
+  'ypy:lazy:group': { group: string; ids: string[]; url: string };
+  /** A command of `YPY-Commands` is about to run. Cancel it to skip the command. */
+  'ypy:before:command': { ctx?: YpyRequestCtx; command: YpyCommand; targets: Array<Element | Document> };
+  /** A command, or the whole list, of `YPY-Commands` was not run. */
+  'ypy:commands:ignored': { command: unknown; reason: string };
+}
+// #endregion
+
+// #region TASK-079 ypy-sort
+/** What the live region of `ypy-sort` says; `{position}` and `{total}` are replaced. A message that is not set is not said. */
+export interface YpySortMessages {
+  grab?: string;
+  move?: string;
+  drop?: string;
+  cancel?: string;
+  revert?: string;
+}
+
+/** Settings of `ypy-sort`, in `ypy.config.sort`. */
+export interface YpySortConfig {
+  messages?: YpySortMessages;
+}
+
+export interface YpyConfig {
+  sort?: YpySortConfig;
+}
+
+export interface YpyNativeEventMap {
+  /** An item was put down in a new place. Cancel it to put the list back. Fired on the container. */
+  'ypy:sort:change': { ids: string[]; item: Element };
+  /** The list was put back in its old order. Fired on the container. */
+  'ypy:sort:revert': { ids: string[]; reason: 'cancelled' | 'failed' };
+}
+// #endregion
+
+// #region TASK-079 ypy-dedupe
+/** Settings of `ypy-dedupe`, in `ypy.config.dedupe`. */
+export interface YpyDedupeConfig {
+  /** Names of the request headers that do not make two requests different. @default ["YPY-Source"] */
+  ignore?: string[];
+}
+
+export interface YpyConfig {
+  dedupe?: YpyDedupeConfig;
+}
+
+export interface YpyNativeEventMap {
+  /** A GET request joined an identical one in flight. `waiters` counts the requests that wait for it, this one included. */
+  'ypy:dedupe:joined': { ctx: YpyRequestCtx; url: string; waiters: number };
+}
+// #endregion
+
+// #region TASK-079 encrypted history cache
+export interface YpyHistoryCacheConfig {
+  /**
+   * Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM). `true` keeps the key in `sessionStorage`,
+   * so the pages survive a reload; `"memory"` keeps it in memory only. Without WebCrypto nothing is stored.
+   * `ypy.history.clear()` replaces the key. @default false
+   */
+  encrypt: boolean | 'memory';
+}
+
+export interface Ypy {
+  /** `ypy-history-cache` extension API, available when the extension is loaded. */
+  history?: {
+    /** Forgets every page kept for back and forward, and replaces the encryption key. Call it when the user signs out. */
+    clear(): void;
+  };
+}
+// #endregion

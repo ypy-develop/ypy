@@ -26,6 +26,20 @@
 // names a <template> (or an element) whose content replaces the children. An element with
 // ypy-lazy-retry inside a failed region loads it again when clicked.
 //
+// Grouping. Several regions that come into view together can share one request:
+//
+//   <div id="sales"  ypy-lazy="/reports/sales"  ypy-lazy-group="reports">...</div>
+//   <div id="visits" ypy-lazy="/reports/visits" ypy-lazy-group="reports">...</div>
+//
+// Regions of the same group (the name) that enter the view within config.lazy.window (50 ms by
+// default) are loaded with one GET: the URL is ypy-lazy-group-url of the first region that has it, or
+// the ypy-lazy of the first region, plus ?group=<name>&id=<id>&id=<id> (the ids of the regions, in
+// the order they came into view) and the header YPY-Lazy-Group. The server answers with one
+// <ypy-partial id="sales">...</ypy-partial> per id; a partial with no ypy-swap replaces its region,
+// like an individual region does. A region the answer leaves out is an error, like a failed one. A
+// region without an id, or one that is alone in its window, loads on its own with its own URL, so
+// the individual mode needs nothing from the server.
+//
 // Elements that carry ypy:before:init gates (the nonce extension) are checked like any other
 // element YPY starts: an element that does not pass never loads. Only the public API and the
 // extension API are used.
@@ -33,6 +47,7 @@
 (() => {
 
     let api, io;
+    const groups = new Map();   // name -> {elts, timer}
     const sel = s => api.prefixSelector(s);
 
     // the content of a <template> or of an element, cloned; null when the attribute is absent or
@@ -49,10 +64,47 @@
     }
 
     function load(elt) {
+        let group = api.attr(elt, 'ypy-lazy-group');
+        if (!group || !elt.id) return single(elt);
+        let g = groups.get(group);
+        if (!g) groups.set(group, g = {elts: [], timer: setTimeout(() => flush(group), windowMs())});
+        if (!g.elts.includes(elt)) g.elts.push(elt);
+    }
+
+    function windowMs() {
+        let w = ypy.config.lazy?.window ?? 50;
+        return typeof w == 'number' ? w : parseFloat(w) * (/\ds$/.test(w) ? 1000 : 1) || 0;
+    }
+
+    function single(elt) {
         let swap = api.attr(elt, 'ypy-swap') ?? 'outerHTML';
         setState(elt, 'error');
         ypy.ajax('GET', api.attr(elt, 'ypy-lazy'), {source: elt, target: elt, swap})
             .catch(error => fail(elt, {error}));
+    }
+
+    function flush(name) {
+        let elts = groups.get(name).elts.filter(x => x.isConnected && x._ypy?.lazy);
+        groups.delete(name);
+        if (elts.length < 2) return elts.forEach(single);
+        let first = elts[0], url = new URL(elts.map(x => api.attr(x, 'ypy-lazy-group-url')).find(Boolean) ||
+            api.attr(first, 'ypy-lazy'), document.baseURI);
+        url.searchParams.set('group', name);
+        for (let x of elts) url.searchParams.append('id', x.id);
+        elts.forEach(x => setState(x, 'error'));
+        api.triggerEvent(first, 'ypy:lazy:group', {group: name, ids: elts.map(x => x.id), url: url.href});
+        let batch = {elts, hit: new Set()};
+        ypy.ajax('GET', url.origin == location.origin ? url.pathname + url.search + url.hash : url.href,
+            {source: first, target: first, swap: 'none', lazyBatch: batch, headers: {'YPY-Lazy-Group': name}})
+            .catch(error => failAll(batch, {error}))
+            .then(() => failAll(batch, {error: new Error('ypy-lazy: no partial for the region')}, true));
+    }
+
+    // the regions of a batch the answer did not reach (missing: only the ones with no partial)
+    function failAll(batch, detail, missing) {
+        for (let x of batch.elts) {
+            if (!(missing && batch.hit.has(x)) && !x.dataset.ypyState?.includes('error')) fail(x, detail);
+        }
     }
 
     function fail(elt, detail) {
@@ -96,14 +148,25 @@
 
         ypy_before_cleanup: elt => { if (elt._ypy?.lazy) io?.unobserve(elt) },
 
+        // the partials of a group answer: a partial that names no swap replaces its region, and every
+        // region that got one is marked as reached
+        ypy_before_swap: (elt, {ctx, tasks}) => {
+            let batch = ctx.lazyBatch;
+            for (let task of batch ? tasks : []) {
+                if (!batch.elts.includes(task.target)) continue;
+                batch.hit.add(task.target);
+                if (task.swapSpec.default) task.swapSpec = {...task.swapSpec, style: (api.attr(task.target, 'ypy-swap') || 'outerHTML').split(/\s/)[0]};
+            }
+        },
+
         // a failed region shows its own error content: the body of the error response is not swapped
         // in, unless the element chose a destination with ypy-error-swap
         ypy_response_error: (elt, {ctx}) => {
             if (elt._ypy?.lazy && api.attributeValue(elt, 'ypy-error-swap') == null) ctx.swap = 'none';
-            fail(elt, {ctx});
+            ctx.lazyBatch ? failAll(ctx.lazyBatch, {ctx}) : fail(elt, {ctx});
         },
 
-        ypy_error: (elt, detail) => fail(elt, detail)
+        ypy_error: (elt, detail) => detail.ctx?.lazyBatch ? failAll(detail.ctx.lazyBatch, detail) : fail(elt, detail)
     });
 
 })();

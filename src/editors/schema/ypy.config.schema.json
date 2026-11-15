@@ -188,6 +188,40 @@
       },
       "type": "object"
     },
+    "commands": {
+      "additionalProperties": false,
+      "description": "Settings of the `YPY-Commands` header. Requires the `ypy-commands` extension.",
+      "markdownDescription": "Settings of the `YPY-Commands` header. Requires the `ypy-commands` extension.",
+      "properties": {
+        "max": {
+          "default": 100,
+          "description": "Most commands a `YPY-Commands` list may hold; a longer list is ignored as a whole. Requires the `ypy-commands` extension.",
+          "markdownDescription": "Most commands a `YPY-Commands` list may hold; a longer list is ignored as a whole. Requires the `ypy-commands` extension.",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "dedupe": {
+      "additionalProperties": false,
+      "description": "Settings of the sharing of identical GET requests. Requires the `ypy-dedupe` extension.",
+      "markdownDescription": "Settings of the sharing of identical GET requests. Requires the `ypy-dedupe` extension.",
+      "properties": {
+        "ignore": {
+          "default": [
+            "YPY-Source"
+          ],
+          "description": "Names of the request headers that do not make two requests different (compared without regard to case). Every other header must be equal for the requests to be shared. Requires the `ypy-dedupe` extension.",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Names of the request headers that do not make two requests different (compared without regard to case). Every other header must be equal for the requests to be shared. Requires the `ypy-dedupe` extension.",
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "defaultFocusScroll": {
       "default": false,
       "description": "Scrolls the focused element into view after each swap.",
@@ -296,6 +330,19 @@
           "description": "Turn the cache off without unloading the extension. Requires the `ypy-history-cache` extension.",
           "markdownDescription": "Turn the cache off without unloading the extension. Requires the `ypy-history-cache` extension.",
           "type": "boolean"
+        },
+        "encrypt": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "memory"
+            }
+          ],
+          "default": false,
+          "description": "Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM, a key made for the session). `true` keeps the key in `sessionStorage`, so the pages survive a reload; `\"memory\"` keeps it in memory only, so after a reload the old pages are not readable. Without WebCrypto nothing is stored. `ypy.history.clear()` replaces the key. Requires the `ypy-history-cache` extension.",
+          "markdownDescription": "Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM, a key made for the session). `true` keeps the key in `sessionStorage`, so the pages survive a reload; `\"memory\"` keeps it in memory only, so after a reload the old pages are not readable. Without WebCrypto nothing is stored. `ypy.history.clear()` replaces the key. Requires the `ypy-history-cache` extension."
         },
         "refreshOnMiss": {
           "default": false,
@@ -452,6 +499,15 @@
           "description": "How far outside the window a region is loaded, as a CSS margin. Requires the `ypy-lazy` extension.",
           "markdownDescription": "How far outside the window a region is loaded, as a CSS margin. Requires the `ypy-lazy` extension.",
           "type": "string"
+        },
+        "window": {
+          "default": 50,
+          "description": "How long a region of a group waits for the others to come into view before the group is requested, in milliseconds or as a time such as `\"50ms\"`. Requires the `ypy-lazy` extension.",
+          "markdownDescription": "How long a region of a group waits for the others to come into view before the group is requested, in milliseconds or as a time such as `\"50ms\"`. Requires the `ypy-lazy` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
         }
       },
       "type": "object"
@@ -874,6 +930,47 @@
       "description": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.",
       "markdownDescription": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.",
       "type": "boolean"
+    },
+    "sort": {
+      "additionalProperties": false,
+      "description": "Settings of sortable lists. Requires the `ypy-sort` extension.",
+      "markdownDescription": "Settings of sortable lists. Requires the `ypy-sort` extension.",
+      "properties": {
+        "messages": {
+          "additionalProperties": false,
+          "description": "What the live region says while a list is sorted with the keyboard: `grab`, `move`, `drop`, `cancel` and `revert`, each a text where `{position}` and `{total}` are replaced. A message that is not set is not said. Requires the `ypy-sort` extension.",
+          "markdownDescription": "What the live region says while a list is sorted with the keyboard: `grab`, `move`, `drop`, `cancel` and `revert`, each a text where `{position}` and `{total}` are replaced. A message that is not set is not said. Requires the `ypy-sort` extension.",
+          "properties": {
+            "cancel": {
+              "description": "What is said when a pick up is cancelled with Escape; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when a pick up is cancelled with Escape; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "drop": {
+              "description": "What is said when an item is put down; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when an item is put down; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "grab": {
+              "description": "What is said when a list item is picked up; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when a list item is picked up; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "move": {
+              "description": "What is said when a picked up item is moved; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when a picked up item is moved; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "revert": {
+              "description": "What is said when the list is put back after a refusal; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when the list is put back after a refusal; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
     },
     "sse": {
       "additionalProperties": false,

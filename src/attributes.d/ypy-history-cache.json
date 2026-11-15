@@ -10,7 +10,8 @@
           "name": "false",
           "description": "Do not cache this page."
         }
-      ]
+      ],
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     }
   ],
   "events": [
@@ -22,7 +23,8 @@
         "head": "string"
       },
       "cancelable": true,
-      "target": "document"
+      "target": "document",
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     },
     {
       "name": "ypy:history:cache:after:save",
@@ -34,7 +36,8 @@
         "title": "string"
       },
       "cancelable": false,
-      "target": "document"
+      "target": "document",
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     },
     {
       "name": "ypy:history:cache:before:restore",
@@ -44,7 +47,8 @@
         "ready": "Promise<void> | null"
       },
       "cancelable": false,
-      "target": "document"
+      "target": "document",
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     },
     {
       "name": "ypy:history:cache:after:restore",
@@ -55,7 +59,8 @@
         "item": "YpyHistoryCacheItem"
       },
       "cancelable": false,
-      "target": "document"
+      "target": "document",
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     },
     {
       "name": "ypy:history:cache:hit",
@@ -65,7 +70,8 @@
         "item": "YpyHistoryCacheItem"
       },
       "cancelable": true,
-      "target": "document"
+      "target": "document",
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     },
     {
       "name": "ypy:history:cache:miss",
@@ -75,7 +81,8 @@
         "refreshOnMiss": "boolean"
       },
       "cancelable": false,
-      "target": "document"
+      "target": "document",
+      "doc": "https://ypy.dev/docs/reference/history-cache"
     }
   ],
   "config": [
@@ -118,6 +125,21 @@
         "type": "string"
       },
       "default": "outerSync"
+    },
+    {
+      "name": "historyCache.encrypt",
+      "description": "Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM, a key made for the session). `true` keeps the key in `sessionStorage`, so the pages survive a reload; `\"memory\"` keeps it in memory only, so after a reload the old pages are not readable. Without WebCrypto nothing is stored. `ypy.history.clear()` replaces the key.",
+      "schema": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "const": "memory"
+          }
+        ]
+      },
+      "default": false
     }
   ],
   "internalNames": [
@@ -129,6 +151,7 @@
     "data-ypy-history-scroll",
     "ypy-history-value",
     "ypy-history-checked",
-    "ypy-history-scroll"
+    "ypy-history-scroll",
+    "ypy-history-key"
   ]
 }

@@ -6411,9 +6411,36 @@ ypy.config.historyCache ??= { disable: true };
     });
 })();
 // SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-history-cache.js
+//
+// Pages kept in sessionStorage for back and forward (see historyCache in the configuration).
+//
+// historyCache.encrypt seals the snapshots with WebCrypto (AES-GCM, a 256 bit key made for the
+// session, a new IV for each snapshot, the snapshot id as additional data), so what a page showed
+// is not readable in the storage of the browser:
+//
+//   ypy.config.historyCache = {encrypt: true}       // the key is kept in sessionStorage: the
+//                                                   // snapshots survive a reload of the tab
+//   ypy.config.historyCache = {encrypt: 'memory'}   // the key lives in memory only: after a reload
+//                                                   // the old snapshots can not be read and the
+//                                                   // pages come from the server
+//
+// ypy.history.clear() forgets every snapshot and also replaces the key. Without WebCrypto (a page
+// that is not a secure context) nothing is stored: a snapshot is never written in the clear when
+// encryption was asked for. The key is as safe as the page itself: a script of the page can read
+// it, so this protects the storage at rest, not the page from its own scripts. Sealing is
+// asynchronous, so ypy:history:cache:after:save fires when the snapshot is stored. A restore of a
+// sealed snapshot is asynchronous as well: if a ypy:history:cache:hit listener cancels it, or the
+// snapshot can not be opened, the page is reloaded instead of requested.
+//==========================================================
 (() => {
     let api;
     let _currentId = null;
+    let _raw = null;        // the key of the session, base64
+    let _sealKey = null;    // {raw, key: Promise<CryptoKey>}
+    let _gen = 0;           // grows when the key is replaced: a snapshot sealed before is dropped
+    const KEY_NAME = 'ypy-history-key';
 
     const INDEX_KEY = 'ypy-history-index';
 
@@ -6534,13 +6561,11 @@ ypy.config.historyCache ??= { disable: true };
         sessionStorage.setItem(INDEX_KEY, JSON.stringify(index));
     }
 
-    function saveToStorage(ypyId, entry) {
-        if (!canUseStorage() || cfg().size <= 0) return false;
+    function store(ypyId, data) {
         let index = readIndex().filter(id => id !== ypyId);
         while (index.length >= cfg().size) {
             sessionStorage.removeItem('ypy-history-' + index.shift());
         }
-        let data = JSON.stringify(entry);
         while (true) {
             try {
                 sessionStorage.setItem('ypy-history-' + ypyId, data);
@@ -6552,6 +6577,57 @@ ypy.config.historyCache ??= { disable: true };
                 sessionStorage.removeItem('ypy-history-' + index.shift());
             }
         }
+    }
+
+    // --- encryption (historyCache.encrypt) ---
+
+    const b64 = bytes => btoa(String.fromCharCode(...bytes));
+    const unb64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+    const encrypting = () => cfg().encrypt ? cfg().encrypt === 'memory' ? 'memory' : 'session' : null;
+
+    // the key of the session, made when `create` says so; the one in sessionStorage survives a reload
+    function rawKey(create) {
+        if (!_raw && encrypting() === 'session') try { _raw = sessionStorage.getItem(KEY_NAME); } catch (_) { /* no storage */ }
+        if (!_raw && create) {
+            _raw = b64(crypto.getRandomValues(new Uint8Array(32)));
+            if (encrypting() === 'session') try { sessionStorage.setItem(KEY_NAME, _raw); } catch (_) { /* memory only */ }
+        }
+        return _raw;
+    }
+
+    function cryptoKey(create) {
+        let raw = rawKey(create);
+        if (!raw) return null;
+        if (_sealKey?.raw !== raw) {
+            _sealKey = {raw, key: crypto.subtle.importKey('raw', unb64(raw), 'AES-GCM', false, ['encrypt', 'decrypt'])};
+        }
+        return _sealKey.key;
+    }
+
+    async function seal(ypyId, entry) {
+        let iv = crypto.getRandomValues(new Uint8Array(12));
+        let data = await crypto.subtle.encrypt({name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(ypyId)},
+            await cryptoKey(true), new TextEncoder().encode(JSON.stringify(entry)));
+        return JSON.stringify({enc: 1, iv: b64(iv), data: b64(new Uint8Array(data))});
+    }
+
+    async function open(ypyId, record) {
+        let data = await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(record.iv), additionalData: new TextEncoder().encode(ypyId)},
+            await cryptoKey(false), unb64(record.data));
+        return JSON.parse(new TextDecoder().decode(data));
+    }
+
+    // Stores a snapshot. Returns true, or false when it could not be stored; with encryption it
+    // returns the promise of that, so the caller can wait for the snapshot to be there.
+    function saveToStorage(ypyId, entry) {
+        if (!canUseStorage() || cfg().size <= 0) return false;
+        if (!encrypting()) return store(ypyId, JSON.stringify(entry));
+        if (!crypto?.subtle) {
+            console.warn('ypy-history-cache: encrypt needs WebCrypto (a secure context); the page is not cached');
+            return false;
+        }
+        let gen = _gen;
+        return seal(ypyId, entry).then(data => gen === _gen && store(ypyId, data), () => false);
     }
 
     function getFromStorage(ypyId) {
@@ -6577,8 +6653,9 @@ ypy.config.historyCache ??= { disable: true };
         let content = cleanContent(target);
         head = detail.head;
 
-        saveToStorage(targetId, { content, head, scroll, title });
-        api.triggerEvent(document, 'ypy:history:cache:after:save', { content, head, scroll, title });
+        let saved = saveToStorage(targetId, { content, head, scroll, title });
+        let announce = () => api.triggerEvent(document, 'ypy:history:cache:after:save', { content, head, scroll, title });
+        saved instanceof Promise ? saved.then(announce) : announce();
     }
 
     function getCachedContent() {
@@ -6613,13 +6690,32 @@ ypy.config.historyCache ??= { disable: true };
         });
     }
 
-    // Forgets every snapshot of this tab (call it when the user signs out).
+    // Forgets every snapshot of this tab (call it when the user signs out). With encryption the key
+    // is replaced too, so a snapshot that was being sealed, or one that is left somewhere, is lost.
     function clearAll() {
+        _gen++;
+        _raw = _sealKey = null;
         try {
             for (let key of Object.keys(sessionStorage)) {
-                if (key === INDEX_KEY || key.startsWith('ypy-history-')) sessionStorage.removeItem(key);
+                if (key === INDEX_KEY || key.startsWith('ypy-history-')) sessionStorage.removeItem(key);   // the key too
             }
         } catch (_) { /* storage unavailable: nothing was stored */ }
+        if (encrypting() && crypto?.subtle) rawKey(true);   // the new key
+    }
+
+    // The restore of a sealed snapshot: the core was told to wait, so whatever goes wrong here is a reload.
+    async function restoreSealed(ypyId, record, path) {
+        let item;
+        try {
+            item = await open(ypyId, record);
+        } catch (_) {
+            sessionStorage.removeItem('ypy-history-' + ypyId);
+            api.triggerEvent(document, 'ypy:history:cache:miss', { path, refreshOnMiss: true });
+            return location.reload();
+        }
+        let hitDetail = { path, item };
+        if (api.triggerEvent(document, 'ypy:history:cache:hit', hitDetail) === false) return location.reload();
+        restoreFromCache(hitDetail.item);
     }
 
     ypy.registerExtension('ypy-history-cache', {
@@ -6631,6 +6727,7 @@ ypy.config.historyCache ??= { disable: true };
             ypy.config.historyCache.refreshOnMiss ??= false;
             ypy.config.historyCache.disable       ??= false;
             ypy.config.historyCache.swapStyle     ??= 'outerSync';
+            ypy.config.historyCache.encrypt       ??= false;
             // Only stamp if core already tagged this entry (YPY-navigated page).
             // If history.state is null this is a fresh/POST-result page - leave it
             // alone so F5 still triggers the browser's resubmit prompt.
@@ -6667,6 +6764,16 @@ ypy.config.historyCache ??= { disable: true };
             }
 
             let item = getCachedContent();
+            if (item?.enc) {
+                // sealed: it can only be opened without a key if there is one to open it
+                if (encrypting() && rawKey(false)) {
+                    detail.cancelled = true;
+                    restoreSealed(destinationId, item, detail.path);
+                    return false;
+                }
+                sessionStorage.removeItem('ypy-history-' + destinationId);
+                item = null;
+            }
             if (!item) {
                 let missDetail = { path: detail.path, refreshOnMiss: cfg().refreshOnMiss };
                 api.triggerEvent(document, 'ypy:history:cache:miss', missDetail);
@@ -8569,6 +8676,20 @@ ypy.config.historyCache ??= { disable: true };
 // names a <template> (or an element) whose content replaces the children. An element with
 // ypy-lazy-retry inside a failed region loads it again when clicked.
 //
+// Grouping. Several regions that come into view together can share one request:
+//
+//   <div id="sales"  ypy-lazy="/reports/sales"  ypy-lazy-group="reports">...</div>
+//   <div id="visits" ypy-lazy="/reports/visits" ypy-lazy-group="reports">...</div>
+//
+// Regions of the same group (the name) that enter the view within config.lazy.window (50 ms by
+// default) are loaded with one GET: the URL is ypy-lazy-group-url of the first region that has it, or
+// the ypy-lazy of the first region, plus ?group=<name>&id=<id>&id=<id> (the ids of the regions, in
+// the order they came into view) and the header YPY-Lazy-Group. The server answers with one
+// <ypy-partial id="sales">...</ypy-partial> per id; a partial with no ypy-swap replaces its region,
+// like an individual region does. A region the answer leaves out is an error, like a failed one. A
+// region without an id, or one that is alone in its window, loads on its own with its own URL, so
+// the individual mode needs nothing from the server.
+//
 // Elements that carry ypy:before:init gates (the nonce extension) are checked like any other
 // element YPY starts: an element that does not pass never loads. Only the public API and the
 // extension API are used.
@@ -8576,6 +8697,7 @@ ypy.config.historyCache ??= { disable: true };
 (() => {
 
     let api, io;
+    const groups = new Map();   // name -> {elts, timer}
     const sel = s => api.prefixSelector(s);
 
     // the content of a <template> or of an element, cloned; null when the attribute is absent or
@@ -8592,10 +8714,47 @@ ypy.config.historyCache ??= { disable: true };
     }
 
     function load(elt) {
+        let group = api.attr(elt, 'ypy-lazy-group');
+        if (!group || !elt.id) return single(elt);
+        let g = groups.get(group);
+        if (!g) groups.set(group, g = {elts: [], timer: setTimeout(() => flush(group), windowMs())});
+        if (!g.elts.includes(elt)) g.elts.push(elt);
+    }
+
+    function windowMs() {
+        let w = ypy.config.lazy?.window ?? 50;
+        return typeof w == 'number' ? w : parseFloat(w) * (/\ds$/.test(w) ? 1000 : 1) || 0;
+    }
+
+    function single(elt) {
         let swap = api.attr(elt, 'ypy-swap') ?? 'outerHTML';
         setState(elt, 'error');
         ypy.ajax('GET', api.attr(elt, 'ypy-lazy'), {source: elt, target: elt, swap})
             .catch(error => fail(elt, {error}));
+    }
+
+    function flush(name) {
+        let elts = groups.get(name).elts.filter(x => x.isConnected && x._ypy?.lazy);
+        groups.delete(name);
+        if (elts.length < 2) return elts.forEach(single);
+        let first = elts[0], url = new URL(elts.map(x => api.attr(x, 'ypy-lazy-group-url')).find(Boolean) ||
+            api.attr(first, 'ypy-lazy'), document.baseURI);
+        url.searchParams.set('group', name);
+        for (let x of elts) url.searchParams.append('id', x.id);
+        elts.forEach(x => setState(x, 'error'));
+        api.triggerEvent(first, 'ypy:lazy:group', {group: name, ids: elts.map(x => x.id), url: url.href});
+        let batch = {elts, hit: new Set()};
+        ypy.ajax('GET', url.origin == location.origin ? url.pathname + url.search + url.hash : url.href,
+            {source: first, target: first, swap: 'none', lazyBatch: batch, headers: {'YPY-Lazy-Group': name}})
+            .catch(error => failAll(batch, {error}))
+            .then(() => failAll(batch, {error: new Error('ypy-lazy: no partial for the region')}, true));
+    }
+
+    // the regions of a batch the answer did not reach (missing: only the ones with no partial)
+    function failAll(batch, detail, missing) {
+        for (let x of batch.elts) {
+            if (!(missing && batch.hit.has(x)) && !x.dataset.ypyState?.includes('error')) fail(x, detail);
+        }
     }
 
     function fail(elt, detail) {
@@ -8639,14 +8798,25 @@ ypy.config.historyCache ??= { disable: true };
 
         ypy_before_cleanup: elt => { if (elt._ypy?.lazy) io?.unobserve(elt) },
 
+        // the partials of a group answer: a partial that names no swap replaces its region, and every
+        // region that got one is marked as reached
+        ypy_before_swap: (elt, {ctx, tasks}) => {
+            let batch = ctx.lazyBatch;
+            for (let task of batch ? tasks : []) {
+                if (!batch.elts.includes(task.target)) continue;
+                batch.hit.add(task.target);
+                if (task.swapSpec.default) task.swapSpec = {...task.swapSpec, style: (api.attr(task.target, 'ypy-swap') || 'outerHTML').split(/\s/)[0]};
+            }
+        },
+
         // a failed region shows its own error content: the body of the error response is not swapped
         // in, unless the element chose a destination with ypy-error-swap
         ypy_response_error: (elt, {ctx}) => {
             if (elt._ypy?.lazy && api.attributeValue(elt, 'ypy-error-swap') == null) ctx.swap = 'none';
-            fail(elt, {ctx});
+            ctx.lazyBatch ? failAll(ctx.lazyBatch, {ctx}) : fail(elt, {ctx});
         },
 
-        ypy_error: (elt, detail) => fail(elt, detail)
+        ypy_error: (elt, detail) => detail.ctx?.lazyBatch ? failAll(detail.ctx.lazyBatch, detail) : fail(elt, detail)
     });
 
 })();
@@ -9922,6 +10092,336 @@ ypy.config.historyCache ??= { disable: true };
 
         // new content: its own parts, and the parts of the form it joined
         ypy_after_process: (elt) => { update(elt.closest?.('form') || elt) }
+    });
+
+})();
+// SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-commands.js
+//
+// Client commands from the server, in a response header, with no eval.
+//
+//   YPY-Commands: [{"type":"addClass","target":"#row-4","class":"saved"},
+//                  {"type":"focus","target":"#name"}]
+//
+// The value is a JSON list. Each command is an object with a "type" and a "target", a CSS
+// selector: the command acts on every element the selector matches, in document order. The
+// commands run in the order of the list, after the response was swapped (in the
+// ypy:finally:request of the request), so a target can be an element the response brought. A
+// response that is not swapped (204, an error) runs them too. Non-ASCII text has to be written as
+// \uXXXX in a header.
+//
+//   addClass, removeClass       {"class": "a b"}
+//   toggleClass                 {"class": "a b", "force": true}   (force is optional)
+//   setAttribute                {"name": "title", "value": "Saved"}
+//   removeAttribute             {"name": "title"}
+//   focus                       {}
+//   scrollIntoView              {"behavior": "smooth", "block": "center", "inline": "nearest"}
+//   remove                      {}
+//   dispatch                    {"event": "saved", "detail": {...}, "bubbles": true}
+//                               (the target is optional here: without it the event goes to document)
+//   show, hide                  {}   (they remove and set the hidden attribute: a rule of the
+//                                    page that forces a display wins over it)
+//
+// A command that is not in the list, or whose fields are not what the table says, or whose
+// selector is not valid, is not run: a console warning and ypy:commands:ignored on the source
+// element say why, and the next command runs. A command that targets nothing is skipped without
+// a warning (the element may be gone). setAttribute cannot write an event handler (on*), style,
+// srcdoc or an attribute of YPY itself, nor a javascript: URL: that would be code, and the
+// header must not be a way around the page's CSP. A list that is not valid JSON, or is longer
+// than config.commands.max (100), is ignored as a whole.
+//
+// Cancel ypy:before:command (it fires on the source element with {ctx, command, targets}) to skip
+// one command. ypy.commands.run(list, source) runs a list the same way, for code that gets its
+// commands elsewhere.
+//==========================================================
+(() => {
+
+    let api;
+
+    const str = v => typeof v == 'string' && v !== '';
+    const tokens = v => str(v) ? v.trim().split(/\s+/) : null;
+    // JavaScript hidden in an attribute value: whitespace and control characters are ignored by URL parsers
+    const script = v => /^[\x00-\x20]*(javascript|vbscript|data:text\/html)/i.test(String(v).replace(/[\t\n\r]/g, ''));
+    const isYpyName = n => /^(data-)?ypy-/i.test(n) || (ypy.config.prefix && n.toLowerCase().startsWith(ypy.config.prefix.toLowerCase()));
+
+    // takes an element out the way the core does for what it removes: its timers and listeners go with it
+    function drop(el) {
+        for (let e of [el, ...el.querySelectorAll('[data-ypy-powered]')]) {
+            if (!e._ypy) continue;
+            api.triggerEvent(e, 'ypy:before:cleanup', {}, false);
+            for (let s of e._ypy.triggerSpecs ?? []) {
+                clearInterval(s.interval);
+                clearTimeout(s.timeout);
+                s.observer?.disconnect();
+            }
+            for (let i of e._ypy.listeners ?? []) i.fromElt.removeEventListener(i.eventName, i.handler, i);
+        }
+        el.remove();
+    }
+
+    // the checks of the fields each command needs; they return the reason or nothing
+    const commands = {
+        addClass: {check: c => tokens(c.class) ? 0 : 'class', run: (e, c) => e.classList.add(...tokens(c.class))},
+        removeClass: {check: c => tokens(c.class) ? 0 : 'class', run: (e, c) => e.classList.remove(...tokens(c.class))},
+        toggleClass: {
+            check: c => tokens(c.class) ? c.force != null && typeof c.force != 'boolean' ? 'force' : 0 : 'class',
+            run: (e, c) => tokens(c.class).forEach(t => c.force == null ? e.classList.toggle(t) : e.classList.toggle(t, c.force))
+        },
+        setAttribute: {
+            check: c => !str(c.name) || /[\s"'<>\/=\x00]/.test(c.name) ? 'name' :
+                c.value != null && typeof c.value == 'object' ? 'value' :
+                /^(on|style$|srcdoc$)/i.test(c.name) || isYpyName(c.name) || script(c.value ?? '') ? 'blocked' : 0,
+            run: (e, c) => e.setAttribute(c.name, String(c.value ?? ''))
+        },
+        removeAttribute: {check: c => str(c.name) ? 0 : 'name', run: (e, c) => e.removeAttribute(c.name)},
+        focus: {check: () => 0, run: e => e.focus()},
+        scrollIntoView: {
+            check: c => ['behavior', 'block', 'inline'].some(k => c[k] != null && typeof c[k] != 'string') ? 'options' : 0,
+            run: (e, c) => e.scrollIntoView({behavior: c.behavior ?? 'auto', block: c.block ?? 'start', inline: c.inline ?? 'nearest'})
+        },
+        remove: {check: () => 0, run: drop},
+        dispatch: {
+            check: c => str(c.event) ? 0 : 'event',
+            run: (e, c) => e.dispatchEvent(new CustomEvent(c.event, {detail: c.detail, bubbles: c.bubbles !== false, cancelable: true}))
+        },
+        show: {check: () => 0, run: e => e.removeAttribute('hidden')},
+        hide: {check: () => 0, run: e => e.setAttribute('hidden', '')}
+    };
+
+    function ignore(source, command, reason) {
+        console.warn(`ypy-commands: ignored ${JSON.stringify(command)?.slice(0, 120)}: ${reason}`);
+        api.triggerEvent(source, 'ypy:commands:ignored', {command, reason});
+    }
+
+    function run(list, source, ctx) {
+        source = source?.isConnected ? source : document.body;
+        let max = ypy.config.commands?.max ?? 100;
+        if (typeof list == 'string') {
+            try { list = JSON.parse(list) } catch { return ignore(source, list, 'not valid JSON') }
+        }
+        if (!Array.isArray(list)) return ignore(source, list, 'not a list');
+        if (list.length > max) return ignore(source, `${list.length} commands`, `more than ${max}`);
+        for (let command of list) {
+            let known = command && typeof command == 'object' && Object.hasOwn(commands, command.type), spec = commands[command?.type];
+            let reason = known ? spec.check(command) : 0;
+            if (!known || reason) { ignore(source, command, !known ? 'unknown command' : reason == 'blocked' ? 'not allowed' : 'invalid ' + reason); continue }
+            let targets;
+            if (command.target == null && command.type == 'dispatch') {
+                targets = [document];
+            } else if (!str(command.target)) {
+                ignore(source, command, 'invalid target'); continue;
+            } else {
+                try { targets = [...document.querySelectorAll(command.target)] } catch { ignore(source, command, 'invalid target'); continue }
+            }
+            if (targets.length && api.triggerEvent(source, 'ypy:before:command', {ctx, command, targets}))
+                for (let elt of targets) spec.run(elt, command);
+        }
+    }
+
+    ypy.registerExtension('ypy-commands', {
+        init: a => {
+            api = a;
+            (ypy.commands ??= {}).run = (list, source) => run(list, source);
+        },
+
+        ypy_finally_request: (elt, {ctx}) => {
+            let header = ctx.ypy?.commands;
+            if (header && !ctx.commandsRun) { ctx.commandsRun = true; run(header, elt, ctx) }
+        }
+    });
+
+})();
+// SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-sort.js
+//
+// Drag and drop reordering of a list, with a keyboard, and the new order sent to the server.
+//
+//   <ul ypy-sort ypy-sort-url="/tasks/order">
+//     <li id="task-1">Write</li>
+//     <li id="task-2">Review</li>
+//     <li id="task-3">Ship</li>
+//   </ul>
+//
+// The items are the children of the container that have an id. They get draggable="true" and, when
+// they have none, tabindex="0" (also the items a later swap brings). While one is dragged it has
+// data-ypy-state="dragging"; the list moves as the pointer passes over the other items. The native
+// drag of the browser is used, so it needs no style and no script of the page.
+//
+// Keyboard, on a focused item: Space picks it up (data-ypy-state="grabbed"), ArrowUp and ArrowLeft
+// move it one place before, ArrowDown and ArrowRight one place after, Space puts it down, Escape puts
+// everything back. Without a picked up item the arrows move the focus between the items.
+//
+// When an item is dropped in a new place, ypy:sort:change fires on the container with {ids, item}
+// (cancel it to put the list back), and ypy-sort-url gets a POST: the field `id` once per item, in
+// the new order, plus whatever the container's ypy-vals and enclosing form carry. The request is
+// the usual one (indicators, ypy-confirm, ypy-headers, events); the response is not swapped
+// (out-of-band elements and partials in it are), and an answer of 400 or more, or a connection
+// that fails, puts the list back in the old order and fires ypy:sort:revert with {ids, reason}.
+// A container with no ypy-sort-url only reorders and fires ypy:sort:change. ypy-sort="false" leaves
+// the element to the page.
+//
+// config.sort.messages = {grab, move, drop, cancel, revert} are said in a live region when the
+// page sets them ("{position}" and "{total}" are replaced): the core has no text of its own.
+//==========================================================
+(() => {
+
+    let api, live;
+    const sel = s => api.prefixSelector(s);
+    const items = c => [...c.children].filter(x => x.id);
+    const ids = c => items(c).map(x => x.id);
+    const itemOf = (c, e) => { let i = e.target.closest?.('[id]'); while (i && i.parentNode !== c) i = i.parentNode?.closest?.('[id]'); return i };
+
+    // data-ypy-state holds space separated tokens; this sets or clears the one of the sort
+    function setState(elt, state) {
+        let tokens = (elt.dataset.ypyState || '').split(' ').filter(s => s && s != 'dragging' && s != 'grabbed');
+        if (state) tokens.push(state);
+        tokens[0] ? elt.dataset.ypyState = tokens.join(' ') : delete elt.dataset.ypyState;
+    }
+
+    function say(c, key, item) {
+        let text = ypy.config.sort?.messages?.[key];
+        if (!text) return;
+        if (!live?.isConnected) {
+            live = document.createElement('div');
+            live.setAttribute('role', 'status');
+            live.setAttribute('aria-live', 'polite');
+            // visually hidden with an adopted style sheet: no style attribute, so a strict CSP allows it
+            try {
+                let sheet = new CSSStyleSheet();
+                sheet.replaceSync('[data-ypy-sort-live]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}');
+                document.adoptedStyleSheets.push(sheet);
+            } catch {}
+            live.dataset.ypySortLive = '';
+            document.body.append(live);
+        }
+        let list = items(c);
+        live.textContent = text.replace('{position}', list.indexOf(item) + 1).replace('{total}', list.length);
+    }
+
+    function revert(c, snapshot, reason) {
+        let focused = c.contains(document.activeElement) ? document.activeElement : null;
+        c.replaceChildren(...snapshot);
+        focused?.focus();
+        api.triggerEvent(c, 'ypy:sort:revert', {ids: ids(c), reason});
+        say(c, 'revert', focused);
+    }
+
+    // the item was put down: tell the page, then the server
+    function commit(c, item, snapshot) {
+        let before = snapshot.filter(x => x.id).map(x => x.id), now = ids(c);
+        if (before.join('\n') == now.join('\n')) return;
+        if (!api.triggerEvent(c, 'ypy:sort:change', {ids: now, item})) return revert(c, snapshot, 'cancelled');
+        let url = api.attr(c, 'ypy-sort-url');
+        if (!url) return;
+        let done, back = () => { if (!done && c.isConnected) { done = 1; revert(c, snapshot, 'failed') } };
+        ypy.ajax('POST', url, {source: c, target: c, swap: 'none', sortIds: now, sortRevert: back}).catch(back);
+    }
+
+    function watch(c) {
+        if (c._ypy?.sort || c.closest(sel('[ypy-ignore]')) || api.attr(c, 'ypy-sort') == 'false' ||
+            !api.triggerEvent(c, 'ypy:before:init', {})) return;
+        let state = api.ypyProp(c), drag, grab;
+        state.sort = 1;
+        let tag = () => items(c).forEach(x => {
+            x.hasAttribute('draggable') || x.setAttribute('draggable', 'true');
+            x.hasAttribute('tabindex') || x.setAttribute('tabindex', '0');
+        });
+        tag();
+        (state.sortObserver = new MutationObserver(tag)).observe(c, {childList: true});
+        let on = (name, handler) => {
+            c.addEventListener(name, handler);
+            state.listeners.push({fromElt: c, eventName: name, handler});
+        };
+
+        on('dragstart', e => {
+            let item = itemOf(c, e);
+            if (!item || item !== e.target) return;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', item.id);   // Firefox does not start a drag without data
+            drag = {item, snapshot: [...c.childNodes]};
+            setState(item, 'dragging');
+        });
+        on('dragover', e => {
+            if (!drag) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            let over = itemOf(c, e), item = drag.item;
+            if (!over || over === item) return;
+            let a = item.getBoundingClientRect(), b = over.getBoundingClientRect();
+            // a row of items is crossed by x, a column by y
+            let after = Math.abs(a.top - b.top) < b.height / 2 ? e.clientX > b.left + b.width / 2 : e.clientY > b.top + b.height / 2;
+            if (after ? over.nextElementSibling !== item : over.previousElementSibling !== item) after ? over.after(item) : over.before(item);
+        });
+        on('drop', e => {
+            if (!drag) return;
+            e.preventDefault();
+            drag.dropped = true;
+        });
+        on('dragend', () => {
+            if (!drag) return;
+            let {item, snapshot, dropped} = drag;
+            drag = null;
+            setState(item, null);
+            dropped ? commit(c, item, snapshot) : revert(c, snapshot, 'cancelled');
+        });
+
+        on('keydown', e => {
+            let item = itemOf(c, e);
+            if (!item || item !== e.target || e.altKey || e.ctrlKey || e.metaKey) return;
+            let list = items(c), i = list.indexOf(item), step = {ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1}[e.key];
+            if (e.key == ' ') {
+                e.preventDefault();
+                if (!grab) {
+                    grab = {item, snapshot: [...c.childNodes]};
+                    setState(item, 'grabbed');
+                    say(c, 'grab', item);
+                } else {
+                    let {snapshot} = grab;
+                    grab = null;
+                    setState(item, null);
+                    say(c, 'drop', item);
+                    commit(c, item, snapshot);
+                }
+            } else if (e.key == 'Escape' && grab) {
+                e.preventDefault();
+                let {snapshot} = grab;
+                grab = null;
+                setState(item, null);
+                revert(c, snapshot, 'cancelled');
+                item.focus();
+                say(c, 'cancel', item);
+            } else if (step) {
+                e.preventDefault();
+                let next = list[i + step];
+                if (!next) return;
+                if (grab?.item == item) {
+                    step < 0 ? next.before(item) : next.after(item);
+                    item.focus();
+                    say(c, 'move', item);
+                } else {
+                    next.focus();
+                }
+            }
+        });
+    }
+
+    ypy.registerExtension('ypy-sort', {
+        init: a => { api = a },
+
+        ypy_after_process: root => {
+            for (let c of [...root.querySelectorAll?.(sel('[ypy-sort]')) ?? [], ...root.matches?.(sel('[ypy-sort]')) ? [root] : []]) watch(c);
+        },
+
+        ypy_before_cleanup: c => { c._ypy?.sortObserver?.disconnect() },
+
+        // the new order goes in the body: the field `id` once per item
+        ypy_config_request: (elt, {ctx}) => ctx.sortIds?.forEach(id => ctx.request.body.append('id', id)),
+
+        // the server said no, or never answered: the list goes back
+        ypy_response_error: (elt, {ctx}) => ctx.sortRevert?.(),
+        ypy_error: (elt, {ctx}) => { if (ctx?.errorKind || ctx && !ctx.response) ctx.sortRevert?.() }
     });
 
 })();

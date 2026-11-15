@@ -700,4 +700,140 @@ describe('ypy-history-cache extension', function () {
             ypy.config.prefix = '';
         }
     });
+
+    describe('encrypt', function () {
+        const KEY = 'ypy-history-key';
+        const lastId = () => readCache().at(-1);
+        const stored = () => Object.keys(sessionStorage).map(k => sessionStorage.getItem(k)).join('\n');
+
+        // leaves the page for /page2 and waits until the snapshot of the page it left is stored
+        async function leave() {
+            let cachedPath = location.pathname + location.search;
+            createProcessedHTML('<div ypy-history-elt><p>secret content</p></div><button ypy-get="/page2" ypy-push-url="/page2">go</button>');
+            historyElt = playground().querySelector('[ypy-history-elt]');
+            mockResponse('GET', '/page2', '<p>page 2</p>');
+            let saved = waitForEvent('ypy:history:cache:after:save', 500);
+            playground().querySelector('button').click();
+            await forRequest();
+            (await saved).should.not.equal(null);
+            return cachedPath;
+        }
+
+        async function back(cachedPath) {
+            history.replaceState({ ypy: true, ypyId: lastId() }, '', cachedPath);
+            historyElt.innerHTML = '<p>current page</p>';
+            let served = false;
+            mockResponse('GET', cachedPath, () => { served = true; return page('<p>server</p>'); });
+            await new Promise(resolve => {
+                document.addEventListener('ypy:history:cache:after:restore', resolve, { once: true });
+                restoreHistory(history.state, cachedPath);
+            });
+            return served;
+        }
+
+        beforeEach(() => { ypy.config.historyCache.encrypt = true; });
+
+        it('does not leave what the page showed readable in sessionStorage', async function () {
+            await leave();
+            let record = JSON.parse(sessionStorage.getItem('ypy-history-' + lastId()));
+            record.enc.should.equal(1);
+            record.iv.length.should.equal(16);   // 12 bytes
+            assert.isString(record.data);
+            stored().should.not.contain('secret content');
+            stored().should.not.contain('<p>');
+            atob(sessionStorage.getItem(KEY)).length.should.equal(32);
+        });
+
+        it('opens the snapshot on back and does not ask the server', async function () {
+            let path = await leave();
+            let served = await back(path);
+            served.should.equal(false);
+            historyElt.innerHTML.should.contain('secret content');
+        });
+
+        it('uses a new IV for every snapshot', async function () {
+            await leave();
+            let first = JSON.parse(sessionStorage.getItem('ypy-history-' + lastId())).iv;
+            let saved = waitForEvent('ypy:history:cache:after:save', 500);
+            mockResponse('GET', '/page3', '<p>page 3</p>');
+            ypy.ajax('GET', '/page3', { push: '/page3', swap: 'none' });
+            await saved;
+            let second = JSON.parse(sessionStorage.getItem('ypy-history-' + lastId())).iv;
+            second.should.not.equal(first);
+            history.replaceState({ ypy: true }, '', '/');
+        });
+
+        it("encrypt: 'memory' keeps the key out of sessionStorage", async function () {
+            ypy.config.historyCache.encrypt = 'memory';
+            let path = await leave();
+            assert.isNull(sessionStorage.getItem(KEY));
+            stored().should.not.contain('secret content');
+            let served = await back(path);
+            served.should.equal(false);
+            historyElt.innerHTML.should.contain('secret content');
+        });
+
+        it('ypy.history.clear() forgets the snapshots and replaces the key', async function () {
+            await leave();
+            let before = sessionStorage.getItem(KEY);
+            readCache().length.should.equal(1);
+            ypy.history.clear();
+            readCache().length.should.equal(0);
+            let after = sessionStorage.getItem(KEY);
+            assert.isString(after);
+            after.should.not.equal(before);
+            atob(after).length.should.equal(32);
+        });
+
+        it('clear() drops a snapshot that was still being sealed', async function () {
+            createProcessedHTML('<div ypy-history-elt><p>late</p></div><button ypy-get="/page2" ypy-push-url="/page2">go</button>');
+            mockResponse('GET', '/page2', '<p>page 2</p>');
+            // clear() runs right after the snapshot was taken, while it is being sealed
+            let clearSoon = () => queueMicrotask(() => ypy.history.clear());
+            document.addEventListener('ypy:history:cache:before:save', clearSoon, { once: true });
+            playground().querySelector('button').click();
+            await forRequest();
+            await ypy.timeout(60);
+            readCache().length.should.equal(0);
+            stored().should.not.contain('"enc"');
+        });
+
+        it('treats a sealed snapshot as a miss when encryption is off', async function () {
+            let path = await leave();
+            ypy.config.historyCache.encrypt = false;
+            historyElt.innerHTML = '<p>current page</p>';
+            history.replaceState({ ypy: true, ypyId: lastId() }, '', path);
+            let missed = waitForEvent('ypy:history:cache:miss', 500);
+            mockResponse('GET', path, page('<p>server</p>'));
+            restoreHistory(history.state, path);
+            (await missed).should.not.equal(null);
+            stored().should.not.contain('"enc"');
+        });
+
+        it('stores nothing, and says so, without WebCrypto', async function () {
+            let warnings = [], warn = console.warn;
+            console.warn = (...args) => warnings.push(args.join(' '));
+            Object.defineProperty(crypto, 'subtle', { value: undefined, configurable: true });
+            try {
+                createProcessedHTML('<div ypy-history-elt><p>secret content</p></div><button ypy-get="/page2" ypy-push-url="/page2">go</button>');
+                mockResponse('GET', '/page2', '<p>page 2</p>');
+                playground().querySelector('button').click();
+                await forRequest();
+                await ypy.timeout(20);
+            } finally {
+                delete crypto.subtle;
+                console.warn = warn;
+            }
+            readCache().length.should.equal(0);
+            stored().should.not.contain('secret content');
+            warnings.some(w => w.includes('ypy-history-cache')).should.equal(true);
+        });
+
+        it('keeps plain snapshots when encrypt is off', async function () {
+            ypy.config.historyCache.encrypt = false;
+            await leave();
+            stored().should.contain('secret content');
+            assert.isNull(sessionStorage.getItem(KEY));
+        });
+    });
 });

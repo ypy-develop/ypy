@@ -28,6 +28,20 @@
       "valueType": "boolean",
       "inherited": false,
       "doc": "https://ypy.dev/docs/reference/navigation"
+    },
+    {
+      "name": "ypy-lazy-group",
+      "description": "A group name for a lazy region. Regions of the same group that come into view within `lazy.window` load with one GET request, which asks for the `id` of each region and which the server answers with one `<ypy-partial id>` per region. A region without an `id`, or alone in its window, loads on its own.",
+      "valueType": "string",
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
+    },
+    {
+      "name": "ypy-lazy-group-url",
+      "description": "The URL of the group request, on any region of the group (the first region that has it wins). Without it the request goes to the `ypy-lazy` URL of the first region of the batch.",
+      "valueType": "url",
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
     }
   ],
   "events": [
@@ -40,6 +54,18 @@
       },
       "cancelable": false,
       "target": "element"
+    },
+    {
+      "name": "ypy:lazy:group",
+      "description": "Fires on the first region of a batch just before the group request is sent. `ids` lists the `id` of every region in it.",
+      "detail": {
+        "group": "string",
+        "ids": "string[]",
+        "url": "string"
+      },
+      "cancelable": false,
+      "target": "element",
+      "doc": "https://ypy.dev/docs/reference/navigation"
     }
   ],
   "config": [
@@ -57,6 +83,25 @@
         "type": "string"
       },
       "default": "200px"
+    },
+    {
+      "name": "lazy.window",
+      "description": "How long a region of a group waits for the others to come into view before the group is requested, in milliseconds or as a time such as `\"50ms\"`.",
+      "schema": {
+        "type": [
+          "number",
+          "string"
+        ]
+      },
+      "default": 50
+    }
+  ],
+  "headers": [
+    {
+      "name": "YPY-Lazy-Group",
+      "direction": "request",
+      "description": "The name of the group on the request that loads several lazy regions at once. The `id` of each region is in the query string, next to `group`.",
+      "value": "the group name"
     }
   ]
 }

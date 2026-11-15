@@ -744,6 +744,20 @@
       }
     },
     {
+      "name": "ypy-on::before:command",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:before:command` fires. Fires on the element that sent the request before one command of `YPY-Commands` runs. `targets` are the elements the selector matched. Cancel it to skip that command."
+      }
+    },
+    {
+      "name": "ypy-on::commands:ignored",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:commands:ignored` fires. Fires on the element that sent the request when a command, or the whole list, of `YPY-Commands` was not run: unknown type, an invalid field, an invalid selector, a blocked attribute (an event handler, `style`, `srcdoc`, an attribute of YPY or a `javascript:` URL), a list that is not JSON or is longer than `commands.max`. A console warning says the same."
+      }
+    },
+    {
       "name": "ypy-on::security:strip",
       "description": {
         "kind": "markdown",
@@ -762,6 +776,13 @@
       "description": {
         "kind": "markdown",
         "value": "Runs the JavaScript when `ypy:csrf:missing` fires. An unsafe (not GET or HEAD) request to the page's own origin is about to leave without a CSRF token: the `ypy-csrf` meta tag is missing or empty. Cancel it to silence the console warning, which is shown once per URL. The request is still sent."
+      }
+    },
+    {
+      "name": "ypy-on::dedupe:joined",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:dedupe:joined` fires. Fires on the source element when its GET request joined an identical request that was already in flight, so only one request goes to the network. `waiters` counts the requests that wait for it, this one included."
       }
     },
     {
@@ -905,6 +926,13 @@
       }
     },
     {
+      "name": "ypy-on::lazy:group",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:lazy:group` fires. Fires on the first region of a batch just before the group request is sent. `ids` lists the `id` of every region in it."
+      }
+    },
+    {
       "name": "ypy-on::list:pruned",
       "description": {
         "kind": "markdown",
@@ -1021,6 +1049,20 @@
       "description": {
         "kind": "markdown",
         "value": "Runs the JavaScript when `ypy:signals:error` fires. Fires when an expression did not parse, a handler or effect threw, or a patch was not usable. The attribute that failed does nothing and the rest of the page keeps working."
+      }
+    },
+    {
+      "name": "ypy-on::sort:change",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:sort:change` fires. Fires on the container when an item was put down in a new place, before the order is sent. Cancel it to put the list back."
+      }
+    },
+    {
+      "name": "ypy-on::sort:revert",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:sort:revert` fires. Fires on the container after the list was put back in its old order: the change was cancelled, the server refused it or did not answer, or the drag was abandoned."
       }
     },
     {
@@ -1743,6 +1785,22 @@
       }
     },
     {
+      "name": "ypy-dedupe",
+      "description": {
+        "kind": "markdown",
+        "value": "Set to `false` on an element to keep its GET requests out of the sharing of identical requests that are in flight. Write `ypy-dedupe:inherited=\"false\"` on a container to do it for everything inside.\n\nRequires the `ypy-dedupe` extension.\n\n**Values**\n\n- `false`: This element's requests are never shared.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-dedupe:inherited`) to apply this attribute to YPY requests in child elements."
+      },
+      "values": [
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "This element's requests are never shared."
+          }
+        }
+      ]
+    },
+    {
       "name": "ypy-head",
       "description": {
         "kind": "markdown",
@@ -1991,6 +2049,20 @@
           "name": "false"
         }
       ]
+    },
+    {
+      "name": "ypy-lazy-group",
+      "description": {
+        "kind": "markdown",
+        "value": "A group name for a lazy region. Regions of the same group that come into view within `lazy.window` load with one GET request, which asks for the `id` of each region and which the server answers with one `<ypy-partial id>` per region. A region without an `id`, or alone in its window, loads on its own.\n\nRequires the `ypy-lazy` extension."
+      }
+    },
+    {
+      "name": "ypy-lazy-group-url",
+      "description": {
+        "kind": "markdown",
+        "value": "The URL of the group request, on any region of the group (the first region that has it wins). Without it the request goes to the `ypy-lazy` URL of the first region of the batch.\n\nRequires the `ypy-lazy` extension."
+      }
     },
     {
       "name": "ypy-live",
@@ -2392,6 +2464,29 @@
           }
         }
       ]
+    },
+    {
+      "name": "ypy-sort",
+      "description": {
+        "kind": "markdown",
+        "value": "On a list container: its children that have an `id` can be reordered by dragging them, or with the keyboard (Space picks an item up and puts it down, the arrow keys move it, Escape puts everything back). `false` leaves the container to the page.\n\nRequires the `ypy-sort` extension.\n\n**Values**\n\n- `false`: The extension does not touch this container."
+      },
+      "values": [
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "The extension does not touch this container."
+          }
+        }
+      ]
+    },
+    {
+      "name": "ypy-sort-url",
+      "description": {
+        "kind": "markdown",
+        "value": "The URL that gets a POST when an item is dropped in a new place: the field `id` once per item, in the new order. An answer of 400 or more, or a connection that fails, puts the list back. Without it the list only reorders.\n\nRequires the `ypy-sort` extension."
+      }
     },
     {
       "name": "ypy-sse:connect",
