@@ -124,6 +124,11 @@ describe('ypy-nav extension: focus, current link and ypy-once', function () {
     describe('the current link', function () {
 
         const here = () => location.pathname + location.search;
+        // the tests push URLs: put the page's own URL back, so a later popstate never lands on a
+        // URL ypy wrote (it would restore it, which reloads the test page)
+        let original;
+        before(function () { original = location.href; });
+        afterEach(function () { history.replaceState(history.state, '', original); });
         const nav = () => render(`<nav id="nav">
             <a id="here" href="${here()}">here</a>
             <a id="other" href="/elsewhere">other</a>
