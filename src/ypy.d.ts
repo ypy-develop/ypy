@@ -577,7 +577,11 @@ export interface YpyEventMap extends YpyNativeEventMap {
   'ypy:before:swap': { ctx: YpyRequestCtx; tasks: any[] };
 
   /**
-   * Fires after new content has been swapped into the DOM, before elements are processed.
+   * Fires once per swap, after every task of the response inserted its content, settled it
+   * (`ypy:after:settle` fired for each task) and processed it. So the order is
+   * `ypy:before:swap`, then per task `ypy:before:settle`, `ypy:after:settle`, `ypy:after:process`,
+   * then `ypy:after:swap`, then `ypy:finally:swap`. A listener that clears state in
+   * `ypy:after:settle` has done it by the time this event fires.
    */
   'ypy:after:swap': { ctx: YpyRequestCtx };
 
@@ -594,19 +598,27 @@ export interface YpyEventMap extends YpyNativeEventMap {
   'ypy:before:settle': { task: any; newContent: ChildNode[]; settleTasks: any[] };
 
   /**
-   * Fires after the settle phase completes, including all CSS transitions.
-   * The DOM is fully stable at this point.
+   * Fires after the settle phase of one task completes, including all CSS transitions, once per
+   * swapped target (the main swap, each out-of-band element, each partial). It fires before the
+   * new content is processed and before `ypy:after:swap`, which fires once for the whole swap.
+   * The DOM is stable at this point.
    */
   'ypy:after:settle': { task: any; newContent: ChildNode[]; settleTasks: any[] };
 
   /**
    * Fires before YPY removes listeners and internal data from an element.
    * Fires before element removal during a swap or before re-processing.
+   *
+   * It reaches only elements YPY processed, that is, elements with a `ypy-*` or `data-ypy-*`
+   * attribute. An element without one (for example one with only a `data-widget` attribute) gets
+   * no event when a swap removes it: observe the document with a `MutationObserver` and read
+   * `removedNodes` for those.
    */
   'ypy:before:cleanup': Record<string, never>;
 
   /**
-   * Fires after YPY has removed all listeners and internal data from an element.
+   * Fires after YPY has removed all listeners and internal data from an element. Like
+   * `ypy:before:cleanup`, it reaches only elements YPY processed.
    */
   'ypy:after:cleanup': Record<string, never>;
 

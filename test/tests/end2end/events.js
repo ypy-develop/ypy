@@ -158,5 +158,42 @@ describe('ypy events', function() {
         assert.deepEqual(showMessageDetail, { level: 'success' })
     })
 
+    // The order a listener can rely on: settle belongs to each task, so it fires for every task
+    // before the single ypy:after:swap of the whole swap. See guides/events.md.
+    it('ypy:after:settle of every task fires before ypy:after:swap', async function () {
+        mockResponse('GET', '/test', '<div id="main-out">main</div><div id="oob-out" ypy-swap-oob="true">oob</div>')
+        let div = createProcessedHTML('<div ypy-get="/test" ypy-target="#main-out" ypy-swap="outerHTML"></div>' +
+            '<div id="main-out"></div><div id="oob-out"></div>')
+        let seen = []
+        let names = ['ypy:before:swap', 'ypy:before:settle', 'ypy:after:settle', 'ypy:after:swap', 'ypy:finally:swap', 'ypy:finally:request']
+        let listeners = names.map(name => [name, () => seen.push(name)])
+        for (let [name, fn] of listeners) document.addEventListener(name, fn)
+        div.click()
+        await forRequest()
+        for (let [name, fn] of listeners) document.removeEventListener(name, fn)
+        let order = seen.filter(name => names.includes(name))
+        assert.equal(order.filter(n => n === 'ypy:after:swap').length, 1)
+        assert.equal(order.filter(n => n === 'ypy:after:settle').length, 2)
+        assert.deepEqual([...new Set(order)], names)
+        assert.isBelow(order.lastIndexOf('ypy:after:settle'), order.indexOf('ypy:after:swap'))
+    })
+
+    // Documented in guides/events.md: only elements YPY processed (with a ypy-* attribute) get the event.
+    it('ypy:before:cleanup reaches a removed element with a ypy attribute and not one without', async function () {
+        mockResponse('GET', '/test', '<p>replaced</p>')
+        let box = createProcessedHTML('<div id="cleanup-box" ypy-get="/test" ypy-swap="innerHTML">' +
+            '<span id="plain" data-widget="x"></span><span id="powered" ypy-get="/other"></span></div>')
+        let plain = box.querySelector('#plain')
+        let powered = box.querySelector('#powered')
+        let cleaned = []
+        let record = (e) => cleaned.push(e.target)
+        document.addEventListener('ypy:before:cleanup', record)
+        box.click()
+        await forRequest()
+        document.removeEventListener('ypy:before:cleanup', record)
+        assert.include(cleaned, powered)
+        assert.notInclude(cleaned, plain)
+    })
+
     // TODO - verify shape of details in these events
 })
