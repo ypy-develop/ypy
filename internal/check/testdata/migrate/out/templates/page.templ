@@ -2,5 +2,5 @@ package views
 
 templ Page(p Props) {
 	<button ypy-get={ p.URL } ypy-target="#out" ypy-swap="outerHTML">x</button>
-	<div ypy-trigger={ "ypy:load" } data-ypy-boost="true"></div>
+	<div ypy-trigger={ "ypy:after:process" } data-ypy-boost="true"></div>
 }

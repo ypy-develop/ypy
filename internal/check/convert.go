@@ -117,6 +117,11 @@ type fileConv struct {
 	strLit bool
 	// external collects the script tags with a URL it cannot rewrite.
 	external []edit
+	// strict marks server code that is no template (Go, Python, Ruby...): a name inside one of its
+	// strings is converted only where an attribute, a selector or a class belongs.
+	strict bool
+	// noEquiv collects the events of the legacy markup that YPY has no equivalent for.
+	noEquiv []edit
 }
 
 func (f *fileConv) add(start, end int, repl, kind string) {
@@ -180,9 +185,11 @@ func (f *fileConv) kebab(lo, hi int, anywhere bool) {
 		}
 		rest := core[dataLen:]
 		low := strings.ToLower(rest)
+		// in a string of server code a name is converted only in an attribute context
+		inContext := !f.strict || !f.strLit || attributeContext(text, start, start+len(core))
 
 		// attributes of the old extensions that carry no prefix
-		if to, ok := legacyUnprefixed[low]; ok && (prev == '[' || quotedExact || next == '=' || anywhere) {
+		if to, ok := legacyUnprefixed[low]; ok && inContext && (prev == '[' || quotedExact || next == '=' || anywhere) {
 			if prev == '[' && strings.Contains(to, ":") {
 				// the colon of ypy-sse:connect is escaped in a selector (and the backslash again in a string)
 				esc := `\:`
@@ -211,12 +218,9 @@ func (f *fileConv) kebab(lo, hi int, anywhere bool) {
 			case containsFold(c.attrP, wl) && name != "" && isLetter(name[0]):
 				after := text[end:]
 				script := strings.HasPrefix(after, ".js") || strings.HasPrefix(after, ".min.js") || strings.HasPrefix(after, ".mjs")
-				if knownAttr(name) || script {
+				if (knownAttr(name) && inContext) || script {
 					f.add(start+dataLen, start+dataLen+len(word), "ypy", kAttribute)
-					if m := reOnID.FindStringSubmatchIndex(strings.ToLower(name)); m != nil && containsFold(c.ids, name[m[2]:m[3]]) {
-						off := start + dataLen + len(word) + 1
-						f.add(off+m[2], off+m[3], "ypy", kEvent)
-					}
+					f.onEvent(name, start+dataLen+len(word)+1)
 					return
 				}
 				if dataLen == 0 && containsFold(c.hdrP, wl) && headerStemSet[strings.ToLower(nameBase)] {
@@ -227,7 +231,7 @@ func (f *fileConv) kebab(lo, hi int, anywhere bool) {
 				f.add(start, start+len(word), "ypy", kHeader)
 				return
 			}
-			if dataLen == 0 && containsFold(c.ids, wl) && word == wl {
+			if dataLen == 0 && containsFold(c.ids, wl) && word == wl && inContext {
 				switch {
 				case c.suffix[name]:
 					f.add(start, start+len(word), "ypy", kClass)
@@ -256,8 +260,48 @@ func (f *fileConv) kebab(lo, hi int, anywhere bool) {
 	})
 }
 
-// events converts the event prefixes of a run: <id>:name, also in the middle of
-// a run (<p>-on:<id>:name).
+// legacyEvent looks up the event named by the start of name in the rule table. It returns the
+// entry and the length of the name it read.
+func (c *converter) legacyEvent(name string) (eventEntry, int, bool) {
+	if u := strings.IndexByte(name, '_'); u >= 0 {
+		name = name[:u]
+	}
+	// "xhr:loadstart" has a colon in its name: try two segments, then one
+	segs := strings.Split(name, ":")
+	for n := min(len(segs), 2); n >= 1; n-- {
+		cand := strings.Join(segs[:n], ":")
+		if cand == "" {
+			continue
+		}
+		if en, ok := c.e.rs.events[normalizeEvent(cand)]; ok && en.rule != nil && en.rule.Kind == "event" {
+			return en, len(cand), true
+		}
+	}
+	return eventEntry{}, 0, false
+}
+
+// nativeEvent returns the YPY event that replaces the legacy event written at the start of name
+// and the length of the name it read. known is false when the name is not a legacy event; equiv
+// is false when it is one that YPY has no equivalent for.
+func (c *converter) nativeEvent(name string) (native string, n int, known, equiv bool) {
+	en, n, found := c.legacyEvent(name)
+	if !found {
+		return "", 0, false, false
+	}
+	native = en.rule.Native
+	if i := strings.IndexByte(native, ' '); i >= 0 {
+		native = native[:i]
+	}
+	if !strings.HasPrefix(native, "ypy:") || strings.ContainsAny(native, "()<>") {
+		return "", n, true, false
+	}
+	return native, n, true, true
+}
+
+// events converts the event prefixes of a run: <id>:name, also in the middle of a run
+// (<p>-on:<id>:name). A name that the legacy markup spelled differently is written the way YPY
+// emits it (<id>:afterSwap becomes ypy:after:swap); a name with no equivalent is left alone. A
+// "ypy:" prefix in front of a legacy name (what an earlier migration wrote) is repaired.
 func (f *fileConv) events(run string, start int) {
 	if strings.IndexByte(run, ':') < 0 {
 		return
@@ -265,12 +309,49 @@ func (f *fileConv) events(run string, start int) {
 	pos := 0
 	for _, seg := range strings.Split(run, ":") {
 		segEnd := pos + len(seg)
-		if seg != "" && segEnd < len(run) && containsFold(f.c.ids, seg) && seg == strings.ToLower(seg) &&
-			segEnd+1 < len(run) && isLetter(run[segEnd+1]) {
-			f.add(start+pos, start+segEnd, "ypy", kEvent)
+		isID := seg != "" && containsFold(f.c.ids, seg) && seg == strings.ToLower(seg)
+		isYpy := seg == "ypy"
+		if (isID || isYpy) && segEnd+1 < len(run) && isLetter(run[segEnd+1]) {
+			name := run[segEnd+1:]
+			native, n, known, equiv := f.c.nativeEvent(name)
+			switch {
+			case known && equiv:
+				if native != "ypy:"+name[:n] {
+					f.add(start+pos, start+segEnd+1+n, native, kEvent)
+				}
+			case known:
+				f.noEquiv = append(f.noEquiv, edit{start + pos, start + segEnd + 1 + n, run[pos : segEnd+1+n], kEvent})
+			case isID:
+				f.add(start+pos, start+segEnd, "ypy", kEvent)
+			}
 		}
 		pos = segEnd + 1
 	}
+}
+
+// onEvent converts the event of an "on" attribute: tail is the attribute name after the prefix and
+// its hyphen ("on::after-swap", "on-bolt-after-swap"), found at text offset base.
+func (f *fileConv) onEvent(tail string, base int) {
+	low := strings.ToLower(tail)
+	if strings.HasPrefix(low, "on::") {
+		name := tail[4:]
+		if native, n, known, equiv := f.c.nativeEvent(name); known && equiv {
+			if short := strings.TrimPrefix(native, "ypy:"); short != name[:n] {
+				f.add(base+4, base+4+n, short, kEvent)
+			}
+		}
+		return
+	}
+	m := reOnID.FindStringSubmatchIndex(low)
+	if m == nil || !containsFold(f.c.ids, low[m[2]:m[3]]) {
+		return
+	}
+	if native, n, known, equiv := f.c.nativeEvent(tail[m[1]:]); known && equiv {
+		// on-<id>-after-swap becomes on::after:swap
+		f.add(base+2, base+m[1]+n, "::"+strings.TrimPrefix(native, "ypy:"), kEvent)
+		return
+	}
+	f.add(base+m[2], base+m[3], "ypy", kEvent)
 }
 
 var reOnID = regexp.MustCompile(`^on-([a-z][a-z0-9]*)-`)
@@ -722,11 +803,7 @@ func (f *fileConv) attribute(nd *node, a attr) {
 	default:
 		if cd := strings.IndexByte(rest, '-'); cd > 0 && cd+1 < len(rest) && isLetter(rest[cd+1]) && containsFold(c.attrP, rest[:cd]) {
 			f.add(a.offset+dataLen, a.offset+dataLen+cd, "ypy", kAttribute)
-			tail := strings.ToLower(rest[cd+1:])
-			if m := reOnID.FindStringSubmatchIndex(tail); m != nil && containsFold(c.ids, tail[m[2]:m[3]]) {
-				off := a.offset + dataLen + cd + 1
-				f.add(off+m[2], off+m[3], "ypy", kEvent)
-			}
+			f.onEvent(rest[cd+1:], a.offset+dataLen+cd+1)
 		}
 	}
 	f.events(name, a.offset)
@@ -801,7 +878,7 @@ func (f *fileConv) dropIntegrity(nd *node) {
 
 // convert returns the edits of one file, sorted and without overlaps.
 func (c *converter) convert(text, ext string, classes []string) (edits []edit, external []edit) {
-	f := &fileConv{c: c, text: text, goFile: ext == ".go" || ext == ".kyse.go"}
+	f := &fileConv{c: c, text: text, goFile: ext == ".go" || ext == ".kyse.go", strict: serverOnly(classes)}
 	if c.importRe != nil && c.importRe.MatchString(text) {
 		f.noGlobal = true
 	}

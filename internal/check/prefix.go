@@ -260,8 +260,56 @@ func urlLike(text string, v int) bool {
 	return false
 }
 
-// learnPrefixes gathers the attribute and header prefix evidence of one file.
-func learnPrefixes(text string, attr, hdr evidenceMap) {
+// reAttrCall is the call that takes an attribute name or a selector as its string argument:
+// setAttribute("x"), Attr("x", ...), querySelector("x"), classList.add("x").
+var reAttrCall = regexp.MustCompile(`(?:[A-Za-z]*Attr(?:ibute)?s?|querySelector(?:All)?|closest|matches|classList\.[a-z]+)\s*\(\s*$`)
+
+// reClassValue is the start of a class attribute value that is still open: class="a b
+var reClassValue = regexp.MustCompile(`(?i)\bclass(?:Name)?\s*=\s*\\?["'][^"']*$`)
+
+// attrCallContext reports whether the string literal that opens at quote is the name argument of
+// a call that reads or writes an attribute, a class or a selector.
+func attrCallContext(text string, quote int) bool {
+	if quote <= 0 || quote > len(text) {
+		return false
+	}
+	ls := strings.LastIndexByte(text[:quote], '\n') + 1
+	return reAttrCall.MatchString(text[ls:quote])
+}
+
+// attributeContext reports whether the name at text[start:end] is written where an attribute, a
+// selector or a class belongs: followed by "=", inside [ ], after the dot of a class selector, in
+// a class attribute, or alone in the string argument of a call that takes such a name. A plain
+// string of a server language ("moving-swap" as the name of a test database) is none of these.
+func attributeContext(text string, start, end int) bool {
+	k := end
+	for k < len(text) && (text[k] == ' ' || text[k] == '\t') {
+		k++
+	}
+	if k < len(text) && text[k] == '=' && (k+1 >= len(text) || text[k+1] != '=') {
+		return true
+	}
+	prev := byte(0)
+	if start > 0 {
+		prev = text[start-1]
+	}
+	if prev == '[' || prev == '.' {
+		return true
+	}
+	ls := strings.LastIndexByte(text[:start], '\n') + 1
+	if reClassValue.MatchString(text[ls:start]) {
+		return true
+	}
+	if (prev == '"' || prev == '\'' || prev == '`') && end < len(text) && text[end] == prev {
+		return attrCallContext(text, start-1)
+	}
+	return false
+}
+
+// learnPrefixes gathers the attribute and header prefix evidence of one file. In a strict file
+// (server code that is no template) a name needs an attribute context to count: a string such as
+// "moving-swap" is not evidence of a prefix.
+func learnPrefixes(text string, attr, hdr evidenceMap, strict bool) {
 	runs(text, func(run string, start int) {
 		end := start + len(run)
 		if run[0] == '-' || run[0] == ':' {
@@ -279,6 +327,9 @@ func learnPrefixes(text string, attr, hdr evidenceMap) {
 					prev = text[start-1]
 				}
 				ok := kind == '=' || (kind == ']' && prev == '[') || ((kind == '"' || kind == '\'' || kind == '`') && prev == kind)
+				if ok && strict && !attributeContext(text, start, end) {
+					ok = false
+				}
 				// a class (request, indicator, ...) is written like an attribute name in a quote
 				if ok && kind != '=' && classLike[stem] {
 					ok = false

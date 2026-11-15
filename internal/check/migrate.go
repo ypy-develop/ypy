@@ -74,7 +74,13 @@ type Leftover struct {
 const (
 	reasonProse    = "comment, prose or a context that is not recognized"
 	reasonExternal = "external script URL: serve the YPY build yourself or pass --script-src"
+	reasonString   = "a plain string of server code: not converted unless it is an attribute, a selector or a class; edit it by hand if it names one"
+	reasonNoEvent  = "no YPY event does what this legacy event did: handle it by hand"
+	reasonDetail   = "detail.elt does not exist in a YPY event: read evt.target"
 )
+
+// reDetailElt finds a read of the element in the detail of an event: evt.detail.elt, detail.elt.
+var reDetailElt = regexp.MustCompile(`\bdetail\s*(?:\?\.|\.)\s*elt\b|\{[^{}]*\belt\b[^{}]*\}\s*=\s*[A-Za-z_$][\w$]*\s*\.\s*detail\b`)
 
 // reExtensionFile is the name of a script of one of the official extensions
 // of the legacy markup written with any prefix (<prefix>-sse.js, <id>-ext-ws.min.js).
@@ -240,7 +246,21 @@ func (c *converter) leftovers(text, display, ext string, classes []string, exter
 		for t < len(text) && (isWordByte(text[t]) || text[t] == '-' || text[t] == ':') {
 			t++
 		}
-		out = append(out, Leftover{File: display, Line: line, Kind: kind, Text: clipText(text[s:t], 60), Reason: reasonProse})
+		reason := reasonProse
+		if serverOnly(classes) && (kind == kAttribute || kind == kClass || kind == kExtension || kind == kConfig) {
+			reason = reasonString
+		}
+		out = append(out, Leftover{File: display, Line: line, Kind: kind, Text: clipText(text[s:t], 60), Reason: reason})
+	}
+	for _, e := range f.noEquiv {
+		line, _ := loc.at(e.start)
+		out = append(out, Leftover{File: display, Line: line, Kind: kEvent, Text: clipText(e.repl, 60), Reason: reasonNoEvent})
+	}
+	if contains(classes, clsMarkup) || contains(classes, clsScript) {
+		for _, m := range reDetailElt.FindAllStringIndex(text, -1) {
+			line, _ := loc.at(m[0])
+			out = append(out, Leftover{File: display, Line: line, Kind: kEvent, Text: clipText(text[m[0]:m[1]], 60), Reason: reasonDetail})
+		}
 	}
 	for _, e := range external {
 		line, _ := loc.at(e.start)

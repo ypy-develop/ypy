@@ -271,6 +271,21 @@ func callOrAssign(text string, end int) (int, bool) {
 	return 0, false
 }
 
+// serverOnly reports whether a file is server code and no template, no script and no style: a
+// language where a string is a string, not markup.
+func serverOnly(classes []string) bool {
+	server := false
+	for _, c := range classes {
+		switch c {
+		case clsMarkup, clsScript, clsStyle:
+			return false
+		case clsServer:
+			server = true
+		}
+	}
+	return server
+}
+
 // learn gathers the identifier evidence of one file.
 func (rs *RuleSet) learn(text, ext string, classes []string, into *idSet) {
 	has := func(c string) bool {
@@ -282,7 +297,7 @@ func (rs *RuleSet) learn(text, ext string, classes []string, into *idSet) {
 		return false
 	}
 	code := has("markup") || has("script") || has("server")
-	learnPrefixes(text, into.attr, into.hdr)
+	learnPrefixes(text, into.attr, into.hdr, serverOnly(classes))
 	if !code && !has("style") {
 		return
 	}

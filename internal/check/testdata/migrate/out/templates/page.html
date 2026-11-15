@@ -12,15 +12,15 @@
     <!-- acme-get stays in a comment -->
     <p>Write acme-get to fetch, and read ACME-Request on the server.</p>
     <div id="out" ypy-target="#out" ypy-swap="innerHTML show:top"></div>
-    <button ypy-get="/items/1" ypy-trigger="click" class="btn ypy-indicator" ypy-on::after-swap="done()"
-        ypy-on:ypy:afterSwap="again()" data-ypy-vals='{"a": 1}' ypy-on-ypy-after-request="log()">Load</button>
+    <button ypy-get="/items/1" ypy-trigger="click" class="btn ypy-indicator" ypy-on::after:swap="done()"
+        ypy-on:ypy:after:swap="again()" data-ypy-vals='{"a": 1}' ypy-on::finally:request="log()">Load</button>
     <ypy-partial id="p">x</ypy-partial>
     <div ypy-sse:connect="/stream" ypy-sse-swap="message"></div>
-    <input type="search" ypy-get="/search" ypy-trigger="keyup changed delay:300ms, ypy:load from:body">
+    <input type="search" ypy-get="/search" ypy-trigger="keyup changed delay:300ms, ypy:after:process from:body">
     <video preload="auto"></video>
     <a href="/x" ypy-preload="mouseover">fast</a>
     <script>
-        document.body.addEventListener('ypy:afterSwap', fn);
+        document.body.addEventListener('ypy:after:swap', fn);
         ypy.addClass(el, 'on');
         ypy.config.historyCacheSize = 5;
         var headers = {"YPY-Request": "true"};

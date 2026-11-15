@@ -811,8 +811,8 @@
       },
       "signal": "v2",
       "what": "Legacy event {P}:afterRequest is renamed.",
-      "fix": "Listen to ypy:after:request (ypy:finally:request fires on failures too, as the old event did).",
-      "native": "ypy:after:request"
+      "fix": "Listen to ypy:finally:request (it fires on failures too, as the old event did; ypy:after:request fires before the swap).",
+      "native": "ypy:finally:request"
     },
     {
       "id": "V2-EVENT-AFTER-SETTLE",
