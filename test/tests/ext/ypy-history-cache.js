@@ -3,8 +3,10 @@ describe('ypy-history-cache extension', function () {
 
     let extBackup;
     let historyElt;
+    let writes;   // Safari refuses more than 100 history writes per 10 seconds: wait for room before a test
 
     before(async () => {
+        writes = trackHistoryWrites();
         extBackup = backupExtensions();
         clearExtensions();
         ypy.config.extensions = 'ypy-history-cache';
@@ -19,10 +21,13 @@ describe('ypy-history-cache extension', function () {
     });
 
     after(() => {
+        writes.stop();
         restoreExtensions(extBackup);
     });
 
-    beforeEach(() => {
+    beforeEach(async function () {
+        this.timeout(15000);   // the wait for room can take up to the 10 seconds of the window
+        await writes.room(20);
         setupTest();
         sessionStorage.clear();
         ypy.config.historyCache = { size: 10, refreshOnMiss: false, disable: false, swapStyle: 'outerSync' };

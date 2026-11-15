@@ -143,9 +143,12 @@
         sync();
         if (L.mode == 'popup' && L.source?.isConnected) L.source.classList.add(opener());
         if (L.history && L.url) {
-            if (!history.state?.ypy) history.replaceState({ypy: true}, '', location.href);
-            history.pushState({ypy: true, ypyLayer: d.id}, '', L.url);
-            L.pushed = true;
+            // a browser may refuse a write (Safari: 100 per 10 seconds): the layer then opens without its URL
+            try {
+                if (!history.state?.ypy) history.replaceState({ypy: true}, '', location.href);
+                history.pushState({ypy: true, ypyLayer: d.id}, '', L.url);
+                L.pushed = true;
+            } catch {}
         }
         focus(L);
         api.triggerEvent(d, 'ypy:layer:opened', {layer: L});
@@ -296,7 +299,7 @@
         }
         if (L.shown) {
             focus(L);
-            if (own && L.pushed && L.url) history.replaceState({ypy: true, ypyLayer: d.id}, '', L.url);
+            if (own && L.pushed && L.url) try { history.replaceState({ypy: true, ypyLayer: d.id}, '', L.url) } catch {}
         }
     }
 
