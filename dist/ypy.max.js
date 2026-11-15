@@ -4171,12 +4171,21 @@ ypy.config.historyCache ??= { disable: true };
         };
     }
 
-    // Cancels the reader of a connection. Cancelling one that was released is not an error here.
+    // Ends the response of a connection that is being restarted: cancels the reader, then aborts the
+    // request of that connection (each attempt has its own controller, so a later one is not touched).
+    // Firefox keeps the request open when only the reader is cancelled and the next one never leaves.
+    // The abort comes second so that the pending read ends with done, as it does in the other browsers.
+    // Cancelling a reader that was released is not an error here.
     function cancelReader(connection) {
         try {
             connection.reader?.cancel()?.catch?.(() => {});
         } catch (e) {
             // The reader is already gone
+        }
+        try {
+            if (connection.reader) connection.abortController?.abort();
+        } catch (e) {
+            // Nothing left to abort
         }
     }
 
@@ -4422,6 +4431,10 @@ ypy.config.historyCache ??= { disable: true };
                     // Re-fetch using saved request context (no full pipeline re-run)
                     let ac = new AbortController();
                     connection.abortController = ac;
+                    // The swap drops the content of a request whose signal is aborted, and the signal of
+                    // the previous request now is: the context follows the request that is alive.
+                    ctx.request.signal = ac.signal;
+                    ctx.request.abort = () => ac.abort();
                     let timedOut = false;
                     let connectTimeout = ypy.parseInterval(config.connectTimeout) ?? config.connectTimeout;
                     let timeoutId = connectTimeout > 0 ? setTimeout(() => { timedOut = true; ac.abort(); }, connectTimeout) : null;
