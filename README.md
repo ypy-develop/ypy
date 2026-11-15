@@ -31,6 +31,21 @@ them yourself you need Go 1.26 or later:
 go run ./cmd/ypy build
 ```
 
+The version is written once, in the file `VERSION` at the root; the build stamps
+it into `ypy.version`.
+
+### Source maps
+
+Each `.min.js` of `dist/` ends with `//# sourceMappingURL=<name>.map` and sits
+next to its `.map`, which is what a CDN serves and what DevTools follows. If you
+copy or embed only the `.min.js` (into a Go binary, a bundle, your own
+`static/` directory), DevTools asks for a `.map` that is not there and logs a
+404. Use the same files from `dist/embed/` instead: `dist/embed/ypy.min.js`,
+`dist/embed/ypy.esm.min.js`, `dist/embed/ypy.max.min.js` and
+`dist/embed/ext/*.min.js` are byte for byte the code of `dist/`, without the
+comment. To debug an embedded file with the map, copy the `.map` next to the
+`.min.js` from `dist/` and add the comment back.
+
 ## Use
 
 ```html

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1
+
+Fixes found when the framework was adopted by the Arandu modules (TASK-096). The tag `v0.1.0` published a build whose `ypy.version` said `0.1.0-dev`.
+
+- One version, written once. The file `VERSION` at the root is the source: `ypy build` stamps it into `ypy.version` (`dist/ypy.js`, the minified and ES module files and `ypy.max`), `ypy gen` writes it into the JetBrains web-types, and `ypy --version` reads it with `go:embed`. `src/attributes.json` no longer has a `version` field. A Go test fails when `VERSION`, `src/ypy.js`, the web-types or `dist/` disagree. `dist/ypy.min.js` reports `0.1.1`.
+- The order of `ypy:after:swap` and `ypy:after:settle` is documented as it is: `ypy:after:settle` fires for each swapped target (main, out-of-band, partial) after it was inserted, and the new content is processed; `ypy:after:swap` fires once, after every target settled. The guide of events had them the other way round (swap at step 8, settle at step 9); it now lists the real order, and a test fixes it. Moving `ypy:after:swap` before the settle would make it fire once per target, which changes its meaning and does not fit the 18 kB of the core.
+- `ypy:before:cleanup` and `ypy:after:cleanup` reach only elements YPY processed (with a `ypy-*` or `data-ypy-*` attribute). The attribute table, `ypy.d.ts` and the events guide say so and point to a `MutationObserver` for the other elements; a test covers both cases.
+- Source maps: the `.min.js` of `dist/` keep their `//# sourceMappingURL` comment and `.map` (a CDN serves them), and the build now writes the same code without the comment under `dist/embed/` (`ypy.min.js`, `ypy.esm.min.js`, `ypy.max.min.js`, `ext/*.min.js`) for whoever embeds only the script and would otherwise see a 404 for the map in DevTools. See the README ("Source maps").
+
 ## Unreleased
 
 - The e2e suite runs in Chrome, Firefox and Safari (TASK-092). `internal/e2e` talks to the browser through a `Driver` interface with two implementations, DevTools (Chrome) and WebDriver (Firefox and Safari, over `internal/browsers`); `ypy test --suite e2e --browsers chrome,firefox,safari` works, and the `e2e` gate of `ypy ci` uses the browsers of the `browser` gate. A scenario is registered with `Register` from a file of its own (see the top of `internal/e2e/scenarios.go`) and can say `Skip` for a browser, with the reason. The 19 scenarios pass in the three browsers.
