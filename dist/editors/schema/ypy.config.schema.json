@@ -60,6 +60,12 @@
       "markdownDescription": "Marks the target `aria-busy=\"true\"` while a request runs. Unset means on.",
       "type": "boolean"
     },
+    "autofocus": {
+      "default": false,
+      "description": "Focuses the `[autofocus]` element of swapped content. Off by default; an `[autofocus]` element with `ypy-focus` asks for it by itself.",
+      "markdownDescription": "Focuses the `[autofocus]` element of swapped content. Off by default; an `[autofocus]` element with `ypy-focus` asks for it by itself.",
+      "type": "boolean"
+    },
     "boostBrowserIndicator": {
       "default": false,
       "description": "Show the browser indicator for every boosted element, without writing `ypy-browser-indicator` on each one. Requires the `ypy-browser-indicator` extension.",
@@ -202,6 +208,13 @@
         }
       },
       "type": "object"
+    },
+    "compositionTimeout": {
+      "default": 3000,
+      "description": "How long, in milliseconds, a swap waits for the end of an IME composition in a field its target contains. The swap goes on after that time even when the composition is still open. Requires the `ypy-preserve` extension.",
+      "markdownDescription": "How long, in milliseconds, a swap waits for the end of an IME composition in a field its target contains. The swap goes on after that time even when the composition is still open. Requires the `ypy-preserve` extension.",
+      "minimum": 0,
+      "type": "integer"
     },
     "dedupe": {
       "additionalProperties": false,
@@ -615,8 +628,8 @@
     },
     "morphThirdParty": {
       "default": "[data-reactroot],[data-v-app],[x-data]",
-      "description": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element unless it carries `ypy-preserve=\"false\"`.",
-      "markdownDescription": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element unless it carries `ypy-preserve=\"false\"`.",
+      "description": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element when the response gives it empty, unless it carries `ypy-preserve=\"false\"`. A custom element that is already defined always keeps its children: only the attributes follow the response, unless the response marks it with `ypy-morph-force`.",
+      "markdownDescription": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element when the response gives it empty, unless it carries `ypy-preserve=\"false\"`. A custom element that is already defined always keeps its children: only the attributes follow the response, unless the response marks it with `ypy-morph-force`.",
       "type": "string"
     },
     "multipart": {
