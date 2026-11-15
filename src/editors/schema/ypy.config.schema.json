@@ -883,6 +883,16 @@
             "string"
           ]
         },
+        "heartbeat": {
+          "default": 0,
+          "description": "Close the stream and open it again when no byte arrives for this long, in ms or as an interval string such as `45s`. A comment line (`: ping`) counts as a byte, so a server that pings keeps the stream alive. It catches a connection that a sleeping phone left open: it neither fails nor ends, so the retry would never run. Off by default (`0`). It reconnects only when `sse.reconnect` is on; otherwise the silent stream ends. When the page is shown again (`pageshow` from the back/forward cache, `online`, a tab that is visible again) a stream silent for longer than this is opened again at once, and a wait for the next attempt is skipped. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Close the stream and open it again when no byte arrives for this long, in ms or as an interval string such as `45s`. A comment line (`: ping`) counts as a byte, so a server that pings keeps the stream alive. It catches a connection that a sleeping phone left open: it neither fails nor ends, so the retry would never run. Off by default (`0`). It reconnects only when `sse.reconnect` is on; otherwise the silent stream ends. When the page is shown again (`pageshow` from the back/forward cache, `online`, a tab that is visible again) a stream silent for longer than this is opened again at once, and a wait for the next attempt is skipped. Requires the `ypy-sse` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
         "pauseOnBackground": {
           "description": "Close the stream while the tab is hidden and reconnect when it is visible again. The default is `true` for an element with `ypy-sse:connect` and `false` otherwise. Requires the `ypy-sse` extension.",
           "markdownDescription": "Close the stream while the tab is hidden and reconnect when it is visible again. The default is `true` for an element with `ypy-sse:connect` and `false` otherwise. Requires the `ypy-sse` extension.",
@@ -960,6 +970,16 @@
       "description": "Defaults of the ypy-ws extension. A single element overrides them with `ypy-config='{\"ws\":{...}}'`. Requires the `ypy-ws` extension.",
       "markdownDescription": "Defaults of the ypy-ws extension. A single element overrides them with `ypy-config='{\"ws\":{...}}'`. Requires the `ypy-ws` extension.",
       "properties": {
+        "heartbeat": {
+          "default": 0,
+          "description": "Close the socket and open it again when no message arrives for this long, in ms or as an interval string such as `45s`. The browser does not show protocol ping frames to the page, so the server has to send a message (any text) now and then. It catches a socket that a sleeping phone left open: it neither fails nor closes, so the reconnect would never run. The watch also covers a connection that never opens. Off by default (`0`). It reconnects only when `ws.reconnect` is on; otherwise the socket is closed. When the page is shown again (`pageshow` from the back/forward cache, `online`, a tab that is visible again) a socket silent for longer than this is opened again at once, a wait for the next attempt is skipped, and a socket that `pagehide` closed is opened again. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Close the socket and open it again when no message arrives for this long, in ms or as an interval string such as `45s`. The browser does not show protocol ping frames to the page, so the server has to send a message (any text) now and then. It catches a socket that a sleeping phone left open: it neither fails nor closes, so the reconnect would never run. The watch also covers a connection that never opens. Off by default (`0`). It reconnects only when `ws.reconnect` is on; otherwise the socket is closed. When the page is shown again (`pageshow` from the back/forward cache, `online`, a tab that is visible again) a socket silent for longer than this is opened again at once, a wait for the next attempt is skipped, and a socket that `pagehide` closed is opened again. Requires the `ypy-ws` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
         "maxOutgoingMessagesQueueSize": {
           "default": 100,
           "description": "How many messages wait for the socket to open. A message sent when the queue is full fires `ypy:ws:error`. Requires the `ypy-ws` extension.",

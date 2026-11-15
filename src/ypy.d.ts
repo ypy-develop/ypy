@@ -2019,3 +2019,23 @@ export interface YpyDev {
 /** The `code` of the messages that `ypy-dev` adds: a POST, PUT, PATCH or DELETE that `ypy-sync` aborted in flight or dropped. */
 export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
 // #endregion
+
+// #region TASK-082 hung connections after a sleep (ypy-sse, ypy-ws)
+export interface YpySseConnectionConfig {
+  /**
+   * Close the stream and open it again when no byte arrives for this long (`"45s"`, or ms). A comment line
+   * counts as a byte. Reconnects only with `reconnect`; otherwise the silent stream ends. `0` is off.
+   * @default 0
+   */
+  heartbeat?: number | string;
+}
+
+export interface YpyWsConnectionConfig {
+  /**
+   * Close the socket and open it again when no message arrives for this long (`"45s"`, or ms). The browser hides
+   * protocol pings, so the server sends a message now and then. Reconnects only with `reconnect`. `0` is off.
+   * @default 0
+   */
+  heartbeat?: number | string;
+}
+// #endregion
