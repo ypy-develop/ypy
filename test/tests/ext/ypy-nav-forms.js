@@ -115,7 +115,9 @@ describe('ypy-nav extension: edits and pages from outside the app', function () 
             find2('#i').focus();
             click(find2('#a'));
             await wait(100);
-            urls().should.deep.equal(['/page']);
+            // the navigation went out first, without waiting for the save; the swap then moves the focus
+            // (TASK-084: the focus falls back to the swap target), and the blur of the field sends its save
+            urls()[0].should.equal('/page');
             await finish(hold);
         });
 
