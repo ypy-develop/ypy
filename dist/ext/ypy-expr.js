@@ -21,7 +21,8 @@
 // if/else, return and with (what a ypy-on handler is wrapped in). Not supported, with an error:
 // arrow functions, template strings, await, loops, regular expression literals. Names that reach
 // the compiler (eval, Function, constructor, prototype, __proto__) are refused, and a string handed
-// to setTimeout or setInterval is not run.
+// to setTimeout or setInterval is not run. Next to the nonce gate of ypy-csp this extension stands
+// aside: the gate compiles the code and checks the nonce of the element every time it runs.
 //
 // Provides expr@1 (see ypy.supports).
 //==========================================================

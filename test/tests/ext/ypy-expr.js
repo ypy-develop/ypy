@@ -275,4 +275,19 @@ describe('ypy-expr extension under a CSP without unsafe-eval', function () {
             calls.should.equal(0);
         });
     });
+
+    describe('next to the nonce gate of ypy-csp', function () {
+        it('the gate compiles and checks the code itself: the evaluator stands aside', async function () {
+            // an arrow function is outside the language of this extension, so it only runs when the gated JavaScript path is taken
+            page = await openPage({
+                head: `<meta name="ypy-config" content='nonce:true,callbacks:"nonce"'>`,
+                body: `<div id="ok" ypy-nonce="${N}" ypy-on:go="this.dataset.r = [1, 2].map(n => n * 2).join()"></div>`,
+                nonce: N,
+                scripts: ['/src/ypy.js', '/src/ext/ypy-csp.js', '/src/ext/ypy-expr.js']
+            });
+            fire(q('#ok'), 'go');
+            await tick();
+            q('#ok').dataset.r.should.equal('2,4');
+        });
+    });
 });

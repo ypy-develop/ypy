@@ -1318,7 +1318,8 @@ var ypy = (() => {
             let key = `${+isAsync}${+expression}${keys}|${code}`;
             let func = this.#fnCache.get(key);
             if (!func) {
-                func = this.#evaluator?.(keys, code, expression, isAsync) ??
+                // a nonce gate (ypy-csp) compiles the code itself and checks the element each time it runs
+                func = (!this.#gated && this.#evaluator?.(keys, code, expression, isAsync)) ||
                     new (isAsync ? this.#AsyncFunction : this.#Function)(...keys, expression ? `return (${code})` : code);
                 if (this.#fnCache.size > 255) this.#fnCache.clear();
                 this.#fnCache.set(key, func);
