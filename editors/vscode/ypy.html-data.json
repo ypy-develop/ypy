@@ -989,6 +989,27 @@
       }
     },
     {
+      "name": "ypy-on::native:event",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:native:event` fires. Fires on the element of a native component when the shell sends an event for it. Cancel it to stop the default, which is a click for `ypy-native-click` and an `action` message."
+      }
+    },
+    {
+      "name": "ypy-on::native:before:visit",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:native:before:visit` fires. Fires on the source element before a visit is handed to the shell. Cancel it to keep the navigation in the page."
+      }
+    },
+    {
+      "name": "ypy-on::native:navigate",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:native:navigate` fires. Asks the page to navigate its main content. The shell takes it as a visit; a browser swaps the page. The server sends it with `YPY-Trigger`."
+      }
+    },
+    {
       "name": "ypy-on::optimistic:applied",
       "description": {
         "kind": "markdown",
@@ -2256,6 +2277,65 @@
         "kind": "markdown",
         "value": "Closes the connection when this event fires on the element.\n\nRequires the `ypy-multipart` extension.\n\nSyntax: <event name or trigger specification>"
       }
+    },
+    {
+      "name": "ypy-native-component",
+      "description": {
+        "kind": "markdown",
+        "value": "Asks the native app shell to render the named native component for this element. The element stays valid HTML and is the fallback in a browser. The name must be one the installed app build lists in its capabilities.\n\nRequires the `ypy-native` extension.\n\nSyntax: <component name>"
+      }
+    },
+    {
+      "name": "ypy-native-props",
+      "description": {
+        "kind": "markdown",
+        "value": "The properties of the native component: one JSON object, at most 2 KiB, data only.\n\nRequires the `ypy-native` extension.\n\nSyntax: <JSON object>"
+      }
+    },
+    {
+      "name": "ypy-native-hide",
+      "description": {
+        "kind": "markdown",
+        "value": "Hides the element in the app (the web header that a native bar replaces). It also becomes `inert`, so it leaves the accessibility tree and the tab order.\n\nRequires the `ypy-native` extension."
+      },
+      "values": [
+        {
+          "name": "true"
+        },
+        {
+          "name": "false"
+        }
+      ]
+    },
+    {
+      "name": "ypy-native-only",
+      "description": {
+        "kind": "markdown",
+        "value": "Shows the element only in the app. In a browser it is hidden and `inert`.\n\nRequires the `ypy-native` extension."
+      },
+      "values": [
+        {
+          "name": "true"
+        },
+        {
+          "name": "false"
+        }
+      ]
+    },
+    {
+      "name": "ypy-native-click",
+      "description": {
+        "kind": "markdown",
+        "value": "On the element itself: an `action` message from its native component clicks the element.\n\nRequires the `ypy-native` extension."
+      },
+      "values": [
+        {
+          "name": "true"
+        },
+        {
+          "name": "false"
+        }
+      ]
     },
     {
       "name": "ypy-prefetch",

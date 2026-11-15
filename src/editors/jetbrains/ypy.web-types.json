@@ -882,6 +882,52 @@
           }
         },
         {
+          "name": "ypy-native-component",
+          "description": "Asks the native app shell to render the named native component for this element. The element stays valid HTML and is the fallback in a browser. The name must be one the installed app build lists in its capabilities. Requires the `ypy-native` extension.",
+          "description-sections": {
+            "Syntax": "<component name>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-native-props",
+          "description": "The properties of the native component: one JSON object, at most 2 KiB, data only. Requires the `ypy-native` extension.",
+          "description-sections": {
+            "Syntax": "<JSON object>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-native-hide",
+          "description": "Hides the element in the app (the web header that a native bar replaces). It also becomes `inert`, so it leaves the accessibility tree and the tab order. Requires the `ypy-native` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-native-only",
+          "description": "Shows the element only in the app. In a browser it is hidden and `inert`. Requires the `ypy-native` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-native-click",
+          "description": "On the element itself: an `action` message from its native component clicks the element. Requires the `ypy-native` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
           "name": "ypy-prefetch",
           "description": "Asks for the page a link opens before the click, and uses the response for the click. A bare attribute means `hover`. Only a link YPY navigates is prefetched, with GET, on the page's own origin and never with form data. The nearest one above the link decides; `false` turns it off for a link or a region. Requires the `ypy-nav` extension.",
           "description-sections": {
@@ -1794,6 +1840,18 @@
         {
           "name": "multipart:close",
           "description": "Fires once when the connection is cleaned up. `detail.reason` is `cancelled`, `ended`, `removed`, `part` (a `ypy-multipart:close` event fired) or `cleanup`. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "native:event",
+          "description": "Fires on the element of a native component when the shell sends an event for it. Cancel it to stop the default, which is a click for `ypy-native-click` and an `action` message. Requires the `ypy-native` extension."
+        },
+        {
+          "name": "native:before:visit",
+          "description": "Fires on the source element before a visit is handed to the shell. Cancel it to keep the navigation in the page. Requires the `ypy-native` extension."
+        },
+        {
+          "name": "native:navigate",
+          "description": "Asks the page to navigate its main content. The shell takes it as a visit; a browser swaps the page. The server sends it with `YPY-Trigger`. Requires the `ypy-native` extension."
         },
         {
           "name": "optimistic:applied",
