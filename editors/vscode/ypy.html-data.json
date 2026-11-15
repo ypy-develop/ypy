@@ -2109,6 +2109,22 @@
       }
     },
     {
+      "name": "ypy-list-focus",
+      "description": {
+        "kind": "markdown",
+        "value": "Moves the keyboard focus to the first item a `append` or `prepend` swap brought into this list, the same as the `focus` modifier of the swap (`ypy-swap=\"append key:id limit:50 focus\"`, which wins over the attribute). The item gets `tabindex=\"-1\"` when it cannot take focus by itself. The focus never leaves a field the user is typing in, and the page scrolls to the item only when the swap asks for it (`focusScroll:true`, or `config.defaultFocusScroll`). `false` turns it off.\n\nRequires the `ypy-list` extension.\n\nSyntax: `[true|false]`\n\n**Values**\n\n- `false`: Leaves the focus where it is.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-list-focus:inherited`) to apply this attribute to YPY requests in child elements."
+      },
+      "values": [
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "Leaves the focus where it is."
+          }
+        }
+      ]
+    },
+    {
       "name": "ypy-live",
       "description": {
         "kind": "markdown",
