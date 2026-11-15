@@ -756,18 +756,71 @@ describe('ypy-trigger attribute', function() {
     //     }
     // })
     //
-    // it('filters properly with condition containing square backets', function() {
-    //     this.server.respondWith('GET', '/test', 'Called!')
-    //     var form = make('<form ypy-get="/test" ypy-trigger="evt[foo[0]]">Not Called</form>')
-    //     form.click()
-    //     form.innerHTML.should.equal('Not Called')
-    //     var event = ypy._('makeEvent')('evt')
-    //     event.foo = [true]
-    //     form.dispatchEvent(event)
-    //     this.server.respond()
-    //     form.innerHTML.should.equal('Called!')
-    // })
-    //
+    it('filters properly with condition containing square brackets', async function() {
+        mockResponse('GET', '/test', 'Called!')
+        let form = createProcessedHTML('<form ypy-get="/test" ypy-trigger="evt[foo[0]]">Not Called</form>')
+        let off = new CustomEvent('evt')
+        off.foo = [false]
+        form.dispatchEvent(off)
+        fetchMock.calls.length.should.equal(0)
+        let event = new CustomEvent('evt')
+        event.foo = [true]
+        form.dispatchEvent(event)
+        await forRequest()
+        form.innerHTML.should.equal('Called!')
+    })
+
+    it('filter with a bracket inside a quoted string', async function() {
+        mockResponse('GET', '/test', 'Called!')
+        let div = createProcessedHTML('<div ypy-get="/test" ypy-trigger="evt[key==\'[\']">Not Called</div>')
+        let event = new CustomEvent('evt')
+        event.key = ']'
+        div.dispatchEvent(event)
+        fetchMock.calls.length.should.equal(0)
+        event = new CustomEvent('evt')
+        event.key = '['
+        div.dispatchEvent(event)
+        await forRequest()
+        div.innerHTML.should.equal('Called!')
+    })
+
+    it('filter with a closing bracket inside a quoted string', async function() {
+        mockResponse('GET', '/test', 'Called!')
+        let div = createProcessedHTML('<div ypy-get="/test" ypy-trigger="evt[key==\']\'] delay:1ms">Not Called</div>')
+        let event = new CustomEvent('evt')
+        event.key = ']'
+        div.dispatchEvent(event)
+        await forRequest()
+        div.innerHTML.should.equal('Called!')
+    })
+
+    itSource('nested bracket filter works with modifiers and a second trigger', async function() {
+        mockResponse('GET', '/test', 'Called!')
+        let div = createProcessedHTML('<div ypy-get="/test" ypy-trigger="evt[a[0][1]] once, other">Not Called</div>')
+        let event = new CustomEvent('evt')
+        event.a = [[0, true]]
+        div.dispatchEvent(event)
+        await forRequest()
+        div.innerHTML.should.equal('Called!')
+        ypy.__parseTriggerSpecs('evt[a[0][1]] once, other').map(s => s.name).should.deep.equal(['evt[a[0][1]]', 'other'])
+    })
+
+    itSource('every with a nested bracket filter keeps the interval first', function() {
+        let [spec] = ypy.__parseTriggerSpecs('every 20ms [a[0]] queue:none')
+        spec.name.should.equal('every[a[0]]')
+        Object.keys(spec)[1].should.equal('20ms')
+    })
+
+    itSource('an unterminated filter still throws', function() {
+        assert.throws(() => ypy.__parseTriggerSpecs('click[a[0]'), /unterminated/)
+    })
+
+    itSource('a bracket after a modifier is not a filter', function() {
+        let [spec] = ypy.__parseTriggerSpecs('click from:input[type=text]')
+        spec.name.should.equal('click')
+        spec.from.should.equal('input[type=text]')
+    })
+
     // it('from clause works', function() {
     //     var requests = 0
     //     this.server.respondWith('GET', '/test', function(xhr) {

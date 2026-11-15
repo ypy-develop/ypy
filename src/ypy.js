@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 var ypy = (() => {
+    // a second <script> keeps the first instance
+    if (globalThis.ypy) return console.warn('ypy: loaded twice'), globalThis.ypy;
 
     /**
      * HCON, YPY's mini config language. Mirrors the JSON API.
@@ -187,6 +189,7 @@ var ypy = (() => {
         #AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
         #ttPolicy = makeTrustedTypesPolicy();
         #gated = false          // an extension enforces nonces on every code compilation
+        #evaluator              // an extension that runs author code without eval (ypy-expr)
         #blockedWarned = false
         #fnCache = new Map()    // compiled author code, by call shape and source
         #actionSelector
@@ -234,6 +237,7 @@ var ypy = (() => {
                     this.#fnCache.clear();
                 },
                 ttPolicy: () => this.#ttPolicy,
+                initEvaluator: fn => this.#evaluator = fn,
                 onTrigger: this.__onTrigger.bind(this),
                 ypyProp: this.__ypyProp.bind(this),
                 triggerEvent: this.__trigger.bind(this),
@@ -477,12 +481,15 @@ var ypy = (() => {
             let specs = this.#specCache.get(spec);
             if (!specs) {
                 specs = HCON.split(spec).flatMap(s => {
-                    // support `every 1s [cond]` by moving it next to `every`
-                    s = s.replace(/^\s*every\s+(\S+?)\s*(\[[^\]]*\])/, 'every$2 $1');
-                    let [,name,rest] = s.match(/^\s*(\S+\[[^\]]*\]|\S+)\s*(.*?)\s*$/) ?? [];
-                    if (!name) return [];  // skip empty/whitespace-only tokens
-                    if (/\[[^\]]*$/.test(name)) throw "unterminated:" + name;  // e.g. click[ctrlKey
-                    return [{name, ...HCON.parse(rest)}];  // spread modifiers (delay, throttle, etc.) onto result
+                    let [head, inner, tail] = this.__extractFilter(s), filter = '';
+                    // a bracket after the event name (or after `every 1s`) is a filter; later it is part of a modifier
+                    if (/^\s*(every\s+\S+?\s*)?[^\s\[]*\[/.test(s)) {
+                        if (inner == null) throw "unterminated:" + s;   // e.g. click[ctrlKey
+                        filter = `[${inner}]`;
+                        s = head + ' ' + tail;
+                    }
+                    let [, name, rest] = s.match(/^\s*(\S*)\s*(.*?)\s*$/) ?? [];
+                    return name ? [{name: name + filter, ...HCON.parse(rest)}] : [];  // spread modifiers (delay, throttle, etc.) onto result
                 });
                 // nested values (a JSON modifier, a dotted path) would be shared by the copies: do not keep them
                 if (specs.some(s => Object.values(s).some(v => v && typeof v == 'object'))) return specs;
@@ -1217,10 +1224,15 @@ var ypy = (() => {
             }
         }
 
+        /** The first `[...]` of a string, with brackets nested up to four deep and quoted text skipped: [index of the `[`, index after its `]` (0 when unclosed)]. */
+        __bracket(str) {
+            let open = str.indexOf('['), m = str.slice(open).match(/^\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[[^\[\]]*\])*\])*\])*\]/);
+            return [open, m ? open + m[0].length : 0];
+        }
+
         __extractFilter(str) {
-            let match = str.match(/^([^\[]*)\[([^\]]*)]/);
-            if (!match) return [str, null];
-            return [match[1], match[2]];
+            let [open, end] = this.__bracket(str);
+            return end ? [str.slice(0, open), str.slice(open + 1, end - 1), str.slice(end)] : [str, null];
         }
 
         __handleTriggerHeader(value, elt) {
@@ -1306,7 +1318,8 @@ var ypy = (() => {
             let key = `${+isAsync}${+expression}${keys}|${code}`;
             let func = this.#fnCache.get(key);
             if (!func) {
-                func = new (isAsync ? this.#AsyncFunction : this.#Function)(...keys, expression ? `return (${code})` : code);
+                func = this.#evaluator?.(keys, code, expression, isAsync) ??
+                    new (isAsync ? this.#AsyncFunction : this.#Function)(...keys, expression ? `return (${code})` : code);
                 if (this.#fnCache.size > 255) this.#fnCache.clear();
                 this.#fnCache.set(key, func);
             }
@@ -2909,6 +2922,10 @@ var ypy = (() => {
                     item = document.body
                 } else if (selector === 'host') {
                     item = (elt.getRootNode()).host
+                } else if (selector === 'parent') {
+                    item = elt.parentElement
+                } else if (selector === 'self') {
+                    item = elt
                 } else if (selector === 'this') {
                     if (thisAttr) {
                         result.push(...this.__findThisElements(elt, thisAttr));
