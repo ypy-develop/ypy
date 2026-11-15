@@ -2591,4 +2591,257 @@ describe('ypy-ws WebSocket extension', function() {
             assert.isTrue(ac.signal.aborted, 'AbortController should be aborted on close');
         });
     });
+
+    describe('Heartbeat and resume', function() {
+        let realNow = Date.now;
+
+        afterEach(() => {
+            Date.now = realNow;
+            Object.defineProperty(document, 'hidden', {value: false, configurable: true});
+        });
+
+        function skewClock(ms) {
+            Date.now = () => realNow() + ms;
+        }
+
+        function pageEvent(type, persisted) {
+            let event = new Event(type);
+            event.persisted = persisted;
+            window.dispatchEvent(event);
+        }
+
+        // a socket whose handshake never finishes
+        function hangOnConnect() {
+            let Real = window.WebSocket;
+            window.WebSocket = class extends Real {
+                triggerEvent(event, data) {
+                    if (event !== 'open') super.triggerEvent(event, data);
+                }
+            };
+            return () => { window.WebSocket = Real; };
+        }
+
+        it('a silent socket is closed and opened again after the heartbeat', async function() {
+            ypy.config.ws = {heartbeat: 100, reconnectDelay: 20, reconnectJitter: 0};
+            let closes = [];
+            document.addEventListener('ypy:ws:close', e => closes.push(e.detail), {once: true});
+            createProcessedHTML('<div ypy-ws:connect="/ws/hb"></div>');
+            await ypy.timeout(40);
+            assert.equal(mockWebSocketInstances.length, 1);
+            let first = mockWebSocketInstances[0];
+
+            await ypy.timeout(150);
+            assert.equal(mockWebSocketInstances.length, 2, 'one new socket, not one on top of the other');
+            assert.equal(first.readyState, mockWebSocket.CLOSED, 'the silent socket was closed');
+            assert.equal(closes[0].reason, 'closed');
+            assert.isNull(closes[0].code, 'YPY closed it, there is no close code');
+        });
+
+        it('every message keeps the socket alive', async function() {
+            ypy.config.ws = {heartbeat: 120, reconnectDelay: 20, reconnectJitter: 0};
+            createProcessedHTML('<div ypy-ws:connect="/ws/hb-alive"></div>');
+            await ypy.timeout(40);
+
+            for (let i = 0; i < 8; i++) {
+                mockWebSocketInstances[0].simulateMessage({ping: i});
+                await ypy.timeout(50);
+            }
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('without heartbeat a silent socket is left alone', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/hb-off"></div>');
+            await ypy.timeout(400);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('heartbeat accepts an interval string', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/hb-string" ypy-config="ws.heartbeat:100ms ws.reconnectDelay:20ms ws.reconnectJitter:0"></div>');
+            await ypy.timeout(350);
+            assert.isAtLeast(mockWebSocketInstances.length, 2);
+        });
+
+        it('a handshake that never finishes is tried again', async function() {
+            let restore = hangOnConnect();
+            try {
+                ypy.config.ws = {heartbeat: 100, reconnectDelay: 20, reconnectJitter: 0};
+                createProcessedHTML('<div ypy-ws:connect="/ws/hb-handshake"></div>');
+                await ypy.timeout(400);
+                assert.isAtLeast(mockWebSocketInstances.length, 2);
+            } finally {
+                restore();
+            }
+        });
+
+        it('a silent socket that must not reconnect is closed and dropped', async function() {
+            ypy.config.ws = {heartbeat: 100, reconnect: false};
+            let div = createProcessedHTML('<div ypy-ws:connect="/ws/hb-no-reconnect"></div>');
+            await ypy.timeout(40);
+            await ypy.timeout(250);
+            assert.equal(mockWebSocketInstances.length, 1);
+            assert.equal(mockWebSocketInstances[0].readyState, mockWebSocket.CLOSED);
+            assert.isUndefined(getConnection(div));
+        });
+
+        it('removing the element stops the watchdog', async function() {
+            ypy.config.ws = {heartbeat: 80, reconnectDelay: 20, reconnectJitter: 0};
+            let div = createProcessedHTML('<div ypy-ws:connect="/ws/hb-removed"></div>');
+            await ypy.timeout(40);
+            div.remove();
+            await ypy.timeout(300);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('becoming visible after a long silence opens a new socket at once', async function() {
+            ypy.config.ws = {heartbeat: 30000, reconnectJitter: 0};
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-visible"></div>');
+            await ypy.timeout(40);
+            mockWebSocketInstances[0].simulateMessage({hello: 1});
+
+            skewClock(60000);
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(40);
+            assert.equal(mockWebSocketInstances.length, 2);
+            assert.equal(mockWebSocketInstances[0].readyState, mockWebSocket.CLOSED);
+            assert.equal(mockWebSocketInstances[1].readyState, mockWebSocket.OPEN);
+        });
+
+        it('becoming visible when the socket spoke lately does nothing', async function() {
+            ypy.config.ws = {heartbeat: 30000};
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-fresh"></div>');
+            await ypy.timeout(40);
+            mockWebSocketInstances[0].simulateMessage({hello: 1});
+
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('becoming visible without a heartbeat does not replace an open socket', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-no-hb"></div>');
+            await ypy.timeout(40);
+            skewClock(60000);
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('a hidden tab wakes nothing', async function() {
+            ypy.config.ws = {heartbeat: 30000};
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-hidden"></div>');
+            await ypy.timeout(40);
+            skewClock(60000);
+            Object.defineProperty(document, 'hidden', {value: true, configurable: true});
+            window.dispatchEvent(new Event('online'));
+            pageEvent('pageshow', true);
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 1, 'only the socket that pauseOnBackground closed');
+        });
+
+        it('online replaces the socket once, with no second connection', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-online"></div>');
+            await ypy.timeout(40);
+
+            window.dispatchEvent(new Event('online'));
+            await ypy.timeout(40);
+            assert.equal(mockWebSocketInstances.length, 2);
+            let open = mockWebSocketInstances.filter(ws => ws.readyState === mockWebSocket.OPEN);
+            assert.equal(open.length, 1, 'only one socket is open');
+        });
+
+        it('keeps the queued messages when it opens a socket again', async function() {
+            let div = createProcessedHTML('<div ypy-ws:connect="/ws/resume-queue"><form ypy-ws:send><input name="a" value="1"></form></div>');
+            await ypy.timeout(40);
+
+            window.dispatchEvent(new Event('online'));
+            find('form').dispatchEvent(new Event('submit', {cancelable: true}));
+            await ypy.timeout(60);
+            let sent = mockWebSocketInstances.flatMap(ws => ws.sentMessages || []);
+            assert.equal(sent.length, 1, 'the message was sent once, on the new socket');
+            assert.equal(mockWebSocketInstances[1].sentMessages.length, 1);
+        });
+
+        it('pageshow from the back/forward cache replaces the socket', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-pageshow"></div>');
+            await ypy.timeout(40);
+
+            pageEvent('pageshow', true);
+            await ypy.timeout(40);
+            assert.equal(mockWebSocketInstances.length, 2);
+        });
+
+        it('a pageshow that is not from the cache does nothing', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-first"></div>');
+            await ypy.timeout(40);
+
+            pageEvent('pageshow', false);
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('a page that went into the cache gets its socket back', async function() {
+            let div = createProcessedHTML('<div ypy-ws:connect="/ws/resume-cache"></div>');
+            await ypy.timeout(40);
+
+            pageEvent('pagehide', true);
+            assert.equal(mockWebSocketInstances[0].readyState, mockWebSocket.CLOSED, 'pagehide closes the socket');
+            assert.isUndefined(getConnection(div));
+
+            pageEvent('pageshow', true);
+            await ypy.timeout(40);
+            assert.equal(mockWebSocketInstances.length, 2);
+            assert.equal(getConnection(div).socket, mockWebSocketInstances[1]);
+            assert.equal(mockWebSocketInstances[1].readyState, mockWebSocket.OPEN);
+        });
+
+        it('a page that is only leaving does not get a socket back', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-leaving"></div>');
+            await ypy.timeout(40);
+
+            pageEvent('pagehide', false);
+            pageEvent('pageshow', true);
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+
+        it('an element that never connected is not connected by a pageshow', async function() {
+            createProcessedHTML('<div ypy-ws:connect="/ws/resume-click" ypy-trigger="click"></div>');
+            await ypy.timeout(40);
+
+            pageEvent('pagehide', true);
+            pageEvent('pageshow', true);
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 0);
+        });
+
+        it('a wake-up skips the wait for the next attempt', async function() {
+            ypy.config.ws = {reconnectDelay: 10000, reconnectJitter: 0};
+            let div = createProcessedHTML('<div ypy-ws:connect="/ws/resume-backoff"></div>');
+            await ypy.timeout(40);
+
+            mockWebSocketInstances[0].close(1006);
+            await ypy.timeout(80);
+            assert.equal(mockWebSocketInstances.length, 1, 'it waits ten seconds');
+
+            window.dispatchEvent(new Event('online'));
+            await ypy.timeout(40);
+            assert.equal(mockWebSocketInstances.length, 2);
+            assert.equal(getConnection(div).socket, mockWebSocketInstances[1]);
+        });
+
+        it('a wake-up after the element left the page opens nothing', async function() {
+            ypy.config.ws = {heartbeat: 30000};
+            let div = createProcessedHTML('<div ypy-ws:connect="/ws/resume-gone"></div>');
+            await ypy.timeout(40);
+            div.remove();
+            await ypy.timeout(20);
+
+            skewClock(60000);
+            window.dispatchEvent(new Event('online'));
+            pageEvent('pageshow', true);
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(60);
+            assert.equal(mockWebSocketInstances.length, 1);
+        });
+    });
 });

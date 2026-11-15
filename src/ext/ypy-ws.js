@@ -34,6 +34,7 @@
             reconnectMaxAttempts: Infinity,
             reconnectJitter: 0.3,
             pauseOnBackground: true,
+            heartbeat: 0,
             maxOutgoingMessagesQueueSize: 100,
             ...ypy.config.ws, // global defaults
             ...ypyConfig // ypy-config overrides
@@ -82,6 +83,10 @@
     // ========================================
     
     const connections = new Set();
+    // The element that owns each connection, for the listeners that wake them all
+    const owners = new Map();
+    // Elements whose socket pagehide closed on the way into the back/forward cache
+    const parked = new Set();
     
     // The same pin as the one on fetch (config.mode): sockets stay on the page's own
     // origin unless config.mode is "cors". An unparsable URL is refused.
@@ -92,6 +97,7 @@
 
     function getOrCreateConnection(url, element) {
         if (element._ypy.ws.connection) return element._ypy.ws.connection;
+        element._ypy.ws.connectUrl = url;
         let normalizedUrl = normalizeWebSocketUrl(url);
         if (!allowedOrigin(normalizedUrl)) {
             api.triggerEvent(element, 'ypy:security:blocked', {reason: 'websocket-origin', url: normalizedUrl});
@@ -104,6 +110,8 @@
             socket: null,
             attempt: 0,
             timer: null,
+            watchdog: null,
+            lastActivity: Date.now(),
             queue: [],
             receiving: Promise.resolve(),
             sending: Promise.resolve(),
@@ -121,6 +129,7 @@
 
         element._ypy.ws.connection = connection;
         connections.add(connection);
+        owners.set(connection, element);
         createWebSocket(element, connection);
 
         let config = connection.config;
@@ -143,6 +152,9 @@
     
     function cleanupConnection(element, connection) {
         if (connection.timer) clearTimeout(connection.timer);
+        clearTimeout(connection.watchdog);
+        connection.watchdog = null;
+        owners.delete(connection);
         if (connection.visibilityHandler) {
             document.removeEventListener('visibilitychange', connection.visibilityHandler);
         }
@@ -163,9 +175,8 @@
         connections.delete(connection);
     }
 
-    function createWebSocket(element, connection) {
-        let url = connection.url;
-        // Abort old socket's listeners and close it
+    // Abort the old socket's listeners and close it, so it can neither report nor reconnect
+    function discardSocket(connection) {
         if (connection.abortController) {
             connection.abortController.abort();
         }
@@ -180,14 +191,105 @@
                 // Socket may already be in an invalid state
             }
         }
+    }
+
+    // Heartbeat: a socket that gets no message for config.heartbeat is closed and opened again. A phone
+    // that slept leaves a socket that neither fails nor closes, so the reconnect would never run. The
+    // timer starts with the socket, so a handshake that never finishes is caught as well.
+    function watch(element, connection) {
+        connection.lastActivity = Date.now();
+        clearTimeout(connection.watchdog);
+        connection.watchdog = null;
+        let ms = ypy.parseInterval(connection.config.heartbeat) || 0;
+        if (ms > 0) connection.watchdog = setTimeout(() => stale(element, connection), ms);
+    }
+
+    function stale(element, connection) {
+        connection.watchdog = null;
+        if (!connections.has(connection) || !connection.socket) return;
+        if (!element.isConnected) {
+            cleanupConnection(element, connection);
+            return;
+        }
+        discardSocket(connection);
+        api.triggerEvent(element, 'ypy:ws:close', {connection, reason: 'closed', code: null});
+        if (connection.config.reconnect) {
+            scheduleReconnect(element, connection);
+        } else {
+            cleanupConnection(element, connection);
+        }
+    }
+
+    // The page came back (shown again, visible, online): open again at once whatever waits or hangs.
+    // `force` is for the events that say the socket cannot be trusted (online, back/forward cache);
+    // a visible tab only reopens a socket that has been silent for longer than the heartbeat.
+    // It replaces the socket of a connection, it never adds a second one.
+    function wake(force) {
+        for (let connection of [...connections]) {
+            let element = owners.get(connection);
+            if (!element?.isConnected) continue;
+            let config = connection.config;
+            if (config.pauseOnBackground && document.hidden) continue;
+
+            let socket = connection.socket;
+            if (!socket || socket.readyState === WebSocket.CLOSED) {
+                clearTimeout(connection.timer);
+                connection.timer = null;
+                connection.attempt = 0;
+                createWebSocket(element, connection);
+            } else if (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN) {
+                let ms = ypy.parseInterval(config.heartbeat) || 0;
+                let silent = ms > 0 && Date.now() - connection.lastActivity >= ms;
+                if (!config.reconnect || !(force || silent)) continue;
+                reopen(element, connection);
+            }
+        }
+    }
+
+    // Replace the socket of a connection with a new one, at once and with the backoff reset
+    function reopen(element, connection) {
+        let state = connection.socket?.readyState;
+        discardSocket(connection);
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+            api.triggerEvent(element, 'ypy:ws:close', {connection, reason: 'closed', code: null});
+        }
+        connection.attempt = 0;
+        clearTimeout(connection.timer);
+        connection.timer = null;
+        createWebSocket(element, connection);
+    }
+
+    // pagehide closed the sockets of a page that went into the back/forward cache: open them again.
+    // The close event of such a socket may still be queued behind pageshow, so a connection that is
+    // still closing is replaced without waiting for it.
+    function restoreParked() {
+        for (let element of [...parked]) {
+            let url = element._ypy?.ws?.connectUrl;
+            if (!element.isConnected || !url) {
+                parked.delete(element);
+                continue;
+            }
+            if (document.hidden && getConfig(element).pauseOnBackground) continue; // a visible tab brings it back
+            parked.delete(element);
+            let connection = element._ypy.ws.connection;
+            if (!connection) getOrCreateConnection(url, element);
+            else if (connection.socket?.readyState === WebSocket.CLOSING) reopen(element, connection);
+        }
+    }
+
+    function createWebSocket(element, connection) {
+        let url = connection.url;
+        discardSocket(connection);
 
         try {
             connection.socket = new WebSocket(url, connection.config?.protocols);
+            watch(element, connection);
             let ac = new AbortController();
             connection.abortController = ac;
             let opts = { signal: ac.signal };
 
             connection.socket.addEventListener('open', () => {
+                watch(element, connection);
                 if (element.isConnected) {
                     api.triggerEvent(element, 'ypy:ws:after:connection', {connection});
                 } else {
@@ -199,6 +301,7 @@
             }, opts);
 
             connection.socket.addEventListener('message', (event) => {
+                watch(element, connection);
                 connection.receiving = connection.receiving
                     .then(() => handleMessage(element, connection, event))
                     .catch(error => {
@@ -209,6 +312,8 @@
             connection.socket.addEventListener('close', (event) => {
                 if (event.target !== connection.socket) return;
 
+                clearTimeout(connection.watchdog);
+                connection.watchdog = null;
                 if (element.isConnected) api.triggerEvent(element, 'ypy:ws:close', {
                     connection, reason: 'closed', code: event.code
                 });
@@ -512,6 +617,7 @@
     }
     
     function cleanupElement(element) {
+        parked.delete(element);
         let connection = element._ypy?.ws?.connection;
         if (!connection) return;
         api.triggerEvent(element, 'ypy:ws:close', {
@@ -588,12 +694,26 @@
     
     if (typeof window !== 'undefined' && window.ypy) {
         // Clean up all WS connections on page navigation to prevent browser errors
-        window.addEventListener('pagehide', () => {
+        window.addEventListener('pagehide', (event) => {
             connections.forEach((connection) => {
+                // a page that goes into the back/forward cache comes back with no socket: remember whose
+                if (event.persisted && owners.has(connection)) parked.add(owners.get(connection));
                 if (connection.socket) {
                     connection.socket.close(1000, 'page navigating away');
                 }
             });
+        });
+
+        // pageshow also fires when the page returns from the back/forward cache (`persisted`)
+        window.addEventListener('pageshow', (event) => {
+            wake(event.persisted === true);
+            if (event.persisted) restoreParked();
+        });
+        window.addEventListener('online', () => wake(true));
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            wake(false);
+            restoreParked();
         });
 
     }
