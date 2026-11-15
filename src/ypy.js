@@ -1783,7 +1783,7 @@ var ypy = (() => {
             let src = ctx.sourceElement, elt,
                 s = ctx.focus ?? (src && this.__attributeValue(src, 'ypy-focus')) ?? 'auto';
             if (s === 'auto') {
-                let main = (this.__isBoosted(src) || ctx.request?.headers['YPY-Boosted']) && !document.activeElement.autofocus &&
+                let main = (this.__isBoosted(src) || ctx.request?.headers?.['YPY-Boosted']) && !document.activeElement.autofocus &&
                     (document.querySelector(this.__prefixSelector('[ypy-main]')) || document.querySelector('main') || box?.focus && box);
                 if (main) elt = main.querySelector('h1') || main;
             } else if (s === 'first-heading' || s === 'first-invalid') {
@@ -3618,7 +3618,7 @@ var ypy = (() => {
                 let target = ctx.target;
                 spec ??= this.__attributeValue(ctx.sourceElement, 'ypy-announce')
                     ?? (target instanceof Element ? this.__attributeValue(target, 'ypy-announce') : null)
-                    ?? ((this.__isBoosted(ctx.sourceElement) || ctx.request?.headers['YPY-Boosted']) && ctx.swap !== 'none' && !ctx.focused ? 'title' : m.done);
+                    ?? ((this.__isBoosted(ctx.sourceElement) || ctx.request?.headers?.['YPY-Boosted']) && ctx.swap !== 'none' && !ctx.focused ? 'title' : m.done);
             }
             if (spec === 'title') spec = ctx.title || document.title;
             if (spec !== 'none') this.__say(ctx, spec, kind ? 'assertive' : 'polite');

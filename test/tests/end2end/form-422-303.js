@@ -199,7 +199,9 @@ describe('form conventions: 422 and 303', function () {
             let ctx = await submit(find('#f'))
             assert.isTrue(ctx.redirected)
             assert.isUndefined(ctx.errorKind)
-            assert.equal(find('#page').innerHTML, '<h1>Welcome</h1>')
+            // the form was replaced by the page, so the focus goes to its heading (which gets a tabindex)
+            assert.equal(find('#page h1').textContent, 'Welcome')
+            assert.equal(document.activeElement, find('#page h1'))
             assert.equal(location.pathname, '/welcome')
         })
 
