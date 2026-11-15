@@ -1,4 +1,10 @@
-# YPY
+<p align="center">
+  <img src=".github/logo.svg" alt="YPY" width="180">
+</p>
+
+<h1 align="center">ypy-develop/ypy</h1>
+
+<p align="center">The hypermedia framework: any element issues a request and swaps the HTML the server returns.</p>
 
 YPY (from Old Tupi *ypy*: origin, foundation) is a hypermedia-oriented
 JavaScript framework. Any HTML element can issue an HTTP request and swap the
