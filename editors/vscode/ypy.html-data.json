@@ -733,7 +733,14 @@
       "name": "ypy-on::cache:expire",
       "description": {
         "kind": "markdown",
-        "value": "Runs the JavaScript when `ypy:cache:expire` fires. Copies were dropped by a `YPY-Cache-Expire` header, the default after a successful non-GET request, or `ypy.cache.expire()`."
+        "value": "Runs the JavaScript when `ypy:cache:expire` fires. Copies were marked old by a `YPY-Cache-Expire` header or `ypy.cache.expire()`. They are still shown, then revalidated. `expired` is how many."
+      }
+    },
+    {
+      "name": "ypy-on::cache:evict",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:cache:evict` fires. Copies were deleted by a `YPY-Cache-Evict` header, the default after a successful non-GET request, `ypy.cache.evict()` or `ypy.cache.clear()`. `removed` is how many."
       }
     },
     {
@@ -1678,6 +1685,13 @@
           }
         }
       ]
+    },
+    {
+      "name": "ypy-cache-tags",
+      "description": {
+        "kind": "markdown",
+        "value": "Labels the copy of this element's request with one or more tags, so the server can expire or evict it by name (`YPY-Cache-Expire: tag:products`) without knowing the URLs. A comma or space separated list.\n\nRequires the `ypy-cache` extension.\n\nSyntax: `<tag>[, <tag>...]`\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-cache-tags:inherited`) to apply this attribute to YPY requests in child elements."
+      }
     },
     {
       "name": "ypy-nonce",

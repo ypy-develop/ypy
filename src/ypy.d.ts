@@ -1859,9 +1859,11 @@ export interface YpyConfig {
 
 /** ypy-cache extension API (see https://ypy.dev/docs/reference/cache). */
 export interface YpyCache {
-  /** Drops the copies named by comma separated URL patterns (`/items*`, `/cart`, `*`); returns how many. */
+  /** Marks old the copies named by comma separated patterns (`/items*`, `/cart`, `*`, `tag:products`): they are still shown, then revalidated; returns how many. */
   expire(patterns: string): number;
-  /** Drops every copy. */
+  /** Deletes the copies named by comma separated patterns; returns how many. */
+  evict(patterns: string): number;
+  /** Deletes every copy. */
   clear(): number;
   /** What the store holds. */
   stats(): { entries: number; chars: number };
@@ -1902,8 +1904,8 @@ export interface YpyNativeEventMap {
   'ypy:cache:hit': { ctx: YpyRequestCtx; url: string; age: number; offline: boolean };
   /** The check after a shown copy ended; `changed` is true when new content was swapped in. */
   'ypy:cache:revalidated': { ctx: YpyRequestCtx; url: string; changed: boolean; status: number };
-  /** Copies were dropped. Fired on `document`. */
-  'ypy:cache:expire': { patterns: string[]; removed: number };
+  /** Copies were marked old (still shown, then revalidated). Fired on `document`. */
+  'ypy:cache:expire': { patterns: string[]; expired: number };
   /** The optimistic change was made. Cancel it to undo the change at once. */
   'ypy:optimistic:applied': { ctx: YpyRequestCtx; target: Element; nodes: Node[] };
   /** The server accepted the request. */
@@ -2018,4 +2020,11 @@ export interface YpyDev {
 
 /** The `code` of the messages that `ypy-dev` adds: a POST, PUT, PATCH or DELETE that `ypy-sync` aborted in flight or dropped. */
 export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
+// #endregion
+
+// #region TASK-078 cache expire and evict, nav focus prefetch and current link, validate batch, ypy-switch
+export interface YpyNativeEventMap {
+  /** Copies were deleted (`YPY-Cache-Evict`, `ypy.cache.evict()`, `ypy.cache.clear()`, or a successful non-GET request). Fired on `document`. */
+  'ypy:cache:evict': { patterns: string[]; removed: number };
+}
 // #endregion

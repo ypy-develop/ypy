@@ -567,6 +567,18 @@
           }
         },
         {
+          "name": "ypy-cache-tags",
+          "description": "Labels the copy of this element's request with one or more tags, so the server can expire or evict it by name (`YPY-Cache-Expire: tag:products`) without knowing the URLs. A comma or space separated list. Requires the `ypy-cache` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-cache-tags:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`<tag>[, <tag>...]`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-nonce",
           "description": "Marks a YPY element as server-rendered trusted markup: its value must equal the page nonce, or `ypy-csp` strips every `ypy-*` and `data-ypy-*` attribute from the element. Only the element's own attribute counts, never an inherited one. Requires the `ypy-csp` extension.",
           "value": {
@@ -1517,7 +1529,11 @@
         },
         {
           "name": "cache:expire",
-          "description": "Copies were dropped by a `YPY-Cache-Expire` header, the default after a successful non-GET request, or `ypy.cache.expire()`. Requires the `ypy-cache` extension."
+          "description": "Copies were marked old by a `YPY-Cache-Expire` header or `ypy.cache.expire()`. They are still shown, then revalidated. `expired` is how many. Requires the `ypy-cache` extension."
+        },
+        {
+          "name": "cache:evict",
+          "description": "Copies were deleted by a `YPY-Cache-Evict` header, the default after a successful non-GET request, `ypy.cache.evict()` or `ypy.cache.clear()`. `removed` is how many. Requires the `ypy-cache` extension."
         },
         {
           "name": "security:strip",

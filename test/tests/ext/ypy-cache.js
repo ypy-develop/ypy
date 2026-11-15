@@ -299,18 +299,21 @@ describe('ypy-cache extension', function () {
         createProcessedHTML('<div>' + paths.map((p, i) => `<button id="b${i}" ypy-get="${p}" ypy-target="#out" ypy-cache>${p}</button>`).join('') + '<div id="out"></div></div>');
     }
 
-    it('drops the copies a YPY-Cache-Expire pattern names, and only those', async function () {
+    // YPY-Cache-Expire marks a copy old (it is still shown, then revalidated) and YPY-Cache-Evict deletes it.
+    // The tests below that checked that a copy is gone use YPY-Cache-Evict and ypy.cache.evict: before the two
+    // were told apart, "expire" meant "delete".
+    it('deletes the copies a YPY-Cache-Evict pattern names, and only those', async function () {
         fill('/items?page=1', '/items?page=2', '/other');
         await click('#b0');
         await click('#b1');
         await click('#b2');
         assert.equal(ypy.cache.stats().entries, 3);
 
-        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Expire': '/items*'}});
+        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Evict': '/items*'}});
         createProcessedHTML('<div><button id="save" ypy-post="/items" ypy-target="#out">Save</button><div id="out"></div></div>');
-        let expired = waitForEvent('ypy:cache:expire');
+        let evicted = waitForEvent('ypy:cache:evict');
         await click('#save');
-        let evt = await expired;
+        let evt = await evicted;
         assert.equal(evt.detail.removed, 2);
         assert.equal(ypy.cache.stats().entries, 1);
     });
@@ -319,13 +322,13 @@ describe('ypy-cache extension', function () {
         fill('/items?page=1', '/other');
         await click('#b0');
         await click('#b1');
-        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Expire': '/items'}});
+        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Evict': '/items'}});
         createProcessedHTML('<div><button id="save" ypy-post="/items" ypy-target="#out">Save</button><div id="out"></div></div>');
         await click('#save');
         assert.equal(ypy.cache.stats().entries, 1);
     });
 
-    it('expires everything after a successful POST unless the response says false', async function () {
+    it('evicts everything after a successful POST unless the response says false', async function () {
         fill('/items?page=1');
         await click('#b0');
         mockResponse('POST', '/items', 'ok');
@@ -339,9 +342,13 @@ describe('ypy-cache extension', function () {
         createProcessedHTML('<div><button id="save" ypy-post="/items" ypy-target="#out">Save</button><div id="out"></div></div>');
         await click('#save');
         assert.equal(ypy.cache.stats().entries, 1);
+
+        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Evict': 'false'}});
+        await click('#save');
+        assert.equal(ypy.cache.stats().entries, 1, 'false on either header keeps everything');
     });
 
-    it('does not expire anything after a failed POST', async function () {
+    it('does not evict anything after a failed POST', async function () {
         fill('/items?page=1');
         await click('#b0');
         mockResponse('POST', '/items', 'bad', {status: 422});
@@ -350,7 +357,7 @@ describe('ypy-cache extension', function () {
         assert.equal(ypy.cache.stats().entries, 1);
     });
 
-    it('does not expire anything for a validation request (YPY-Validate)', async function () {
+    it('does not evict anything for a validation request (YPY-Validate)', async function () {
         fill('/items?page=1');
         await click('#b0');
         mockResponse('POST', '/check', '', {status: 204});
@@ -359,20 +366,20 @@ describe('ypy-cache extension', function () {
         assert.equal(ypy.cache.stats().entries, 1);
     });
 
-    it('drops a copy by the JavaScript API', async function () {
+    it('deletes a copy by the JavaScript API', async function () {
         fill('/items?page=1', '/other');
         await click('#b0');
         await click('#b1');
-        assert.equal(ypy.cache.expire('/items*, /nothing'), 1);
+        assert.equal(ypy.cache.evict('/items*, /nothing'), 1);
         assert.equal(ypy.cache.stats().entries, 1);
         ypy.cache.clear();
         assert.equal(ypy.cache.stats().entries, 0);
     });
 
-    it('a copy dropped by the server is not shown the next time', async function () {
+    it('a copy evicted is not shown the next time', async function () {
         fill('/items?page=1');
         await click('#b0');
-        ypy.cache.expire('/items*');
+        ypy.cache.evict('/items*');
         out().textContent = 'cleared';
         let held = mockSequentialResponses('GET', '/items', 'fresh page');
         find('#b0').click();
@@ -381,6 +388,116 @@ describe('ypy-cache extension', function () {
         await held.next();
         await forRequest();
         assert.equal(out().textContent, 'fresh page');
+    });
+
+    // -------------------------------------------------------------------------
+    // Expire (shown, then revalidated) and tags
+    // -------------------------------------------------------------------------
+
+    it('YPY-Cache-Expire marks a fresh copy old: it is still shown at once, then revalidated and replaced', async function () {
+        mockResponse('GET', '/items', 'v1', {headers: {'Cache-Control': 'max-age=60', ETag: '"1"'}});
+        createProcessedHTML('<div><button id="b" ypy-get="/items" ypy-target="#out" ypy-cache>Go</button><div id="out"></div></div>');
+        await click('#b');
+        await click('#b');
+        assert.equal(gets().length, 1, 'a fresh copy is not asked again');
+
+        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Expire': '/items'}});
+        createProcessedHTML('<div><button id="save" ypy-post="/items" ypy-target="#save-out">Save</button><div id="save-out"></div></div>');
+        let expired = waitForEvent('ypy:cache:expire');
+        await click('#save');
+        assert.equal((await expired).detail.expired, 1);
+        assert.equal(ypy.cache.stats().entries, 1, 'expiring keeps the copy');
+
+        createProcessedHTML('<div><button id="b" ypy-get="/items" ypy-target="#out" ypy-cache>Go</button><div id="out"></div></div>');
+        out().textContent = '';
+        let held = mockSequentialResponses('GET', '/items', 'v2', {headers: {ETag: '"2"'}});
+        await click('#b');
+        assert.equal(out().textContent, 'v1', 'the old copy is shown before the server answered');
+        assert.equal(held.pendingCount, 1);
+        assert.equal(lastFetch().request.headers['If-None-Match'], '"1"');
+        let done = waitForEvent('ypy:cache:revalidated');
+        await held.next();
+        assert.isTrue((await done).detail.changed);
+        await wait(10);
+        assert.equal(out().textContent, 'v2');
+    });
+
+    it('a 304 after an expiry makes the copy fresh again', async function () {
+        mockResponse('GET', '/p', 'v1', {headers: {'Cache-Control': 'max-age=60', ETag: '"1"'}});
+        page();
+        await click();
+        ypy.cache.expire('/p');
+        let held = mockSequentialResponses('GET', '/p', new MockResponse('', {status: 304}));
+        await click();
+        let done = waitForEvent('ypy:cache:revalidated');
+        await held.next();
+        await done;
+        let before = gets().length;
+        await click();
+        await wait(20);
+        assert.equal(gets().length, before, 'not asked again: the copy is fresh');
+    });
+
+    it('expire and evict return how many copies they named', async function () {
+        fill('/items?page=1', '/items?page=2', '/other');
+        await click('#b0');
+        await click('#b1');
+        await click('#b2');
+        assert.equal(ypy.cache.expire('/items*'), 2);
+        assert.equal(ypy.cache.stats().entries, 3);
+        assert.equal(ypy.cache.evict('/items*'), 2);
+        assert.equal(ypy.cache.stats().entries, 1);
+        assert.equal(ypy.cache.expire('/nothing'), 0);
+    });
+
+    it('ypy-cache-tags labels the copy and a tag pattern names it, in both headers and in script', async function () {
+        mockResponse('GET', '/products', 'list');
+        mockResponse('GET', '/featured', 'hot');
+        mockResponse('GET', '/about', 'about');
+        createProcessedHTML(`<div>
+            <button id="b0" ypy-get="/products" ypy-target="#out" ypy-cache ypy-cache-tags="products">p</button>
+            <button id="b1" ypy-get="/featured" ypy-target="#out" ypy-cache ypy-cache-tags="products, home">f</button>
+            <button id="b2" ypy-get="/about" ypy-target="#out" ypy-cache>a</button>
+            <div id="out"></div></div>`);
+        for (let id of ['#b0', '#b1', '#b2']) await click(id);
+        assert.equal(ypy.cache.stats().entries, 3);
+
+        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Expire': 'tag:home'}});
+        createProcessedHTML('<div><button id="save" ypy-post="/items" ypy-target="#s">Save</button><div id="s"></div></div>');
+        let expired = waitForEvent('ypy:cache:expire');
+        await click('#save');
+        assert.equal((await expired).detail.expired, 1, 'only the copy tagged home');
+        assert.equal(ypy.cache.stats().entries, 3);
+
+        mockResponse('POST', '/items', 'ok', {headers: {'YPY-Cache-Evict': 'tag:products'}});
+        let evicted = waitForEvent('ypy:cache:evict');
+        await click('#save');
+        assert.equal((await evicted).detail.removed, 2);
+        assert.equal(ypy.cache.stats().entries, 1, 'the untagged copy stays');
+        assert.equal(ypy.cache.evict('tag:products'), 0);
+    });
+
+    it('ypy-cache-tags is inherited with :inherited, and the tags survive a revalidation', async function () {
+        mockResponse('GET', '/p', 'v1', {headers: {ETag: '"1"'}});
+        createProcessedHTML('<section ypy-cache-tags:inherited="blog"><button ypy-get="/p" ypy-target="#out" ypy-cache>Go</button><div id="out"></div></section>');
+        await click();
+        let held = mockSequentialResponses('GET', '/p', 'v2', {headers: {ETag: '"2"'}});
+        await click();
+        let done = waitForEvent('ypy:cache:revalidated');
+        await held.next();
+        assert.isTrue((await done).detail.changed);
+        await wait(10);
+        assert.equal(ypy.cache.evict('tag:blog'), 1, 'the renewed copy still carries the tag');
+    });
+
+    it('keeps the expired mark and the tags of a copy kept for offline use', async function () {
+        mockResponse('GET', '/p', 'screen');
+        createProcessedHTML('<div><button ypy-get="/p" ypy-target="#out" ypy-cache="offline" ypy-cache-tags="a">Go</button><div id="out"></div></div>');
+        await click();
+        ypy.cache.expire('tag:a');
+        let kept = JSON.parse(sessionStorage.getItem(Object.keys(sessionStorage).find(k => k.startsWith('ypy-cache:'))));
+        assert.isTrue(kept.stale);
+        assert.deepEqual(kept.tags, ['a']);
     });
 
     // -------------------------------------------------------------------------
