@@ -21,7 +21,7 @@ import (
 // JavaScript evaluated in the page, and plain HTTP from the runner. No DevTools
 // protocol feature is needed.
 
-func init() { Scenarios = append(Scenarios, ssrSpaScenarios...) }
+func init() { Register(ssrSpaScenarios...) }
 
 // ssrHit mirrors examples/server/ssr.go.
 type ssrHit struct {
