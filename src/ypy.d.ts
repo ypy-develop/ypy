@@ -2467,3 +2467,76 @@ export interface YpySwapSpec {
   focus?: boolean;
 }
 // #endregion
+
+// #region TASK-089 native app bridge (ypy-native)
+/** What the shell may say about a visit: how it reached the extension. */
+export type YpyNativeVisitSource = 'boost' | 'form' | 'location' | 'redirect' | 'event';
+
+/** The properties a path configuration rule gives a URL (a closed vocabulary; unknown keys are ignored). */
+export interface YpyNativeProperties {
+  context?: 'default' | 'modal';
+  modal_style?: 'medium' | 'large' | 'full' | 'drawer';
+  presentation?: 'push' | 'replace' | 'replace_root' | 'pop' | 'refresh' | 'none';
+  view?: string;
+  pull_to_refresh?: boolean;
+  query_string?: 'ignore' | 'keep';
+  [unknown: string]: unknown;
+}
+
+/** The channel the shell gives the page as `window.ypyNative`. */
+export interface YpyNativeChannel {
+  postMessage(message: string): void;
+  addEventListener?(type: 'message', listener: (event: { data: string }) => void): void;
+  removeEventListener?(type: 'message', listener: (event: { data: string }) => void): void;
+}
+
+/** ypy-native extension API, available when the extension is loaded. */
+export interface YpyNative {
+  /** Attaches to the shell's channel (`window.ypyNative` by default) and asks for the handshake. */
+  connect(channel?: YpyNativeChannel): boolean;
+  /** Leaves the shell: components disconnect, the request header and the visits stop. */
+  disconnect(): void;
+  /** One message from the shell, a JSON string or a parsed object. */
+  receive(message: string | object): void;
+  /** Sends a message to the shell; `false` when there is no channel. */
+  send(type: string, fields?: Record<string, unknown>): boolean;
+  /** Visits a same-origin URL: the shell takes it, a browser swaps the page. */
+  visit(url: string, action?: 'advance' | 'replace' | 'restore'): boolean;
+  /** Loads the path configuration document again. */
+  load(): Promise<void>;
+  /** What the path configuration says about a URL. */
+  properties(url: string): YpyNativeProperties;
+  /** `true` once the handshake is done. */
+  readonly ready: boolean;
+  /** The platform of the shell, from the user agent or the handshake. */
+  readonly platform: string | undefined;
+  /** The native components the installed build knows. */
+  readonly caps: string[];
+}
+
+export interface YpyNativeConfig {
+  /** URL of the path configuration document, or `false` to not load it. Default `/.well-known/ypy-native.json`. */
+  path?: string | false;
+  /** Outside the app, open `context: modal` routes as a layer. Default `false`. */
+  web?: boolean;
+}
+
+export interface YpyConfig {
+  /** Defaults of the ypy-native extension. */
+  native?: YpyNativeConfig;
+}
+
+export interface Ypy {
+  /** ypy-native extension API, available when the extension is loaded */
+  native?: YpyNative;
+}
+
+export interface YpyNativeEventMap {
+  /** Fires on the element of a native component when the shell sends an event for it. Cancel it to stop the default. */
+  'ypy:native:event': { id: number; name: string; detail: any };
+  /** Fires on the source element before a visit goes to the shell. Cancel it to keep the navigation in the page. */
+  'ypy:native:before:visit': { url: string; action: 'advance' | 'replace' | 'restore'; source: YpyNativeVisitSource };
+  /** Asks the page to navigate its main content; the server sends it with `YPY-Trigger`. */
+  'ypy:native:navigate': { url: string; action?: 'advance' | 'replace' | 'restore' };
+}
+// #endregion
