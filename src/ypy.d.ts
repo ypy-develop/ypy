@@ -2022,6 +2022,16 @@ export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
 
 // #region TASK-075 navigation and forms
 
+export interface YpyConfig {
+  /**
+   * Makes the target of a request `inert` while the request runs, so it takes no click, no
+   * focus and no typing until the response is swapped in. The attribute `ypy-inert` overrides it
+   * per element.
+   * @default false
+   */
+  inert?: boolean;
+}
+
 export interface YpyRequestCtx {
   /**
    * The scroll position `[x, y]` of the page when the swap started, which a pushed history entry

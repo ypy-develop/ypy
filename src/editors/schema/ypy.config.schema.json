@@ -169,8 +169,8 @@
         },
         "request": {
           "default": "ypy-request",
-          "description": "Applied to the requesting element and to its indicators while a request runs.",
-          "markdownDescription": "Applied to the requesting element and to its indicators while a request runs.",
+          "description": "Applied to the indicators of the request while it runs (the requesting element, unless `ypy-indicator` names others). `data-ypy-state=\"request\"` is set with it.",
+          "markdownDescription": "Applied to the indicators of the request while it runs (the requesting element, unless `ypy-indicator` names others). `data-ypy-state=\"request\"` is set with it.",
           "type": "string"
         },
         "settling": {
@@ -348,6 +348,12 @@
       "default": true,
       "description": "Includes the built-in CSS of the indicator class.",
       "markdownDescription": "Includes the built-in CSS of the indicator class.",
+      "type": "boolean"
+    },
+    "inert": {
+      "default": false,
+      "description": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element.",
+      "markdownDescription": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element.",
       "type": "boolean"
     },
     "inlineScriptNonce": {

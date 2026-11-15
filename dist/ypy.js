@@ -506,10 +506,14 @@ var ypy = (() => {
                     }
                 }
             }
+            // the submit button of the form that sent the event decides, as it does for the browser,
+            // boosted or not (a formmethod of "dialog" makes the method DIALOG: no request is made)
+            method = evt.submitter?.getAttribute?.("formmethod") || method;
+            action = evt.submitter?.getAttribute?.("formaction") || action;
             if (this.#isBoosted(elt)) {
-                action ||= evt.submitter?.getAttribute?.("formAction") || elt.getAttribute(elt.matches("a") ? "href" : "action");
+                action ||= elt.getAttribute(elt.matches("a") ? "href" : "action");
             }
-            method ||= evt.submitter?.getAttribute?.("formmethod") || elt.getAttribute("method") || "GET";
+            method ||= elt.getAttribute("method") || "GET";
             return {action, method: method.toUpperCase()};
         }
 
@@ -2768,7 +2772,7 @@ var ypy = (() => {
                 ctx.indicators.push(indicator);
                 let s = this.#ypyState(indicator);
                 s.rc = (s.rc || 0) + 1;
-                this.#addClass(indicator, 'request');
+                this.#setState(indicator, 'request', true);
             }
         }
 
@@ -2776,29 +2780,37 @@ var ypy = (() => {
             for (let indicator of indicatorElements) {
                 let s = this.#ypyState(indicator);
                 if (s.rc && --s.rc <= 0) {
-                    this.#removeClass(indicator, 'request');
+                    this.#setState(indicator, 'request', false);
                     delete s.rc;
                 }
             }
         }
 
+        /**
+         * Holds back the elements named by ypy-disable (disabled) and, when ypy-inert (or
+         * config.inert, off by default) is "true", the target of the request (inert). Both go in
+         * ctx.disabledElements, released together by #enableElements.
+         */
         #disableElements(ctx) {
             let elt = ctx.sourceElement;
-            let ypyDisable = this.#attributeValue(elt, "ypy-disable");
-            if (!ypyDisable) return;
-            for (let el of this.#findAllExt(elt, ypyDisable, "ypy-disable")) {
+            let hold = (list, property) => {
+                for (let el of list) {
                     ctx.disabledElements.push(el);
                     let s = this.#ypyState(el);
                     s.dc = (s.dc || 0) + 1;
-                    el.disabled = true;
-            }
+                    el[property] = true;
+                }
+            };
+            let ypyDisable = this.#attributeValue(elt, "ypy-disable");
+            if (ypyDisable) hold(this.#findAllExt(elt, ypyDisable, "ypy-disable"), 'disabled');
+            if (/true/.test(this.#attributeValue(elt, "ypy-inert", this.config.inert)) && ctx.target?.nodeType) hold([ctx.target], 'inert');
         }
 
         #enableElements(disabledElements) {
             for (const indicator of disabledElements) {
                 let s = this.#ypyState(indicator);
                 if (s.dc && --s.dc <= 0) {
-                    indicator.disabled = false
+                    indicator.disabled = indicator.inert = false
                     delete s.dc;
                 }
             }
@@ -2807,19 +2819,18 @@ var ypy = (() => {
         #collectFormData(elt, form, submitter, validate, isGet) {
             if (validate && form && !form.reportValidity()) return
 
-            // treat a named submit button that owns ypy-post as its own submitter
+            // treat a submit button that owns ypy-post as its own submitter; FormData adds its
+            // name and value (nothing when it has no name), and throws for a button of another form
             submitter ??= (form && elt.type === 'submit') ? elt : null;
+            if (submitter?.form !== form) submitter = null;
 
-            let formData = form ? new FormData(form) : new FormData()
+            let formData = form ? new FormData(form, submitter) : new FormData()
             let included = form ? new Set(form.elements) : new Set()
             if (!form) {
                 if (validate && elt.reportValidity && !elt.reportValidity()) return
                 this.#addInputValues(elt, included, formData, isGet);
             }
-            if (submitter?.name) {
-                formData.append(submitter.name, submitter.value)
-                included.add(submitter);
-            }
+            if (submitter) included.add(submitter);
             let ypyInclude = this.#attributeValue(elt, "ypy-include");
             if (ypyInclude) {
                 for (let node of this.#findAllExt(elt, ypyInclude)) {

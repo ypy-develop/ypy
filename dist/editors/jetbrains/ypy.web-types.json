@@ -346,6 +346,18 @@
           }
         },
         {
+          "name": "ypy-inert",
+          "description": "Makes the target of the request `inert` while the request runs. `true` turns it on, `false` turns it off when `config.inert` is on. Off by default.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-inert:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `true`: The target takes no click, focus or typing until the response arrives.\n- `false`: The target stays active."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-ignore",
           "description": "Stops YPY from processing the element and its children.",
           "value": {
