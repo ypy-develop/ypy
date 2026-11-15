@@ -412,8 +412,8 @@
     },
     "inert": {
       "default": false,
-      "description": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element.",
-      "markdownDescription": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element.",
+      "description": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element. Requires the `ypy-disable` extension.",
+      "markdownDescription": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element. Requires the `ypy-disable` extension.",
       "type": "boolean"
     },
     "inlineScriptNonce": {

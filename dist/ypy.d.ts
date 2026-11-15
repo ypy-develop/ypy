@@ -2390,7 +2390,7 @@ export interface Ypy {
 
 export interface YpyConfig {
   /**
-   * Makes the target of a request `inert` while the request runs, so it takes no click, no
+   * Makes the target of a request `inert` while the request runs (extension `ypy-disable`), so it takes no click, no
    * focus and no typing until the response is swapped in. The attribute `ypy-inert` overrides it
    * per element.
    * @default false

@@ -233,6 +233,7 @@ var ypy = (() => {
                 createRequestContext: this.#createRequestContext.bind(this),
                 collectFormData: this.#collectFormData.bind(this),
                 getAttributeObject: this.#getAttributeObject.bind(this),
+                findAll: this.#findAllExt.bind(this),
                 insertContent: this.#insertContent.bind(this),
                 morph: this.#morph.bind(this),
                 isSoftMatch: this.#isSoftMatch.bind(this),
@@ -749,7 +750,7 @@ var ypy = (() => {
          *
          *   #admitRequest    queue: run, wait or drop
          *   #confirmRequest  ypy:confirm and window.confirm (only when ctx.confirm is set)
-         *   #beginRequest    timeout, indicators, disabled elements, busy marks
+         *   #beginRequest    timeout, indicators, busy marks
          *   #sendRequest     ypy:before:request, final headers, fetch
          *   #receiveResponse ypy:before:response ... status codes; says whether to swap
          *   swap              the swap phases (see swap)
@@ -827,7 +828,6 @@ var ypy = (() => {
             }
             ctx.status = "issuing"
             ctx.indicators ??= [];
-            ctx.disabledElements ??= [];
             return () => requestQueue.continue(abortRequest)
         }
 
@@ -852,7 +852,7 @@ var ypy = (() => {
 
         /**
          * Phase 3: everything that must be undone when the request ends. Starts the timeout,
-         * shows the indicators, disables the elements named by ypy-disable and marks the
+         * shows the indicators and marks the
          * request as busy (see #markBusy). Runs after the confirmation, so a denied request
          * leaves no trace.
          *
@@ -866,7 +866,6 @@ var ypy = (() => {
                 ctx.requestTimeout = setTimeout(() => ctx.request?.abort?.('timeout'), timeout);
             }
             this.#showIndicators(ctx);
-            this.#disableElements(ctx);
             this.#markBusy(ctx);
         }
 
@@ -994,7 +993,6 @@ var ypy = (() => {
             this.#trigger(elt, "ypy:finally:request", {ctx})
             if (!ctx.keepIndicators) {
                 this.#hideIndicators(ctx.indicators);
-                this.#enableElements(ctx.disabledElements);
             }
             this.#unmarkBusy(ctx);
             this.#announce(ctx);
@@ -2835,7 +2833,7 @@ var ypy = (() => {
         }
 
         //============================================================================================
-        // SECTION request (cont.): indicators, disabled elements, form values
+        // SECTION request (cont.): indicators, form values
         //============================================================================================
 
         #showIndicators(ctx) {
@@ -2862,36 +2860,6 @@ var ypy = (() => {
                 if (s.rc && --s.rc <= 0) {
                     this.#setState(indicator, 'request', false);
                     delete s.rc;
-                }
-            }
-        }
-
-        /**
-         * Holds back the elements named by ypy-disable (disabled) and, when ypy-inert (or
-         * config.inert, off by default) is "true", the target of the request (inert). Both go in
-         * ctx.disabledElements, released together by #enableElements.
-         */
-        #disableElements(ctx) {
-            let elt = ctx.sourceElement;
-            let hold = (list, property) => {
-                for (let el of list) {
-                    ctx.disabledElements.push(el);
-                    let s = this.#ypyState(el);
-                    s.dc = (s.dc || 0) + 1;
-                    el[property] = true;
-                }
-            };
-            let ypyDisable = this.#attributeValue(elt, "ypy-disable");
-            if (ypyDisable) hold(this.#findAllExt(elt, ypyDisable, "ypy-disable"), 'disabled');
-            if (/true/.test(this.#attributeValue(elt, "ypy-inert", this.config.inert)) && ctx.target?.nodeType) hold([ctx.target], 'inert');
-        }
-
-        #enableElements(disabledElements) {
-            for (const indicator of disabledElements) {
-                let s = this.#ypyState(indicator);
-                if (s.dc && --s.dc <= 0) {
-                    indicator.disabled = indicator.inert = false
-                    delete s.dc;
                 }
             }
         }

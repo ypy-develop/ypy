@@ -335,29 +335,6 @@
           }
         },
         {
-          "name": "ypy-disable",
-          "description": "Names the elements that are disabled while the request runs. Takes a selector or an extended selector.",
-          "description-sections": {
-            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-disable:inherited`) to apply this attribute to YPY requests in child elements."
-          },
-          "value": {
-            "kind": "plain",
-            "type": "string"
-          }
-        },
-        {
-          "name": "ypy-inert",
-          "description": "Makes the target of the request `inert` while the request runs. `true` turns it on, `false` turns it off when `config.inert` is on. Off by default.",
-          "description-sections": {
-            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-inert:inherited`) to apply this attribute to YPY requests in child elements.",
-            "Values": "- `true`: The target takes no click, focus or typing until the response arrives.\n- `false`: The target stays active."
-          },
-          "value": {
-            "kind": "plain",
-            "type": "string"
-          }
-        },
-        {
           "name": "ypy-ignore",
           "description": "Stops YPY from processing the element and its children.",
           "value": {
@@ -604,6 +581,29 @@
           "description-sections": {
             "Inheritance": "Use the `:inherited` modifier (for example, `ypy-dedupe:inherited`) to apply this attribute to YPY requests in child elements.",
             "Values": "- `false`: This element's requests are never shared."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-disable",
+          "description": "Names the elements that are disabled while the request runs, with the `ypy-disable` extension (included in `ypy.max`). Takes a selector or an extended selector. Requires the `ypy-disable` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-disable:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-inert",
+          "description": "With the `ypy-disable` extension, makes the target of the request `inert` while the request runs. `true` turns it on, `false` turns it off when `config.inert` is on. Off by default. Requires the `ypy-disable` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-inert:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `true`: The target takes no click, focus or typing until the response arrives.\n- `false`: The target stays active."
           },
           "value": {
             "kind": "plain",

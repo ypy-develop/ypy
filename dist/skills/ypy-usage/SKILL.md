@@ -95,7 +95,7 @@ A parent's attribute reaches its children only with `:inherited`:
   them. `ypy-headers` and `ypy-config` (`timeout`, `credentials`, ...) take the
   same notation. `ypy-encoding="multipart/form-data"` for files.
 - `ypy-confirm`, `ypy-sync` (`[<selector>:]<strategy>`, default `queue first`: what to do when a second request from the same owner arrives),
-  `ypy-validate`, `ypy-disable="find button"`, `ypy-boost` (links and forms of a
+  `ypy-validate`, `ypy-disable="find button"` and `ypy-inert` (the `ypy-disable` extension), `ypy-boost` (links and forms of a
   subtree), `ypy-push-url`, `ypy-replace-url`, `ypy-history-elt`, `ypy-ignore`.
 
 The server sees `YPY-Request`, `YPY-Source`, `YPY-Target`, `YPY-Current-URL`,

@@ -240,22 +240,6 @@
       "inherited": true
     },
     {
-      "name": "ypy-disable",
-      "description": "Names the elements that are disabled while the request runs. Takes a selector or an extended selector.",
-      "valueType": "selector",
-      "inherited": true
-    },
-    {
-      "name": "ypy-inert",
-      "description": "Makes the target of the request `inert` while the request runs. `true` turns it on, `false` turns it off when `config.inert` is on. Off by default.",
-      "valueType": "string",
-      "values": [
-        {"name": "true", "description": "The target takes no click, focus or typing until the response arrives."},
-        {"name": "false", "description": "The target stays active."}
-      ],
-      "inherited": true
-    },
-    {
       "name": "ypy-ignore",
       "description": "Stops YPY from processing the element and its children.",
       "valueType": "none"
@@ -853,7 +837,6 @@
     {"name": "classes.indicator", "description": "Applied to elements that show only during a request.", "schema": {"type": "string"}, "default": "ypy-indicator"},
     {"name": "classes.error", "description": "Added to the error target after a response of 400 or more was swapped. There is no default class: `data-ypy-state=\"error\"` is enough to style it.", "schema": {"type": "string"}},
     {"name": "classes.offline", "description": "Applied to `<html>` while the browser reports no connection.", "schema": {"type": "string"}, "default": "ypy-offline"},
-    {"name": "inert", "description": "Makes the target of every request `inert` while it runs. `ypy-inert` overrides it per element.", "schema": {"type": "boolean"}, "default": false},
     {"name": "includeIndicatorCSS", "description": "Includes the built-in CSS of the indicator class.", "schema": {"type": "boolean"}, "default": true},
     {"name": "inlineScriptNonce", "description": "The `nonce` of the inline `<script>` elements YPY creates, for a strict CSP.", "schema": {"type": "string"}},
     {"name": "extensions", "description": "Comma separated list of the extensions allowed to register. Empty allows all.", "schema": {"type": "string"}, "default": ""},
