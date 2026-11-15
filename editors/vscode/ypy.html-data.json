@@ -737,6 +737,20 @@
       }
     },
     {
+      "name": "ypy-on::before:command",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:before:command` fires. Fires on the element that sent the request before one command of `YPY-Commands` runs. `targets` are the elements the selector matched. Cancel it to skip that command."
+      }
+    },
+    {
+      "name": "ypy-on::commands:ignored",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:commands:ignored` fires. Fires on the element that sent the request when a command, or the whole list, of `YPY-Commands` was not run: unknown type, an invalid field, an invalid selector, a blocked attribute (an event handler, `style`, `srcdoc`, an attribute of YPY or a `javascript:` URL), a list that is not JSON or is longer than `commands.max`. A console warning says the same."
+      }
+    },
+    {
       "name": "ypy-on::security:strip",
       "description": {
         "kind": "markdown",
@@ -895,6 +909,13 @@
       "description": {
         "kind": "markdown",
         "value": "Runs the JavaScript when `ypy:lazy:error` fires. A region with `ypy-lazy` failed to load (no connection, a status of 400 or more, a swap error). The region has `data-ypy-state=\"error\"`."
+      }
+    },
+    {
+      "name": "ypy-on::lazy:group",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:lazy:group` fires. Fires on the first region of a batch just before the group request is sent. `ids` lists the `id` of every region in it."
       }
     },
     {
@@ -1935,6 +1956,20 @@
           "name": "false"
         }
       ]
+    },
+    {
+      "name": "ypy-lazy-group",
+      "description": {
+        "kind": "markdown",
+        "value": "A group name for a lazy region. Regions of the same group that come into view within `lazy.window` load with one GET request, which asks for the `id` of each region and which the server answers with one `<ypy-partial id>` per region. A region without an `id`, or alone in its window, loads on its own.\n\nRequires the `ypy-lazy` extension."
+      }
+    },
+    {
+      "name": "ypy-lazy-group-url",
+      "description": {
+        "kind": "markdown",
+        "value": "The URL of the group request, on any region of the group (the first region that has it wins). Without it the request goes to the `ypy-lazy` URL of the first region of the batch.\n\nRequires the `ypy-lazy` extension."
+      }
     },
     {
       "name": "ypy-live",

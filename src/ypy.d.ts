@@ -2019,3 +2019,49 @@ export interface YpyDev {
 /** The `code` of the messages that `ypy-dev` adds: a POST, PUT, PATCH or DELETE that `ypy-sync` aborted in flight or dropped. */
 export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
 // #endregion
+
+// #region TASK-079 batch lazy loading, YPY-Commands, ypy-sort, ypy-dedupe, encrypted history cache
+
+/** Settings of `ypy-lazy` grouping. */
+export interface YpyLazyConfig {
+  /** How long a region of a group waits for the others to come into view before the group is requested, in ms or as `"50ms"`. @default 50 */
+  window?: number | string;
+}
+
+/** One command of the `YPY-Commands` response header (see https://ypy.dev/docs/reference/commands). */
+export type YpyCommand =
+  | { type: 'addClass' | 'removeClass'; target: string; class: string }
+  | { type: 'toggleClass'; target: string; class: string; force?: boolean }
+  | { type: 'setAttribute'; target: string; name: string; value?: string | number | boolean }
+  | { type: 'removeAttribute'; target: string; name: string }
+  | { type: 'focus' | 'remove' | 'show' | 'hide'; target: string }
+  | { type: 'scrollIntoView'; target: string; behavior?: string; block?: string; inline?: string }
+  | { type: 'dispatch'; target?: string; event: string; detail?: unknown; bubbles?: boolean };
+
+/** Settings of the `YPY-Commands` header, in `ypy.config.commands`. */
+export interface YpyCommandsConfig {
+  /** Most commands a list may hold; a longer list is ignored as a whole. @default 100 */
+  max?: number;
+}
+
+export interface YpyConfig {
+  commands?: YpyCommandsConfig;
+}
+
+export interface Ypy {
+  /** `ypy-commands` extension API, available when the extension is loaded. */
+  commands?: {
+    /** Runs a list of commands, or its JSON text, as the header does. `source` is the element the events fire on. */
+    run(list: YpyCommand[] | string, source?: Element): void;
+  };
+}
+
+export interface YpyNativeEventMap {
+  /** A group request of `ypy-lazy` is about to be sent. Fired on the first region of the batch. */
+  'ypy:lazy:group': { group: string; ids: string[]; url: string };
+  /** A command of `YPY-Commands` is about to run. Cancel it to skip the command. */
+  'ypy:before:command': { ctx?: YpyRequestCtx; command: YpyCommand; targets: Array<Element | Document> };
+  /** A command, or the whole list, of `YPY-Commands` was not run. */
+  'ypy:commands:ignored': { command: unknown; reason: string };
+}
+// #endregion

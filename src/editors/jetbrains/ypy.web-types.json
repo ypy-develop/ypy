@@ -781,6 +781,22 @@
           }
         },
         {
+          "name": "ypy-lazy-group",
+          "description": "A group name for a lazy region. Regions of the same group that come into view within `lazy.window` load with one GET request, which asks for the `id` of each region and which the server answers with one `<ypy-partial id>` per region. A region without an `id`, or alone in its window, loads on its own. Requires the `ypy-lazy` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-lazy-group-url",
+          "description": "The URL of the group request, on any region of the group (the first region that has it wins). Without it the request goes to the `ypy-lazy` URL of the first region of the batch. Requires the `ypy-lazy` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-live",
           "description": "Runs a JavaScript expression when the element is processed and again whenever the DOM, an input or a swap may have changed what it reads. The expression runs with the `ypy-live` scope: `q()`, `take()`, `toggle()`, `trigger()`, `debounce()`, `forEvent()`, `nextFrame()`, `insert()`, `attr`, `data`, `aria`, `local` and `closest`. It needs `config.callbacks` to allow code. Requires the `ypy-live` extension.",
           "value": {
@@ -1520,6 +1536,14 @@
           "description": "Copies were dropped by a `YPY-Cache-Expire` header, the default after a successful non-GET request, or `ypy.cache.expire()`. Requires the `ypy-cache` extension."
         },
         {
+          "name": "before:command",
+          "description": "Fires on the element that sent the request before one command of `YPY-Commands` runs. `targets` are the elements the selector matched. Cancel it to skip that command. Requires the `ypy-commands` extension."
+        },
+        {
+          "name": "commands:ignored",
+          "description": "Fires on the element that sent the request when a command, or the whole list, of `YPY-Commands` was not run: unknown type, an invalid field, an invalid selector, a blocked attribute (an event handler, `style`, `srcdoc`, an attribute of YPY or a `javascript:` URL), a list that is not JSON or is longer than `commands.max`. A console warning says the same. Requires the `ypy-commands` extension."
+        },
+        {
           "name": "security:strip",
           "description": "Fires on an element after `ypy-csp` removed its `ypy-*` and `data-ypy-*` attributes because it carried no valid nonce. Requires the `ypy-csp` extension."
         },
@@ -1610,6 +1634,10 @@
         {
           "name": "lazy:error",
           "description": "A region with `ypy-lazy` failed to load (no connection, a status of 400 or more, a swap error). The region has `data-ypy-state=\"error\"`. Requires the `ypy-lazy` extension."
+        },
+        {
+          "name": "lazy:group",
+          "description": "Fires on the first region of a batch just before the group request is sent. `ids` lists the `id` of every region in it. Requires the `ypy-lazy` extension."
         },
         {
           "name": "list:pruned",

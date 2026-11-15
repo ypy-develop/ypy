@@ -247,4 +247,148 @@ describe('ypy-lazy extension', function () {
             window.scrollTo(0, 0);
         }
     });
+
+    describe('ypy-lazy-group', function () {
+        const groupSettle = () => ypy.timeout(160);
+        const partials = '<ypy-partial id="a"><p id="pa">A done</p></ypy-partial><ypy-partial id="b"><p id="pb">B done</p></ypy-partial>';
+
+        it('loads regions of one group that are in view together with a single request', async function () {
+            mockResponse('GET', '/reports', partials);
+            render('<div id="a" ypy-lazy="/reports/a" ypy-lazy-group="r">A</div><div id="b" ypy-lazy="/reports/b" ypy-lazy-group="r">B</div>');
+            await groupSettle();
+            calls().length.should.equal(1);
+            calls()[0].url.should.equal('/reports/a?group=r&id=a&id=b');
+            calls()[0].request.headers['YPY-Lazy-Group'].should.equal('r');
+            find2('#pa').textContent.should.equal('A done');
+            find2('#pb').textContent.should.equal('B done');
+            assert.isNull(find2('#a'));
+        });
+
+        it('uses ypy-lazy-group-url when a region has one', async function () {
+            mockResponse('GET', '/batch', partials);
+            render('<div id="a" ypy-lazy="/reports/a" ypy-lazy-group="r" ypy-lazy-group-url="/batch">A</div><div id="b" ypy-lazy="/reports/b" ypy-lazy-group="r">B</div>');
+            await groupSettle();
+            calls().map(c => c.url).should.deep.equal(['/batch?group=r&id=a&id=b']);
+        });
+
+        it('fires ypy:lazy:group with the ids', async function () {
+            mockResponse('GET', '/reports', partials);
+            let seen = waitForEvent('ypy:lazy:group', 300);
+            render('<div id="a" ypy-lazy="/reports" ypy-lazy-group="r">A</div><div id="b" ypy-lazy="/reports" ypy-lazy-group="r">B</div>');
+            let evt = await seen;
+            evt.detail.group.should.equal('r');
+            evt.detail.ids.should.deep.equal(['a', 'b']);
+            await groupSettle();
+        });
+
+        it('keeps groups apart: one request per group', async function () {
+            mockResponse('GET', '/g1', '<ypy-partial id="a"><i id="pa">1</i></ypy-partial><ypy-partial id="b"><i id="pb">1</i></ypy-partial>');
+            mockResponse('GET', '/g2', '<ypy-partial id="c"><i id="pc">2</i></ypy-partial><ypy-partial id="d"><i id="pd">2</i></ypy-partial>');
+            render('<div id="a" ypy-lazy="/g1" ypy-lazy-group="one">A</div><div id="c" ypy-lazy="/g2" ypy-lazy-group="two">C</div>' +
+                '<div id="b" ypy-lazy="/g1" ypy-lazy-group="one">B</div><div id="d" ypy-lazy="/g2" ypy-lazy-group="two">D</div>');
+            await groupSettle();
+            calls().map(c => c.url).sort().should.deep.equal(['/g1?group=one&id=a&id=b', '/g2?group=two&id=c&id=d']);
+            mount.textContent.should.equal('1212');
+        });
+
+        it('loads a region alone in its window with its own url, as without a group', async function () {
+            mockResponse('GET', '/reports/a', '<p id="solo">Solo</p>');
+            render('<div id="a" ypy-lazy="/reports/a" ypy-lazy-group="r">A</div>');
+            await groupSettle();
+            calls().map(c => c.url).should.deep.equal(['/reports/a']);
+            find2('#solo').textContent.should.equal('Solo');
+        });
+
+        it('loads a grouped region with no id on its own', async function () {
+            mockResponse('GET', '/x', '<p>X</p>');
+            mockResponse('GET', '/y', '<p>Y</p>');
+            render('<div ypy-lazy="/x" ypy-lazy-group="r">A</div><div ypy-lazy="/y" ypy-lazy-group="r">B</div>');
+            await groupSettle();
+            calls().map(c => c.url).sort().should.deep.equal(['/x', '/y']);
+        });
+
+        it('does not group regions that come into view far apart in time', async function () {
+            mockResponse('GET', '/reports/a', '<p>A</p>');
+            mockResponse('GET', '/reports/b', '<p>B</p>');
+            render('<div id="a" ypy-lazy="/reports/a" ypy-lazy-group="r">A</div>');
+            await groupSettle();
+            let other = document.createElement('div');
+            other.id = 'b';
+            other.setAttribute('ypy-lazy', '/reports/b');
+            other.setAttribute('ypy-lazy-group', 'r');
+            mount.append(other);
+            ypy.process(other);
+            await groupSettle();
+            calls().map(c => c.url).should.deep.equal(['/reports/a', '/reports/b']);
+        });
+
+        it('a partial that names a swap keeps the region', async function () {
+            mockResponse('GET', '/reports', '<ypy-partial id="a" ypy-swap="innerHTML"><b>in</b></ypy-partial><ypy-partial id="b"><p id="pb">B</p></ypy-partial>');
+            render('<div id="a" ypy-lazy="/reports" ypy-lazy-group="r">A</div><div id="b" ypy-lazy="/reports" ypy-lazy-group="r">B</div>');
+            await groupSettle();
+            find2('#a').innerHTML.should.equal('<b>in</b>');
+            find2('#pb').textContent.should.equal('B');
+        });
+
+        it('marks a region the answer left out as an error and loads the others', async function () {
+            mockResponse('GET', '/reports', '<ypy-partial id="a"><p id="pa">A done</p></ypy-partial>');
+            let errors = [];
+            let onError = evt => errors.push(evt.target.id);
+            document.addEventListener('ypy:lazy:error', onError);
+            try {
+                render('<div id="a" ypy-lazy="/reports" ypy-lazy-group="r">A</div><div id="b" ypy-lazy="/reports" ypy-lazy-group="r">B</div>');
+                await groupSettle();
+            } finally {
+                document.removeEventListener('ypy:lazy:error', onError);
+            }
+            errors.should.deep.equal(['b']);
+            find2('#pa').textContent.should.equal('A done');
+            find2('#b').dataset.ypyState.should.contain('error');
+        });
+
+        it('marks every region of the group as an error when the request fails', async function () {
+            mockResponse('GET', '/reports', 'Oops', {status: 500});
+            render('<template id="er"><b>Failed</b></template><div id="a" ypy-lazy="/reports" ypy-lazy-group="r" ypy-lazy-error="#er">A</div><div id="b" ypy-lazy="/reports" ypy-lazy-group="r" ypy-lazy-error="#er">B</div>');
+            await groupSettle();
+            for (let id of ['#a', '#b']) {
+                find2(id).dataset.ypyState.should.contain('error');
+                find2(id).textContent.should.equal('Failed');
+            }
+        });
+
+        it('marks every region of the group as an error when the connection fails', async function () {
+            mockFailure('GET', '/reports');
+            render('<div id="a" ypy-lazy="/reports" ypy-lazy-group="r">A</div><div id="b" ypy-lazy="/reports" ypy-lazy-group="r">B</div>');
+            await groupSettle();
+            find2('#a').dataset.ypyState.should.contain('error');
+            find2('#b').dataset.ypyState.should.contain('error');
+        });
+
+        it('does not request a region that was removed while it waited for the group', async function () {
+            mockResponse('GET', '/reports/b', '<p id="solo">B</p>');
+            render('<div id="a" ypy-lazy="/reports/a" ypy-lazy-group="r">A</div><div id="b" ypy-lazy="/reports/b" ypy-lazy-group="r">B</div>');
+            find2('#a').remove();
+            await groupSettle();
+            calls().map(c => c.url).should.deep.equal(['/reports/b']);
+        });
+
+        it('honours config.lazy.window', async function () {
+            mockResponse('GET', '/reports', partials);
+            ypy.config.lazy = {window: 250};
+            try {
+                render('<div id="a" ypy-lazy="/reports" ypy-lazy-group="r">A</div>');
+                await ypy.timeout(100);
+                let other = document.createElement('div');
+                other.id = 'b';
+                other.setAttribute('ypy-lazy', '/reports');
+                other.setAttribute('ypy-lazy-group', 'r');
+                mount.append(other);
+                ypy.process(other);
+                await ypy.timeout(300);
+                calls().map(c => c.url).should.deep.equal(['/reports?group=r&id=a&id=b']);
+            } finally {
+                delete ypy.config.lazy;
+            }
+        });
+    });
 });

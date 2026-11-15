@@ -188,6 +188,21 @@
       },
       "type": "object"
     },
+    "commands": {
+      "additionalProperties": false,
+      "description": "Settings of the `YPY-Commands` header. Requires the `ypy-commands` extension.",
+      "markdownDescription": "Settings of the `YPY-Commands` header. Requires the `ypy-commands` extension.",
+      "properties": {
+        "max": {
+          "default": 100,
+          "description": "Most commands a `YPY-Commands` list may hold; a longer list is ignored as a whole. Requires the `ypy-commands` extension.",
+          "markdownDescription": "Most commands a `YPY-Commands` list may hold; a longer list is ignored as a whole. Requires the `ypy-commands` extension.",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
     "defaultFocusScroll": {
       "default": false,
       "description": "Scrolls the focused element into view after each swap.",
@@ -452,6 +467,15 @@
           "description": "How far outside the window a region is loaded, as a CSS margin. Requires the `ypy-lazy` extension.",
           "markdownDescription": "How far outside the window a region is loaded, as a CSS margin. Requires the `ypy-lazy` extension.",
           "type": "string"
+        },
+        "window": {
+          "default": 50,
+          "description": "How long a region of a group waits for the others to come into view before the group is requested, in milliseconds or as a time such as `\"50ms\"`. Requires the `ypy-lazy` extension.",
+          "markdownDescription": "How long a region of a group waits for the others to come into view before the group is requested, in milliseconds or as a time such as `\"50ms\"`. Requires the `ypy-lazy` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
         }
       },
       "type": "object"
