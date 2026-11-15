@@ -6,42 +6,42 @@
       "description": "The URL of a GET request made when the element is about to be seen; the response replaces the element (`ypy-swap` changes that). The content of the element is the placeholder.",
       "valueType": "url",
       "inherited": false,
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     },
     {
       "name": "ypy-lazy-placeholder",
       "description": "A selector of a `<template>` (or element) whose content replaces the children of the region when it is processed.",
       "valueType": "selector",
       "inherited": false,
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     },
     {
       "name": "ypy-lazy-error",
       "description": "A selector of a `<template>` (or element) whose content replaces the children of the region when it fails to load.",
       "valueType": "selector",
       "inherited": false,
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     },
     {
       "name": "ypy-lazy-retry",
       "description": "On an element inside a lazy region: loads the region again when clicked after an error.",
       "valueType": "boolean",
       "inherited": false,
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     },
     {
       "name": "ypy-lazy-group",
       "description": "A group name for a lazy region. Regions of the same group that come into view within `lazy.window` load with one GET request, which asks for the `id` of each region and which the server answers with one `<ypy-partial id>` per region. A region without an `id`, or alone in its window, loads on its own.",
       "valueType": "string",
       "inherited": false,
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     },
     {
       "name": "ypy-lazy-group-url",
       "description": "The URL of the group request, on any region of the group (the first region that has it wins). Without it the request goes to the `ypy-lazy` URL of the first region of the batch.",
       "valueType": "url",
       "inherited": false,
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     }
   ],
   "events": [
@@ -65,7 +65,7 @@
       },
       "cancelable": false,
       "target": "element",
-      "doc": "https://ypy.dev/docs/reference/navigation"
+      "doc": "https://ypy.dev/docs/reference/lazy"
     }
   ],
   "config": [
