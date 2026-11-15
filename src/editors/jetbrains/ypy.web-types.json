@@ -1260,6 +1260,18 @@
           }
         },
         {
+          "name": "ypy-validate-batch",
+          "description": "Sends the fields of one form that ask the same URL within a short window in a single request, with `YPY-Validate: field1,field2`. The value is the window as a time; a bare attribute means `50ms`; `false` turns it off. Read on the field, on the element with `ypy-validate-fields` or on the form (the nearest wins), and from `validate.batch` in the configuration. Off by default: the server must read the list. One field alone is checked as without batching. Requires the `ypy-validate` extension.",
+          "description-sections": {
+            "Syntax": "`[<time>] | false`",
+            "Values": "- `false`: No batching for this field or region."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-ws:connect",
           "description": "Opens a WebSocket to the URL when the element's `ypy-trigger` fires (default `load`). `http(s)://` and relative URLs are converted to `ws(s)://`. A text message is swapped into the target as HTML; a JSON message swaps its `content` field and may carry `target`, `swap` and `select`. Other JSON is only available to listeners. The socket reconnects with backoff and closes with the element. Requires the `ypy-ws` extension.",
           "value": {

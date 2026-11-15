@@ -2032,4 +2032,15 @@ export interface YpyNativeEventMap {
   /** Copies were deleted (`YPY-Cache-Evict`, `ypy.cache.evict()`, `ypy.cache.clear()`, or a successful non-GET request). Fired on `document`. */
   'ypy:cache:evict': { patterns: string[]; removed: number };
 }
+
+/** Settings of the field validation of `ypy-validate`, in `ypy.config.validate`. */
+export interface YpyValidateConfig {
+  /** The window in which the fields of one form that ask the same URL go in a single request, as a time (`"50ms"`) or milliseconds; `true` means 50 ms. `ypy-validate-batch` overrides it. @default false */
+  batch?: boolean | number | string;
+}
+
+export interface YpyConfig {
+  /** `ypy-validate` settings. */
+  validate?: Partial<YpyValidateConfig>;
+}
 // #endregion

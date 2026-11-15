@@ -961,6 +961,24 @@
       "markdownDescription": "Uses the View Transitions API for swap animations.",
       "type": "boolean"
     },
+    "validate": {
+      "additionalProperties": false,
+      "description": "Settings of the field validation on the server. Requires the `ypy-validate` extension.",
+      "markdownDescription": "Settings of the field validation on the server. Requires the `ypy-validate` extension.",
+      "properties": {
+        "batch": {
+          "default": false,
+          "description": "The window, as a time, in which the fields of one form that ask the same URL go in a single request. Off by default; `ypy-validate-batch` overrides it per field, region or form. Requires the `ypy-validate` extension.",
+          "markdownDescription": "The window, as a time, in which the fields of one form that ask the same URL go in a single request. Off by default; `ypy-validate-batch` overrides it per field, region or form. Requires the `ypy-validate` extension.",
+          "type": [
+            "number",
+            "string",
+            "boolean"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "ws": {
       "additionalProperties": false,
       "description": "Defaults of the ypy-ws extension. A single element overrides them with `ypy-config='{\"ws\":{...}}'`. Requires the `ypy-ws` extension.",

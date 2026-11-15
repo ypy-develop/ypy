@@ -2459,6 +2459,22 @@
       }
     },
     {
+      "name": "ypy-validate-batch",
+      "description": {
+        "kind": "markdown",
+        "value": "Sends the fields of one form that ask the same URL within a short window in a single request, with `YPY-Validate: field1,field2`. The value is the window as a time; a bare attribute means `50ms`; `false` turns it off. Read on the field, on the element with `ypy-validate-fields` or on the form (the nearest wins), and from `validate.batch` in the configuration. Off by default: the server must read the list. One field alone is checked as without batching.\n\nRequires the `ypy-validate` extension.\n\nSyntax: `[<time>] | false`\n\n**Values**\n\n- `false`: No batching for this field or region."
+      },
+      "values": [
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "No batching for this field or region."
+          }
+        }
+      ]
+    },
+    {
       "name": "ypy-ws:connect",
       "description": {
         "kind": "markdown",
