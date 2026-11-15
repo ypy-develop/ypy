@@ -55,3 +55,15 @@ func TestResolveBrowsers(t *testing.T) {
 		})
 	}
 }
+
+func TestE2EArgsUseTheBrowserGateChoice(t *testing.T) {
+	e := &Env{Root: "/r", Browsers: "chrome,firefox,safari", ChromePath: "/c", Port: 8200}
+	got := strings.Join(e2eArgs(e), " ")
+	want := "--root /r --browsers chrome,firefox,safari --suite e2e --strict --chrome /c --port 8300"
+	if got != want {
+		t.Errorf("args = %q, want %q", got, want)
+	}
+	if got := strings.Join(e2eArgs(&Env{Root: "/r", Browsers: "chrome"}), " "); got != "--root /r --browsers chrome --suite e2e --strict" {
+		t.Errorf("args = %q", got)
+	}
+}

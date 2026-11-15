@@ -58,7 +58,7 @@ func All() []Gate {
 		{"sizes", "dist/ is up to date and the min+gzip budgets hold", gateSizes},
 		{"gen", "editor data and the config schema are generated from src/attributes.json, and ypy.d.ts and the sources agree with it", gateGen},
 		{"browser", "the browser suites (main; extensions and security also against dist/) in the chosen browsers", gateBrowser},
-		{"e2e", "the end to end scenarios of the example app in Chrome, strict", gateE2E},
+		{"e2e", "the end to end scenarios of the example app, strict, in the browsers of the browser gate", gateE2E},
 	}
 }
 
@@ -83,7 +83,7 @@ const helpOptions = `
 Options:
   --skip LIST        gates to leave out (comma separated)
   --fail-fast        stop at the first failing gate (default: run all, then summarize)
-  --browsers LIST    browsers of the "browser" gate: chrome, safari, firefox (default: chrome, plus firefox when
+  --browsers LIST    browsers of the "browser" and "e2e" gates: chrome, safari, firefox (default: chrome, plus firefox when
                      geckodriver and Firefox are found; YPY_REQUIRE_FIREFOX=1 makes that mandatory)
   --chrome PATH      Chrome or Chromium executable
   --port N           first port for the test and example servers

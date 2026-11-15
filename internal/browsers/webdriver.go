@@ -222,6 +222,14 @@ func (b *wdBrowser) RunPage(ctx context.Context, url string, done <-chan struct{
 	return PageReport{Err: rerr}
 }
 
+// promptBehavior is what the driver does with a dialog nobody answered.
+func promptBehavior(o Options) string {
+	if o.KeepDialogs {
+		return "ignore"
+	}
+	return "dismiss"
+}
+
 func exists(path string) bool {
 	st, err := os.Stat(path)
 	return err == nil && !st.IsDir()
@@ -245,7 +253,7 @@ func openSafari(ctx context.Context, opts Options) (Browser, error) {
 	if err != nil {
 		return nil, &Unavailable{Browser: Safari, Reason: "safaridriver did not start", Hint: err.Error()}
 	}
-	if err := proc.client.newSession(ctx, map[string]any{"browserName": "safari", "unhandledPromptBehavior": "dismiss"}); err != nil {
+	if err := proc.client.newSession(ctx, map[string]any{"browserName": "safari", "unhandledPromptBehavior": promptBehavior(opts)}); err != nil {
 		proc.stop()
 		return nil, safariUnavailable(err)
 	}
@@ -329,7 +337,7 @@ func openFirefox(ctx context.Context, opts Options) (Browser, error) {
 	err = proc.client.newSession(ctx, map[string]any{
 		"browserName":             "firefox",
 		"moz:firefoxOptions":      ffOpts,
-		"unhandledPromptBehavior": "dismiss",
+		"unhandledPromptBehavior": promptBehavior(opts),
 		"acceptInsecureCerts":     true,
 	})
 	if err != nil {

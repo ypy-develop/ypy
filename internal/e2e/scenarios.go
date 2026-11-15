@@ -9,11 +9,52 @@ import (
 	"time"
 )
 
+// How a scenario is registered
+//
+// A scenario is a Scenario value: a unique Name ("area/what", for example
+// "crud/create"; --scenario TEXT selects by substring) and a Run function that
+// gets an *Env. Run reads like a plain script: every helper of Env and of
+// e.Page (Click, Fill, Count, Texts, WaitSelector, Eval, Back, Forward ...)
+// stops the scenario with a message when it fails, so there are no error
+// returns to check. Wait for an outcome with e.Until / e.UntilFor or the Wait*
+// helpers, never with a fixed Sleep; assert with e.Equal and e.Assert.
+//
+// The first 19 scenarios are the literal slice Scenarios below. A new set of
+// scenarios goes in its own file of this package and registers itself from an
+// init function:
+//
+//	// scenarios_ssr.go
+//	func init() {
+//		Register(
+//			Scenario{Name: "ssr/first-paint", Run: func(e *Env) { ... }},
+//			Scenario{Name: "ssr/spa-swap", Run: func(e *Env) { ... },
+//				Skip: map[string]string{"safari": "why it cannot run there"}},
+//		)
+//	}
+//
+// Scenarios run in the order of registration: the ones below first, then the
+// files in alphabetical order. The scenario runs in a fresh page of every
+// browser asked for (chrome, firefox, safari), on a server reset to its
+// initial state, with the app already open (Env.Open). It must pass in all of
+// them: write it with the Page helpers, which behave the same everywhere, and
+// do not reach for DevTools. When a scenario really depends on one browser,
+// name the browsers it cannot run in with Skip (browser name -> reason); the
+// matrix prints it as "skip" with the reason and it does not count as a
+// failure. Routes the scenarios need are added to examples/server, not here.
+// A scenario that needs a new Env or Page helper adds it in its own file.
+
 // Scenario is one end to end check of the example app.
 type Scenario struct {
 	Name string
 	Run  func(e *Env)
+	// Skip names the browsers the scenario does not run in, with the reason
+	// (browser name, as in browsers.Chrome, -> reason). Nil runs everywhere.
+	Skip map[string]string
 }
+
+// Register adds scenarios to the suite, after the ones registered before. Call
+// it from an init function of a file of this package.
+func Register(list ...Scenario) { Scenarios = append(Scenarios, list...) }
 
 func contains(list []string, s string) bool {
 	for _, x := range list {

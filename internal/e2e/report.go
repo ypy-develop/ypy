@@ -46,6 +46,9 @@ func report(out io.Writer, mdFile string, outcomes []Outcome) int {
 		cell := func(c Outcome, s string) string {
 			for _, r := range c.Results {
 				if r.Scenario == s {
+					if r.Skipped {
+						return "skip"
+					}
 					if r.Pass {
 						return "ok"
 					}
@@ -71,11 +74,17 @@ func report(out io.Writer, mdFile string, outcomes []Outcome) int {
 		for _, c := range cols {
 			n := 0
 			for _, r := range c.Results {
-				if r.Pass {
+				if r.Pass && !r.Skipped {
 					n++
 				}
 			}
-			totals = append(totals, fmt.Sprintf("%d/%d", n, len(c.Results)))
+			ran := 0
+			for _, r := range c.Results {
+				if !r.Skipped {
+					ran++
+				}
+			}
+			totals = append(totals, fmt.Sprintf("%d/%d", n, ran))
 			v := c.Version
 			if v == "" {
 				v = "?"
@@ -110,6 +119,19 @@ func report(out io.Writer, mdFile string, outcomes []Outcome) int {
 			}
 		}
 		failedCount += len(failures)
+		var skipped []string
+		for _, c := range cols {
+			for _, r := range c.Results {
+				if r.Skipped {
+					skipped = append(skipped, fmt.Sprintf("  [%s] %s: %s", c.App, r.Scenario, r.SkipReason))
+				}
+			}
+		}
+		if len(skipped) > 0 {
+			fmt.Fprintln(out, "Skipped")
+			fmt.Fprintln(out, strings.Join(skipped, "\n"))
+			fmt.Fprintln(out)
+		}
 		if len(failures) > 0 {
 			fmt.Fprintln(out, "Failures")
 			md = append(md, "Failures", "")
