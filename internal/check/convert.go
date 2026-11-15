@@ -122,6 +122,8 @@ type fileConv struct {
 	strict bool
 	// noEquiv collects the events of the legacy markup that YPY has no equivalent for.
 	noEquiv []edit
+	// renames maps every whole identifier this file renames to its new name.
+	renames map[string]string
 }
 
 func (f *fileConv) add(start, end int, repl, kind string) {
@@ -378,16 +380,73 @@ func (f *fileConv) idents(lo, hi int) {
 		for j < hi && (isWordByte(text[j]) || text[j] == '$') {
 			j++
 		}
-		for _, w := range identPrefixHits(text[i:j], f.c.identP) {
+		hits := identPrefixHits(text[i:j], f.c.identP)
+		if f.goFile {
+			hits = append(hits, identTailHits(text[i:j], f.c.identP)...)
+		}
+		for _, w := range hits {
 			f.add(i+w.start, i+w.end, matchCase(w.text, "ypy"), kIdentifier)
 		}
-		if f.goFile {
-			for _, w := range identTailHits(text[i:j], f.c.identP) {
-				f.add(i+w.start, i+w.end, matchCase(w.text, "ypy"), kIdentifier)
-			}
+		if len(hits) > 0 {
+			f.noteRename(text[i:j], hits)
 		}
 		i = j
 	}
+}
+
+// noteRename records that the identifier tok is renamed as a whole.
+func (f *fileConv) noteRename(tok string, hits []word) {
+	sort.Slice(hits, func(a, b int) bool { return hits[a].start < hits[b].start })
+	var b strings.Builder
+	pos := 0
+	for _, w := range hits {
+		if w.start < pos {
+			continue
+		}
+		b.WriteString(tok[pos:w.start])
+		b.WriteString(matchCase(w.text, "ypy"))
+		pos = w.end
+	}
+	b.WriteString(tok[pos:])
+	if f.renames == nil {
+		f.renames = map[string]string{}
+	}
+	f.renames[tok] = b.String()
+}
+
+// renameIdentifiers renames, in text, every whole identifier of the project-wide map that is still
+// spelled the old way: a declaration in a place the converter does not read as code (the header
+// of a templ component, text between tags) must follow its uses, or only half of the identifier
+// would change and the build break.
+func renameIdentifiers(text string, renames map[string]string) (string, int) {
+	if len(renames) == 0 {
+		return text, 0
+	}
+	var b strings.Builder
+	n, pos := 0, 0
+	for i := 0; i < len(text); {
+		ch := text[i]
+		if !(isLetter(ch) || ch == '_' || ch == '$') {
+			i++
+			continue
+		}
+		j := i
+		for j < len(text) && (isWordByte(text[j]) || text[j] == '$') {
+			j++
+		}
+		if to, ok := renames[text[i:j]]; ok {
+			b.WriteString(text[pos:i])
+			b.WriteString(to)
+			pos = j
+			n++
+		}
+		i = j
+	}
+	if n == 0 {
+		return text, 0
+	}
+	b.WriteString(text[pos:])
+	return b.String(), n
 }
 
 var skipMembers = map[string]bool{"org": true, "js": true, "min": true, "esm": true, "max": true}
@@ -877,7 +936,7 @@ func (f *fileConv) dropIntegrity(nd *node) {
 }
 
 // convert returns the edits of one file, sorted and without overlaps.
-func (c *converter) convert(text, ext string, classes []string) (edits []edit, external []edit) {
+func (c *converter) convert(text, ext string, classes []string) (edits []edit, external []edit, renames map[string]string) {
 	f := &fileConv{c: c, text: text, goFile: ext == ".go" || ext == ".kyse.go", strict: serverOnly(classes)}
 	if c.importRe != nil && c.importRe.MatchString(text) {
 		f.noGlobal = true
@@ -897,7 +956,7 @@ func (c *converter) convert(text, ext string, classes []string) (edits []edit, e
 		}
 	}
 	f.extensionNames()
-	return normalize(f.edits), f.external
+	return normalize(f.edits), f.external, f.renames
 }
 
 // shortExtensions are the names the official extensions registered under before they were all

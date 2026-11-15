@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // MigrateOptions configure a migration.
@@ -146,6 +147,17 @@ func Migrate(paths []string, opts MigrateOptions) (*MigrateReport, error) {
 		mentions int
 	}
 	results := make([]result, len(a.srcs))
+	// phase 1: convert every file and collect the identifiers it renames
+	type pending struct {
+		text     string
+		edits    []edit
+		external []edit
+		next     string
+		skip     bool
+	}
+	pend := make([]pending, len(a.srcs))
+	var renamesMu sync.Mutex
+	renames := map[string]string{}
 	parallel(len(a.srcs), func(i int) {
 		s := &a.srcs[i]
 		if len(s.classes) == 0 {
@@ -163,21 +175,42 @@ func Migrate(paths []string, opts MigrateOptions) (*MigrateReport, error) {
 			}
 			text = string(b)
 		}
-		edits, external := c.convert(text, s.ext, s.classes)
-		next := applyEdits(text, edits)
+		edits, external, rn := c.convert(text, s.ext, s.classes)
+		pend[i] = pending{text: text, edits: edits, external: external, next: applyEdits(text, edits)}
+		if len(rn) > 0 {
+			renamesMu.Lock()
+			for k, v := range rn {
+				renames[k] = v
+			}
+			renamesMu.Unlock()
+		}
+	})
+	// phase 2: an identifier is renamed everywhere or nowhere; check the result and report
+	parallel(len(a.srcs), func(i int) {
+		s := &a.srcs[i]
+		p := &pend[i]
+		if p.text == "" && p.next == "" {
+			return
+		}
+		text, edits, external := p.text, p.edits, p.external
+		next, extra := renameIdentifiers(p.next, renames)
 		r := &results[i]
-		if len(edits) > 0 {
+		count := len(edits) + extra
+		if count > 0 {
 			// the result must be stable: converting it again changes nothing
-			if again, _ := c.convert(next, s.ext, s.classes); len(again) > 0 {
+			if again, _, _ := c.convert(next, s.ext, s.classes); len(again) > 0 {
 				r.warn = fmt.Sprintf("%s: a second pass would still change %d place(s); the file was left as it is", s.display, len(again))
 				next = text
-				edits = nil
+				edits, count = nil, 0
 			}
 		}
-		if len(edits) > 0 {
-			ch := &FileChange{File: s.display, Replacements: len(edits), ByKind: map[string]int{}}
+		if count > 0 {
+			ch := &FileChange{File: s.display, Replacements: count, ByKind: map[string]int{}}
 			for _, e := range edits {
 				ch.ByKind[e.kind]++
+			}
+			if extra > 0 {
+				ch.ByKind[kIdentifier] += extra
 			}
 			ch.Diff = unifiedDiff(s.display, text, next)
 			r.change = ch

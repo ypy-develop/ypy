@@ -185,3 +185,37 @@ func mustRead(t testing.TB, dir, rel string) []byte {
 	}
 	return b
 }
+
+// Defect: the migration renamed half of a Go identifier (the uses, not the declaration in the
+// header of a templ component), which broke the build. An identifier changes everywhere or nowhere.
+func TestMigrateRenamesAWholeIdentifierOrNone(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "button.templ", "package ui\n\ntempl Button(acmeGet string, acmeTarget string) {\n\t<button acme-get={ acmeGet } acme-target={ acmeTarget }>x</button>\n}\n")
+	write(t, dir, "props.go", "package ui\n\ntype Props struct{ AcmeGet string }\n\nfunc f(p Props) string { return p.AcmeGet }\n")
+	write(t, dir, "page.html", `<b acme-get="/x" acme-target="#o">{{ .AcmeTarget }}</b>`)
+	if code, _, errs := runMigrateCLI(t, dir, "--write", "--prefix", acme, "--id", bolt, "."); code != 0 {
+		t.Fatalf("exit %d: %s", code, errs)
+	}
+	got := string(mustRead(t, dir, "button.templ"))
+	want := "package ui\n\ntempl Button(ypyGet string, ypyTarget string) {\n\t<button ypy-get={ ypyGet } ypy-target={ ypyTarget }>x</button>\n}\n"
+	if got != want {
+		t.Errorf("templ:\n%s", got)
+	}
+	for _, f := range []string{"button.templ", "props.go", "page.html"} {
+		if b := strings.ToLower(string(mustRead(t, dir, f))); strings.Contains(b, "acme") {
+			t.Errorf("%s still names the old prefix:\n%s", f, b)
+		}
+	}
+	// the second run changes nothing
+	_, out, _ := runMigrateCLI(t, dir, "--prefix", acme, "--id", bolt, ".")
+	if !strings.Contains(out, "0 of 3 file(s) would change") {
+		t.Errorf("second run:\n%s", out)
+	}
+	// with --no-identifiers no identifier changes in any file
+	dir = t.TempDir()
+	write(t, dir, "button.templ", "package ui\n\ntempl Button(acmeGet string) {\n\t<button acme-get={ acmeGet }>x</button>\n}\n")
+	runMigrateCLI(t, dir, "--write", "--no-identifiers", "--prefix", acme, ".")
+	if got := string(mustRead(t, dir, "button.templ")); !strings.Contains(got, "Button(acmeGet string)") || !strings.Contains(got, "{ acmeGet }") {
+		t.Errorf("--no-identifiers:\n%s", got)
+	}
+}
