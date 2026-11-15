@@ -1127,6 +1127,25 @@
           }
         },
         {
+          "name": "ypy-sort",
+          "description": "On a list container: its children that have an `id` can be reordered by dragging them, or with the keyboard (Space picks an item up and puts it down, the arrow keys move it, Escape puts everything back). `false` leaves the container to the page. Requires the `ypy-sort` extension.",
+          "description-sections": {
+            "Values": "- `false`: The extension does not touch this container."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-sort-url",
+          "description": "The URL that gets a POST when an item is dropped in a new place: the field `id` once per item, in the new order. An answer of 400 or more, or a connection that fails, puts the list back. Without it the list only reorders. Requires the `ypy-sort` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-sse:connect",
           "description": "Opens a Server-Sent Events stream with a GET request to the URL. The element connects on its `ypy-trigger` (default `load`). Each unnamed message is swapped into the target like a response; a message with an `event:` field is dispatched on the element as a DOM event with `detail.data` and `detail.id`. The connection reconnects with backoff and pauses while the tab is in the background. Requires the `ypy-sse` extension.",
           "value": {
@@ -1706,6 +1725,14 @@
         {
           "name": "signals:error",
           "description": "Fires when an expression did not parse, a handler or effect threw, or a patch was not usable. The attribute that failed does nothing and the rest of the page keeps working. Requires the `ypy-signals` extension."
+        },
+        {
+          "name": "sort:change",
+          "description": "Fires on the container when an item was put down in a new place, before the order is sent. Cancel it to put the list back. Requires the `ypy-sort` extension."
+        },
+        {
+          "name": "sort:revert",
+          "description": "Fires on the container after the list was put back in its old order: the change was cancelled, the server refused it or did not answer, or the drag was abandoned. Requires the `ypy-sort` extension."
         },
         {
           "name": "sse:before:connection",

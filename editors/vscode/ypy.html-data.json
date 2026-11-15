@@ -1038,6 +1038,20 @@
       }
     },
     {
+      "name": "ypy-on::sort:change",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:sort:change` fires. Fires on the container when an item was put down in a new place, before the order is sent. Cancel it to put the list back."
+      }
+    },
+    {
+      "name": "ypy-on::sort:revert",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:sort:revert` fires. Fires on the container after the list was put back in its old order: the change was cancelled, the server refused it or did not answer, or the drag was abandoned."
+      }
+    },
+    {
       "name": "ypy-on::sse:before:connection",
       "description": {
         "kind": "markdown",
@@ -2364,6 +2378,29 @@
           }
         }
       ]
+    },
+    {
+      "name": "ypy-sort",
+      "description": {
+        "kind": "markdown",
+        "value": "On a list container: its children that have an `id` can be reordered by dragging them, or with the keyboard (Space picks an item up and puts it down, the arrow keys move it, Escape puts everything back). `false` leaves the container to the page.\n\nRequires the `ypy-sort` extension.\n\n**Values**\n\n- `false`: The extension does not touch this container."
+      },
+      "values": [
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "The extension does not touch this container."
+          }
+        }
+      ]
+    },
+    {
+      "name": "ypy-sort-url",
+      "description": {
+        "kind": "markdown",
+        "value": "The URL that gets a POST when an item is dropped in a new place: the field `id` once per item, in the new order. An answer of 400 or more, or a connection that fails, puts the list back. Without it the list only reorders.\n\nRequires the `ypy-sort` extension."
+      }
     },
     {
       "name": "ypy-sse:connect",

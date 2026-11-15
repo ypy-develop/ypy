@@ -893,6 +893,47 @@
       "markdownDescription": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.",
       "type": "boolean"
     },
+    "sort": {
+      "additionalProperties": false,
+      "description": "Settings of sortable lists. Requires the `ypy-sort` extension.",
+      "markdownDescription": "Settings of sortable lists. Requires the `ypy-sort` extension.",
+      "properties": {
+        "messages": {
+          "additionalProperties": false,
+          "description": "What the live region says while a list is sorted with the keyboard: `grab`, `move`, `drop`, `cancel` and `revert`, each a text where `{position}` and `{total}` are replaced. A message that is not set is not said. Requires the `ypy-sort` extension.",
+          "markdownDescription": "What the live region says while a list is sorted with the keyboard: `grab`, `move`, `drop`, `cancel` and `revert`, each a text where `{position}` and `{total}` are replaced. A message that is not set is not said. Requires the `ypy-sort` extension.",
+          "properties": {
+            "cancel": {
+              "description": "What is said when a pick up is cancelled with Escape; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when a pick up is cancelled with Escape; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "drop": {
+              "description": "What is said when an item is put down; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when an item is put down; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "grab": {
+              "description": "What is said when a list item is picked up; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when a list item is picked up; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "move": {
+              "description": "What is said when a picked up item is moved; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when a picked up item is moved; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            },
+            "revert": {
+              "description": "What is said when the list is put back after a refusal; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "markdownDescription": "What is said when the list is put back after a refusal; `{position}` and `{total}` are replaced. Requires the `ypy-sort` extension.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
     "sse": {
       "additionalProperties": false,
       "description": "Defaults of the ypy-sse extension. A single element overrides them with `ypy-config='{\"sse\":{...}}'`. Requires the `ypy-sse` extension.",

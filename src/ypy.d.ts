@@ -2065,3 +2065,30 @@ export interface YpyNativeEventMap {
   'ypy:commands:ignored': { command: unknown; reason: string };
 }
 // #endregion
+
+// #region TASK-079 ypy-sort
+/** What the live region of `ypy-sort` says; `{position}` and `{total}` are replaced. A message that is not set is not said. */
+export interface YpySortMessages {
+  grab?: string;
+  move?: string;
+  drop?: string;
+  cancel?: string;
+  revert?: string;
+}
+
+/** Settings of `ypy-sort`, in `ypy.config.sort`. */
+export interface YpySortConfig {
+  messages?: YpySortMessages;
+}
+
+export interface YpyConfig {
+  sort?: YpySortConfig;
+}
+
+export interface YpyNativeEventMap {
+  /** An item was put down in a new place. Cancel it to put the list back. Fired on the container. */
+  'ypy:sort:change': { ids: string[]; item: Element };
+  /** The list was put back in its old order. Fired on the container. */
+  'ypy:sort:revert': { ids: string[]; reason: 'cancelled' | 'failed' };
+}
+// #endregion
