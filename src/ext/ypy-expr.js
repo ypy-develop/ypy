@@ -38,6 +38,8 @@
     };
     const LITERALS = new Map([['true', true], ['false', false], ['null', null], ['undefined', undefined]]);
     const ASSIGN = ['=', '+=', '-=', '*=', '/=', '%=', '??='];
+    // the compilers: never called, and never handed to another function (Reflect.apply, Reflect.construct, bind...)
+    const COMPILERS = [eval, Function, (async () => {}).constructor, (function* () {}).constructor, (async function* () {}).constructor];
     const MAX_DEPTH = 40;
     const cache = new Map();
 
@@ -92,7 +94,7 @@
             else if (type == 3 && ['function', 'async', 'await', 'class', 'yield', 'import', 'delete'].includes(text)) throw E(text + ' is not supported');
             else if (type == 3 && text == 'new') {
                 let callee = member(primary(), true), list = eat('(') ? args() : () => [];
-                c = x => Reflect.construct(callee(x), list(x));
+                c = x => { let f = callee(x), a = list(x); if ([f, ...a].some(v => COMPILERS.includes(v))) throw E('the compilers are refused'); return Reflect.construct(f, a) };
             }
             else if (type == 3) { c = x => lookup(x, text); c.id = text }
             else if (text == '(') { c = expr(); need2(')') }
@@ -146,6 +148,7 @@
 
         function call(f, self, a) {
             if (typeof f != 'function') throw TypeError('not a function');
+            if ([f, ...a].some(v => COMPILERS.includes(v))) throw E('the compilers are refused');
             if ((f === setTimeout || f === setInterval) && typeof a[0] == 'string') throw E('a string cannot run as code');
             return f.apply(self, a);
         }

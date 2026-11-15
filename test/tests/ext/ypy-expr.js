@@ -253,6 +253,13 @@ describe('ypy-expr extension under a CSP without unsafe-eval', function () {
             await fails("o['con' + 'structor']", /refused name constructor/, {o: {}});
         });
 
+        it('a compiler reached through another route', async function () {
+            await fails("Reflect.get(window, 'ev' + 'al')('1')", /compilers are refused/);
+            await fails("Reflect.apply(Reflect.get(window, 'ev' + 'al'), null, ['1'])", /compilers are refused/);
+            await fails("Reflect.construct(Reflect.get(window, 'Func' + 'tion'), ['return 1'])", /compilers are refused/);
+            await fails("new (Reflect.get(window, 'Func' + 'tion'))('return 1')", /compilers are refused/);
+        });
+
         it('a string handed to setTimeout', async function () {
             await fails("setTimeout('1', 1)", /string cannot run as code/);
             assert.isAbove(await run('setTimeout(f, 1)', {f() {}}), 0);
