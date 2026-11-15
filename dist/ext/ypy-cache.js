@@ -14,9 +14,18 @@
 // server's max-age wins), offline (keep the copy in sessionStorage and show it when the network
 // fails), private, size (50 entries), bytes (2 MiB of text). ypy-cache="false" turns it off.
 //
-// The server drives expiry with the YPY-Cache-Expire response header: a comma separated list of
-// URL patterns (`/items*`, `/cart`, `*`) whose copies are dropped, or `false`. A successful
-// request that is not a GET drops everything unless the response says otherwise.
+// Expiring is not removing. The server marks copies with two response headers, each a comma
+// separated list of patterns (`/items*`, `/cart`, `*`, `tag:products`) or `false`:
+//   YPY-Cache-Expire  the copy is marked old: it is still shown at once, and always revalidated
+//                     (stale-while-revalidate), whatever its age or max-age;
+//   YPY-Cache-Evict   the copy is deleted: the next request goes to the server and waits for it.
+// A successful request that is not a GET evicts everything unless the response carries either
+// header (`false` keeps everything). ypy.cache.expire(patterns) and ypy.cache.evict(patterns) do
+// the same from script.
+//
+// Tags. ypy-cache-tags="products, featured" on the element (inherited with
+// ypy-cache-tags:inherited) labels the copy of its request; the pattern `tag:products` then names
+// every copy with that tag, in either header or in the script API.
 //
 // How it hooks in: from ypy_before_request the extension wraps ctx.fetch, so a copy is answered as
 // a response and every later phase (headers, status codes, swap) runs as for the network. The
@@ -54,19 +63,24 @@
         if (e.off) try { sessionStorage.removeItem(KEY + key) } catch {}
     }
 
-    // Does the URL pattern name the copy? `*` is anything; without a `*` the pattern is a path.
-    const matches = (p, e) => p === '*' || (p.includes('*')
+    // Does the pattern name the copy? `tag:x` is a tag; `*` is anything; otherwise a path, with `*` as a wildcard.
+    const matches = (p, e) => /^tag:/.test(p) ? (e.tags || []).includes(p.slice(4).trim()) : p === '*' || (p.includes('*')
         ? new RegExp('^' + p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$').test(e.path)
         : p === e.path || p === e.path.split('?')[0]);
 
-    // Drops the copies the comma separated patterns name; returns how many went.
-    function expire(spec) {
-        let patterns = String(spec).split(',').map(s => s.trim()).filter(Boolean), removed = 0;
+    const persist = e => { if (e.off) try { sessionStorage.setItem(KEY + e.key, JSON.stringify(e)) } catch {} };
+
+    // Marks old (shown, then revalidated) or, with `evict`, deletes the copies the comma separated patterns name; returns how many.
+    function mark(spec, evict) {
+        let patterns = String(spec).split(',').map(s => s.trim()).filter(Boolean), n = 0;
         for (let [key, e] of store) {
-            if (patterns.some(p => matches(p, e))) { drop(key); removed++ }
+            if (!patterns.some(p => matches(p, e))) continue;
+            n++;
+            if (evict) drop(key);
+            else if (!e.stale) { e.stale = true; persist(e) }
         }
-        if (removed) api.triggerEvent(document, 'ypy:cache:expire', {patterns, removed});
-        return removed;
+        if (n) api.triggerEvent(document, evict ? 'ypy:cache:evict' : 'ypy:cache:expire', evict ? {patterns, removed: n} : {patterns, expired: n});
+        return n;
     }
 
     // Keeps the response in the store, unless it must not be kept.
@@ -79,11 +93,11 @@
             key: c.key, href: c.url.href, path: c.url.pathname + c.url.search, text, time: Date.now(),
             headers: Object.fromEntries(Object.entries(h).filter(([k]) => KEEP.test(k))),
             vary: Object.fromEntries((h.vary || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean).map(n => [n, c.rh[n] ?? ''])),
-            fresh: age == null ? undefined : age * 1000, redirected: !!ctx.redirected, off: !!o.offline
+            fresh: age == null ? undefined : age * 1000, redirected: !!ctx.redirected, off: !!o.offline, tags: c.tags
         };
         store.set(c.key, e);
         chars += text.length;
-        if (e.off) try { sessionStorage.setItem(KEY + e.key, JSON.stringify(e)) } catch {}
+        persist(e);
         while (store.size > o.size || chars > o.bytes) drop(store.keys().next().value);
     }
 
@@ -109,6 +123,8 @@
             let res = await fetch(e.href, {method: 'GET', headers, credentials, mode, signal: AbortSignal.timeout(ypy.config.defaultTimeout || 30000)});
             if (res.status === 304) {
                 e.time = Date.now();
+                e.stale = false;
+                persist(e);
                 return done(false, 304);
             }
             if (res.status !== 200) {
@@ -116,7 +132,7 @@
                 return done(false, res.status);
             }
             let text = await res.text(), same = text === e.text;
-            if (same) e.time = Date.now();
+            if (same) { e.time = Date.now(); e.stale = false; persist(e) }
             else save({response: res, text, redirected: res.redirected}, c);
             // the region may have moved on to another request or left the page: then only the copy is renewed
             let live = !same && latest.get(ctx.target) === ctx && ctx.target?.isConnected;
@@ -155,10 +171,12 @@
                 }
             } catch {}
             ypy.cache = {
-                /** Drops the copies named by the comma separated URL patterns; returns how many. */
-                expire,
-                /** Drops every copy (call it when the user signs out). */
-                clear: () => expire('*'),
+                /** Marks old the copies named by the comma separated patterns (they are still shown, then revalidated); returns how many. */
+                expire: spec => mark(spec),
+                /** Deletes the copies named by the comma separated patterns; returns how many. */
+                evict: spec => mark(spec, true),
+                /** Deletes every copy (call it when the user signs out). */
+                clear: () => mark('*', true),
                 /** What the store holds, for tests and tooling. */
                 stats: () => ({entries: store.size, chars})
             };
@@ -174,13 +192,14 @@
             let rh = lower(Object.entries(request.headers)), key = (rh['YPY-Request-Type'.toLowerCase()] || '') + ' ' + url.href;
             let e = store.get(key), o = options(attr);
             if (e && !Object.entries(e.vary).every(([n, v]) => (rh[n] ?? '') === v)) e = null;
-            let c = ctx.cache = {key, url, o, rh}, age = e && Date.now() - e.time, inner = ctx.fetch;
+            let tags = String(api.attributeValue(elt, 'ypy-cache-tags') ?? '').split(/[\s,]+/).filter(Boolean);
+            let c = ctx.cache = {key, url, o, rh, tags}, age = e && Date.now() - e.time, inner = ctx.fetch;
             ctx.fetch = async (action, req) => {
                 if (e && age <= ypy.parseInterval(o.ttl)) {
                     store.delete(key);
                     store.set(key, e);
                     c.hit = e;
-                    c.fresh = age < (e.fresh ?? ypy.parseInterval(o.fresh));
+                    c.fresh = !e.stale && age < (e.fresh ?? ypy.parseInterval(o.fresh));
                     return reply(ctx, e);
                 }
                 // too old to show: ask with its validators and keep it when the server agrees
@@ -197,6 +216,7 @@
                 }
                 if (res.status !== 304 || !e) return res;
                 e.time = Date.now();
+                e.stale = false;
                 c.hit = e;
                 c.fresh = true;
                 return reply(ctx, e);
@@ -204,11 +224,11 @@
         },
 
         ypy_after_request: (elt, {ctx}) => {
-            let {response, request} = ctx, c = ctx.cache, expiry = lower(response.headers)['YPY-Cache-Expire'.toLowerCase()];
-            if (expiry != null) {
-                if (expiry.trim() !== 'false') expire(expiry);
-            } else if (request.method !== 'GET' && response.status < 400 && !request.headers['YPY-Validate']) {
-                expire('*');
+            let {response, request} = ctx, c = ctx.cache, h = lower(response.headers), old = h['YPY-Cache-Expire'.toLowerCase()], gone = h['YPY-Cache-Evict'.toLowerCase()];
+            if (gone != null && gone.trim() !== 'false') mark(gone, true);
+            if (old != null && old.trim() !== 'false') mark(old);
+            if (old == null && gone == null && request.method !== 'GET' && response.status < 400 && !request.headers['YPY-Validate']) {
+                mark('*', true);
             }
             if (c && !c.hit) response.status === 200 ? save(ctx, c) : drop(c.key);
         },

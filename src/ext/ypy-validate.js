@@ -30,6 +30,18 @@
 // field requests of that form. Fields that arrive later are wired when their container is
 // processed, a swap included.
 //
+// Batches. ypy-validate-batch on a field, on the element with ypy-validate-fields or on the form
+// (the nearest one wins; the value is a time, a bare attribute means 50ms, false is off), or
+// ypy.config.validate.batch, turns it on: the fields of one form that ask the same URL within
+// that window go in one request, with YPY-Validate: field1,field2 (the names, in the order they
+// asked). It is off by default, because the server must read the list. The answer: 422 when any
+// field is invalid, 2xx when none is. The message of each invalid field comes as an
+// out-of-band element whose id is the id of that field's place, for example
+// `<small id="email-error" ypy-swap-oob="innerHTML">Taken</small>`; a field that has none is
+// valid, and its place is emptied. aria-invalid and aria-describedby follow what each place
+// shows. One field alone is checked as before, with the usual answer. If a field of a batch
+// that is still in flight asks again, the request starts over with the whole batch.
+//
 // Only the public API and the extension API are used, so it works with the built core too.
 //
 // Usage:
@@ -42,7 +54,8 @@
 
     let api, count = 0;
     const FIELDS = 'input,select,textarea';
-    const flight = new WeakMap();   // field -> AbortController of its request
+    const flight = new WeakMap();   // field -> AbortController of its request (.fields: those of the batch)
+    const groups = [];              // fields waiting for the end of a batch window: {form, url, fields}
 
     // The URL to ask for a field, or undefined when the field is not validated.
     function urlFor(field) {
@@ -69,16 +82,44 @@
         return box;
     }
 
-    function validate(field) {
-        let url = urlFor(field), name = field.name || field.id;
-        if (url == null || !name || !field.isConnected) return;
-        flight.get(field)?.abort();
-        let abort = new AbortController(), box = errorBox(field);
-        flight.set(field, abort);
+    // Asks the URL for the fields, in one request, and shows each answer in its place.
+    function send(fields, url) {
+        for (let f of fields) flight.get(f)?.abort();
+        let abort = new AbortController(), boxes = fields.map(errorBox);
+        abort.fields = fields;
+        for (let f of fields) flight.set(f, abort);
         ypy.ajax('POST', url, {
-            source: field, target: box, swap: 'innerHTML', headers: {'YPY-Validate': name},
-            request: {signal: abort.signal}, fieldValidation: {field, box}
+            source: fields[0], target: boxes[0], swap: fields[1] ? 'none' : 'innerHTML',
+            headers: {'YPY-Validate': fields.map(f => f.name || f.id).join(',')},
+            request: {signal: abort.signal}, fieldValidation: {field: fields[0], box: boxes[0], fields, boxes, abort}
         }).catch(() => {});
+    }
+
+    // The window of a field's batch in ms, or 0 for none.
+    function batchWindow(field) {
+        let host = field.closest(api.prefixSelector('[ypy-validate-batch]')), v = host ? api.attr(host, 'ypy-validate-batch') : ypy.config.validate?.batch;
+        return v === false || v === 'false' || v == null ? 0 : v === '' || v === true || v === 'true' ? 50 : ypy.parseInterval(v);
+    }
+
+    function flush(group) {
+        groups.splice(groups.indexOf(group), 1);
+        let fields = [...group.fields].filter(f => f.isConnected && (f.name || f.id));
+        if (fields.length) send(fields, group.url);
+    }
+
+    function validate(field) {
+        let url = urlFor(field), ms = url != null && batchWindow(field);
+        if (url == null || !(field.name || field.id) || !field.isConnected) return;
+        if (!ms) return send([field], url);
+        let group = groups.find(g => g.form === field.form && g.url === url);
+        if (!group) {
+            group = {form: field.form, url, fields: new Set()};
+            group.timer = setTimeout(flush, ms, group);
+            groups.push(group);
+        }
+        group.fields.add(field);
+        // a batch of the field that is still in flight starts over with it
+        flight.get(field)?.fields.forEach(f => group.fields.add(f));
     }
 
     function wire(field) {
@@ -113,8 +154,12 @@
 
         ypy_after_request: (elt, {ctx}) => {
             let v = ctx.fieldValidation;
+            if (!v) return;
+            let ok = ctx.response.status < 400;
+            // a batch: every place starts empty, the answer fills those of the invalid fields
+            if (v.fields[1] && (ok || ctx.response.status === 422)) v.boxes.forEach(b => b.replaceChildren());
             // valid and nothing to say: leave nothing of an earlier message
-            if (v && ctx.response.status < 400 && !ctx.text.trim()) {
+            else if (ok && !ctx.text.trim()) {
                 ctx.swap = 'none';
                 v.box.replaceChildren();
             }
@@ -129,20 +174,26 @@
             }
             let a = name => api.attr(v.field, 'ypy-error-' + name), focus = a('focus');
             ctx.target = v.box;
-            ctx.swap = a('swap') || 'innerHTML';
+            ctx.swap = v.fields[1] ? 'none' : a('swap') || 'innerHTML';
             ctx.focus = focus == null || focus === 'false' ? false : focus;
         },
 
         ypy_finally_request: (elt, {ctx}) => {
             let v = ctx.fieldValidation;
-            if (!v || ctx.status !== 'swapped') return;
-            let {field, box} = v, status = ctx.response.status, ids = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
-            if (status === 422) {
-                field.setAttribute('aria-invalid', 'true');
-                if (!ids.includes(box.id)) field.setAttribute('aria-describedby', [...ids, box.id].join(' '));
-            } else if (status < 400) {
-                field.removeAttribute('aria-invalid');
-            }
+            if (!v) return;
+            for (let f of v.fields) if (flight.get(f) === v.abort) flight.delete(f);
+            if (ctx.status !== 'swapped') return;
+            let status = ctx.response.status;
+            v.fields.forEach((field, i) => {
+                let box = v.boxes[i], ids = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+                // a batch names the invalid fields by what their places show
+                if (status === 422 && (!v.fields[1] || box.hasChildNodes())) {
+                    field.setAttribute('aria-invalid', 'true');
+                    if (!ids.includes(box.id)) field.setAttribute('aria-describedby', [...ids, box.id].join(' '));
+                } else if (status < 400 || status === 422) {
+                    field.removeAttribute('aria-invalid');
+                }
+            });
         }
     });
 

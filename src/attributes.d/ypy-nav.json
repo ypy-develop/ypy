@@ -9,7 +9,7 @@
       "values": [
         {
           "name": "hover",
-          "description": "After the pointer rests on the link, or at once on touch."
+          "description": "After the pointer rests on the link or the link gets keyboard focus, or at once on touch."
         },
         {
           "name": "visible",
@@ -20,6 +20,14 @@
           "description": "Never, for this link or region."
         }
       ],
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
+    },
+    {
+      "name": "ypy-once",
+      "description": "On a `<script>` in swapped content: it runs only once per page. When a later response brings it again it is taken out before the swap. The script is told apart by the value of the attribute when it has one, else by its `src`, else by its text. A script that came with the page counts as already run.",
+      "valueType": "string",
+      "syntax": "`[<name>]`",
       "inherited": false,
       "doc": "https://ypy.dev/docs/reference/navigation"
     }
@@ -58,7 +66,7 @@
     },
     {
       "name": "nav.prefetchDelay",
-      "description": "Milliseconds of hover before the prefetch starts.",
+      "description": "Milliseconds of hover, or of keyboard focus, before the prefetch starts.",
       "schema": {
         "type": "integer",
         "minimum": 0
@@ -91,6 +99,14 @@
         "minimum": 1
       },
       "default": 2
+    },
+    {
+      "name": "nav.current",
+      "description": "Mark the link to the current page with `aria-current=\"page\"` and the class `ypy-current`, and renew the mark on every navigation. Set to `false` to turn it off.",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": true
     }
   ],
   "headers": [
@@ -103,5 +119,11 @@
   ],
   "internalNames": [
     "ypy-nav"
+  ],
+  "classes": [
+    {
+      "name": "ypy-current",
+      "description": "Added, with `aria-current=\"page\"`, to a link that points to the URL of the page (same path and query, no fragment); renewed on every navigation."
+    }
   ]
 }

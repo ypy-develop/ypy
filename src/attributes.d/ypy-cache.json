@@ -4,8 +4,14 @@
     {
       "name": "YPY-Cache-Expire",
       "direction": "response",
-      "description": "Drops the stored copies whose path matches a pattern: a comma separated list of paths and globs (`/reports*`, `/cart`, `*`), or `false` to keep everything. Without it, a successful request that is not a GET drops every copy.",
-      "value": "URL patterns, or `false`"
+      "description": "Marks old the stored copies whose path or tag matches a pattern: a comma separated list of paths, globs and tags (`/reports*`, `/cart`, `*`, `tag:products`), or `false` to keep everything. An old copy is still shown at once and is always revalidated with the server, whatever its age or `max-age`. To delete a copy instead, use `YPY-Cache-Evict`.",
+      "value": "URL patterns and `tag:<name>`, or `false`"
+    },
+    {
+      "name": "YPY-Cache-Evict",
+      "direction": "response",
+      "description": "Deletes the stored copies whose path or tag matches a pattern: a comma separated list of paths, globs and tags (`/reports*`, `/cart`, `*`, `tag:products`), or `false` to keep everything. The next request for a deleted copy goes to the server and waits for the answer. Without either header, a successful request that is not a GET deletes every copy.",
+      "value": "URL patterns and `tag:<name>`, or `false`"
     }
   ],
   "classes": [
@@ -54,6 +60,14 @@
       ],
       "inherited": true,
       "doc": "https://ypy.dev/docs/reference/cache"
+    },
+    {
+      "name": "ypy-cache-tags",
+      "description": "Labels the copy of this element's request with one or more tags, so the server can expire or evict it by name (`YPY-Cache-Expire: tag:products`) without knowing the URLs. A comma or space separated list.",
+      "valueType": "string",
+      "syntax": "`<tag>[, <tag>...]`",
+      "inherited": true,
+      "doc": "https://ypy.dev/docs/reference/cache"
     }
   ],
   "events": [
@@ -83,7 +97,17 @@
     },
     {
       "name": "ypy:cache:expire",
-      "description": "Copies were dropped by a `YPY-Cache-Expire` header, the default after a successful non-GET request, or `ypy.cache.expire()`.",
+      "description": "Copies were marked old by a `YPY-Cache-Expire` header or `ypy.cache.expire()`. They are still shown, then revalidated. `expired` is how many.",
+      "detail": {
+        "patterns": "string[]",
+        "expired": "number"
+      },
+      "cancelable": false,
+      "target": "document"
+    },
+    {
+      "name": "ypy:cache:evict",
+      "description": "Copies were deleted by a `YPY-Cache-Evict` header, the default after a successful non-GET request, `ypy.cache.evict()` or `ypy.cache.clear()`. `removed` is how many.",
       "detail": {
         "patterns": "string[]",
         "removed": "number"

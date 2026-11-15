@@ -8097,7 +8097,7 @@ ypy.config.historyCache ??= { disable: true };
 //==========================================================
 // ypy-nav.js
 //
-// Application navigation for ypy: global boost and link prefetch.
+// Application navigation for ypy: global boost, link prefetch, the current link and ypy-once.
 //
 // Global boost. With ypy.config.nav.boost on, every link and form of the page is navigated with
 // a request and a swap, with no attribute on any of them. The extension listens once on the
@@ -8125,7 +8125,21 @@ ypy.config.historyCache ??= { disable: true };
 // request is the same: same URL and same headers; otherwise the click goes to the server as
 // usual. Budget: nav.prefetchMax entries alive, nav.prefetchParallel requests in flight for
 // the visibility mode, nav.prefetchTtl ms of life; a hover that ends before the request is
-// done cancels it, and nothing is prefetched when the browser asks to save data.
+// done cancels it, and nothing is prefetched when the browser asks to save data. The "hover"
+// mode also covers the keyboard: a link that gets focus (Tab) is requested after the same
+// delay, and leaving it before the request is done cancels it. A focus that comes from the
+// pointer is left to the hover and the touch.
+//
+// The current link. A link to the URL of the page (same path and query, no fragment) gets
+// aria-current="page" and the class ypy-current; the mark is renewed on every navigation: after
+// each history push or replace, on back and forward, and on content that arrives. The extension
+// owns aria-current="page" on links, so a server-rendered one is moved too. nav.current: false
+// turns it off.
+//
+// ypy-once. A <script ypy-once> in swapped content runs only once per page: when a response
+// brings it again, it is taken out before the swap. The script's identity is the value of
+// ypy-once when it has one, else its src, else its text. A script that came with the page
+// counts as already run.
 //
 // Configuration (ypy.config.nav, or the ypy-config meta tag):
 //   boost            false  turn global boost on
@@ -8134,6 +8148,7 @@ ypy.config.historyCache ??= { disable: true };
 //   prefetchTtl      10000  ms an unused response is kept
 //   prefetchMax      10     entries alive at once
 //   prefetchParallel 2      requests in flight for the visibility mode
+//   current          true   mark the link to the current page (aria-current, ypy-current)
 //
 // With config.nonce set, global boost is off: it works without attributes, and the nonce gate
 // is about attributes. Only the public API and the extension API are used.
@@ -8145,7 +8160,8 @@ ypy.config.historyCache ??= { disable: true };
     const sel = s => api.prefixSelector(s);
     const cache = new Map();   // action -> {p: response promise, ac, k: headers key, t: expiry timer, hover, done}
     const waiting = [];        // links the visibility mode wants to prefetch
-    let active = 0, timer, io, last;
+    const ran = new Set();     // identities of the ypy-once scripts that already run on this page
+    let active = 0, timer, ftimer, io, last, pointer;
 
     const boostOn = () => cfg().boost && !ypy.config.nonce;
     const key = h => JSON.stringify(Object.entries(h).sort());
@@ -8252,7 +8268,7 @@ ypy.config.historyCache ??= { disable: true };
         let a = evt.target.closest?.('a[href]');
         if (a && !a.contains(evt.relatedTarget)) {
             clearTimeout(timer);
-            if (last?.a === a && last.e.hover && !last.e.done) drop(last.action);   // the hover ended first
+            if (last?.a === a && last.e.hover === true && !last.e.done) drop(last.action);   // the hover ended first
         }
     });
 
@@ -8261,18 +8277,87 @@ ypy.config.historyCache ??= { disable: true };
         if (a && /hover/.test(mode(a))) start(a, true);
     }, {passive: true});
 
+    // the keyboard: a link that gets focus is prefetched like a hovered one, unless the pointer put it there
+    document.addEventListener('pointerdown', () => { pointer = true }, true);
+    document.addEventListener('keydown', () => { pointer = false }, true);
+
+    document.addEventListener('focusin', evt => {
+        let a = evt.target.closest?.('a[href]');
+        if (a && !pointer && /hover/.test(mode(a))) {
+            clearTimeout(ftimer);
+            ftimer = setTimeout(start, cfg().prefetchDelay ?? 65, a, 'focus');
+        }
+    });
+
+    document.addEventListener('focusout', evt => {
+        let a = evt.target.closest?.('a[href]');
+        if (a) {
+            clearTimeout(ftimer);
+            if (last?.a === a && last.e.hover === 'focus' && !last.e.done) drop(last.action);
+        }
+    });
+
+    //------------------------------------------------------
+    // the current link
+    //------------------------------------------------------
+
+    // Marks the links of a subtree that point to the page being shown, and clears the others.
+    function current(root = document) {
+        if (cfg().current === false) return;
+        let here = location.origin + location.pathname + location.search;
+        for (let a of [...root.querySelectorAll?.('a[href]') ?? [], ...root.matches?.('a[href]') ? [root] : []]) {
+            let on = !a.hash && !a.hasAttribute('download') && (!a.target || a.target === '_self') && a.origin + a.pathname + a.search === here;
+            if (on) {
+                a.classList.add('ypy-current');
+                a.setAttribute('aria-current', 'page');
+            } else if (a.classList.contains('ypy-current') || a.getAttribute('aria-current') === 'page') {
+                a.classList.remove('ypy-current');
+                a.removeAttribute('aria-current');
+            }
+        }
+    }
+
+    window.addEventListener('popstate', () => current());
+
+    //------------------------------------------------------
+    // ypy-once
+    //------------------------------------------------------
+
+    // links that ask to be prefetched when they become visible
+    function watch(root) {
+        if (typeof IntersectionObserver != 'function') return;
+        for (let a of [...root.querySelectorAll?.('a[href]') ?? [], ...root.matches?.('a[href]') ? [root] : []]) {
+            if (/visible/.test(mode(a))) {
+                io ||= new IntersectionObserver(entries => entries.forEach(x => {
+                    if (x.isIntersecting) { io.unobserve(x.target); waiting.push(x.target); pump() }
+                }));
+                io.observe(a);
+            }
+        }
+    }
+
+    // The scripts of a subtree that ask to run once, with their identity.
+    const onceScripts = root => [...root.querySelectorAll?.(sel('script[ypy-once]')) ?? []].map(s =>
+        [s, api.attr(s, 'ypy-once') || s.getAttribute('src') || s.textContent]);
+
     ypy.registerExtension('ypy-nav', {
         init: a => { api = a },
 
-        // links that ask to be prefetched when they become visible
+        // a new page, or new content: the current link, and the scripts that came with it
         ypy_after_process: root => {
-            if (typeof IntersectionObserver != 'function') return;
-            for (let a of [...root.querySelectorAll?.('a[href]') ?? [], ...root.matches?.('a[href]') ? [root] : []]) {
-                if (/visible/.test(mode(a))) {
-                    io ||= new IntersectionObserver(entries => entries.forEach(x => {
-                        if (x.isIntersecting) { io.unobserve(x.target); waiting.push(x.target); pump() }
-                    }));
-                    io.observe(a);
+            current(root);
+            watch(root);
+            for (let [, id] of onceScripts(root)) ran.add(id);
+        },
+
+        ypy_after_history_update: () => current(),
+
+        // a script that already ran does not come in again
+        ypy_before_swap: (elt, {tasks}) => {
+            for (let {fragment} of tasks) {
+                for (let [script, id] of fragment ? onceScripts(fragment) : []) {
+                    if (ran.has(id)) script.remove();
+                    else ran.add(id);
                 }
             }
         },
@@ -8581,9 +8666,18 @@ ypy.config.historyCache ??= { disable: true };
 // server's max-age wins), offline (keep the copy in sessionStorage and show it when the network
 // fails), private, size (50 entries), bytes (2 MiB of text). ypy-cache="false" turns it off.
 //
-// The server drives expiry with the YPY-Cache-Expire response header: a comma separated list of
-// URL patterns (`/items*`, `/cart`, `*`) whose copies are dropped, or `false`. A successful
-// request that is not a GET drops everything unless the response says otherwise.
+// Expiring is not removing. The server marks copies with two response headers, each a comma
+// separated list of patterns (`/items*`, `/cart`, `*`, `tag:products`) or `false`:
+//   YPY-Cache-Expire  the copy is marked old: it is still shown at once, and always revalidated
+//                     (stale-while-revalidate), whatever its age or max-age;
+//   YPY-Cache-Evict   the copy is deleted: the next request goes to the server and waits for it.
+// A successful request that is not a GET evicts everything unless the response carries either
+// header (`false` keeps everything). ypy.cache.expire(patterns) and ypy.cache.evict(patterns) do
+// the same from script.
+//
+// Tags. ypy-cache-tags="products, featured" on the element (inherited with
+// ypy-cache-tags:inherited) labels the copy of its request; the pattern `tag:products` then names
+// every copy with that tag, in either header or in the script API.
 //
 // How it hooks in: from ypy_before_request the extension wraps ctx.fetch, so a copy is answered as
 // a response and every later phase (headers, status codes, swap) runs as for the network. The
@@ -8621,19 +8715,24 @@ ypy.config.historyCache ??= { disable: true };
         if (e.off) try { sessionStorage.removeItem(KEY + key) } catch {}
     }
 
-    // Does the URL pattern name the copy? `*` is anything; without a `*` the pattern is a path.
-    const matches = (p, e) => p === '*' || (p.includes('*')
+    // Does the pattern name the copy? `tag:x` is a tag; `*` is anything; otherwise a path, with `*` as a wildcard.
+    const matches = (p, e) => /^tag:/.test(p) ? (e.tags || []).includes(p.slice(4).trim()) : p === '*' || (p.includes('*')
         ? new RegExp('^' + p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$').test(e.path)
         : p === e.path || p === e.path.split('?')[0]);
 
-    // Drops the copies the comma separated patterns name; returns how many went.
-    function expire(spec) {
-        let patterns = String(spec).split(',').map(s => s.trim()).filter(Boolean), removed = 0;
+    const persist = e => { if (e.off) try { sessionStorage.setItem(KEY + e.key, JSON.stringify(e)) } catch {} };
+
+    // Marks old (shown, then revalidated) or, with `evict`, deletes the copies the comma separated patterns name; returns how many.
+    function mark(spec, evict) {
+        let patterns = String(spec).split(',').map(s => s.trim()).filter(Boolean), n = 0;
         for (let [key, e] of store) {
-            if (patterns.some(p => matches(p, e))) { drop(key); removed++ }
+            if (!patterns.some(p => matches(p, e))) continue;
+            n++;
+            if (evict) drop(key);
+            else if (!e.stale) { e.stale = true; persist(e) }
         }
-        if (removed) api.triggerEvent(document, 'ypy:cache:expire', {patterns, removed});
-        return removed;
+        if (n) api.triggerEvent(document, evict ? 'ypy:cache:evict' : 'ypy:cache:expire', evict ? {patterns, removed: n} : {patterns, expired: n});
+        return n;
     }
 
     // Keeps the response in the store, unless it must not be kept.
@@ -8646,11 +8745,11 @@ ypy.config.historyCache ??= { disable: true };
             key: c.key, href: c.url.href, path: c.url.pathname + c.url.search, text, time: Date.now(),
             headers: Object.fromEntries(Object.entries(h).filter(([k]) => KEEP.test(k))),
             vary: Object.fromEntries((h.vary || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean).map(n => [n, c.rh[n] ?? ''])),
-            fresh: age == null ? undefined : age * 1000, redirected: !!ctx.redirected, off: !!o.offline
+            fresh: age == null ? undefined : age * 1000, redirected: !!ctx.redirected, off: !!o.offline, tags: c.tags
         };
         store.set(c.key, e);
         chars += text.length;
-        if (e.off) try { sessionStorage.setItem(KEY + e.key, JSON.stringify(e)) } catch {}
+        persist(e);
         while (store.size > o.size || chars > o.bytes) drop(store.keys().next().value);
     }
 
@@ -8676,6 +8775,8 @@ ypy.config.historyCache ??= { disable: true };
             let res = await fetch(e.href, {method: 'GET', headers, credentials, mode, signal: AbortSignal.timeout(ypy.config.defaultTimeout || 30000)});
             if (res.status === 304) {
                 e.time = Date.now();
+                e.stale = false;
+                persist(e);
                 return done(false, 304);
             }
             if (res.status !== 200) {
@@ -8683,7 +8784,7 @@ ypy.config.historyCache ??= { disable: true };
                 return done(false, res.status);
             }
             let text = await res.text(), same = text === e.text;
-            if (same) e.time = Date.now();
+            if (same) { e.time = Date.now(); e.stale = false; persist(e) }
             else save({response: res, text, redirected: res.redirected}, c);
             // the region may have moved on to another request or left the page: then only the copy is renewed
             let live = !same && latest.get(ctx.target) === ctx && ctx.target?.isConnected;
@@ -8722,10 +8823,12 @@ ypy.config.historyCache ??= { disable: true };
                 }
             } catch {}
             ypy.cache = {
-                /** Drops the copies named by the comma separated URL patterns; returns how many. */
-                expire,
-                /** Drops every copy (call it when the user signs out). */
-                clear: () => expire('*'),
+                /** Marks old the copies named by the comma separated patterns (they are still shown, then revalidated); returns how many. */
+                expire: spec => mark(spec),
+                /** Deletes the copies named by the comma separated patterns; returns how many. */
+                evict: spec => mark(spec, true),
+                /** Deletes every copy (call it when the user signs out). */
+                clear: () => mark('*', true),
                 /** What the store holds, for tests and tooling. */
                 stats: () => ({entries: store.size, chars})
             };
@@ -8741,13 +8844,14 @@ ypy.config.historyCache ??= { disable: true };
             let rh = lower(Object.entries(request.headers)), key = (rh['YPY-Request-Type'.toLowerCase()] || '') + ' ' + url.href;
             let e = store.get(key), o = options(attr);
             if (e && !Object.entries(e.vary).every(([n, v]) => (rh[n] ?? '') === v)) e = null;
-            let c = ctx.cache = {key, url, o, rh}, age = e && Date.now() - e.time, inner = ctx.fetch;
+            let tags = String(api.attributeValue(elt, 'ypy-cache-tags') ?? '').split(/[\s,]+/).filter(Boolean);
+            let c = ctx.cache = {key, url, o, rh, tags}, age = e && Date.now() - e.time, inner = ctx.fetch;
             ctx.fetch = async (action, req) => {
                 if (e && age <= ypy.parseInterval(o.ttl)) {
                     store.delete(key);
                     store.set(key, e);
                     c.hit = e;
-                    c.fresh = age < (e.fresh ?? ypy.parseInterval(o.fresh));
+                    c.fresh = !e.stale && age < (e.fresh ?? ypy.parseInterval(o.fresh));
                     return reply(ctx, e);
                 }
                 // too old to show: ask with its validators and keep it when the server agrees
@@ -8764,6 +8868,7 @@ ypy.config.historyCache ??= { disable: true };
                 }
                 if (res.status !== 304 || !e) return res;
                 e.time = Date.now();
+                e.stale = false;
                 c.hit = e;
                 c.fresh = true;
                 return reply(ctx, e);
@@ -8771,11 +8876,11 @@ ypy.config.historyCache ??= { disable: true };
         },
 
         ypy_after_request: (elt, {ctx}) => {
-            let {response, request} = ctx, c = ctx.cache, expiry = lower(response.headers)['YPY-Cache-Expire'.toLowerCase()];
-            if (expiry != null) {
-                if (expiry.trim() !== 'false') expire(expiry);
-            } else if (request.method !== 'GET' && response.status < 400 && !request.headers['YPY-Validate']) {
-                expire('*');
+            let {response, request} = ctx, c = ctx.cache, h = lower(response.headers), old = h['YPY-Cache-Expire'.toLowerCase()], gone = h['YPY-Cache-Evict'.toLowerCase()];
+            if (gone != null && gone.trim() !== 'false') mark(gone, true);
+            if (old != null && old.trim() !== 'false') mark(old);
+            if (old == null && gone == null && request.method !== 'GET' && response.status < 400 && !request.headers['YPY-Validate']) {
+                mark('*', true);
             }
             if (c && !c.hit) response.status === 200 ? save(ctx, c) : drop(c.key);
         },
@@ -9024,6 +9129,18 @@ ypy.config.historyCache ??= { disable: true };
 // field requests of that form. Fields that arrive later are wired when their container is
 // processed, a swap included.
 //
+// Batches. ypy-validate-batch on a field, on the element with ypy-validate-fields or on the form
+// (the nearest one wins; the value is a time, a bare attribute means 50ms, false is off), or
+// ypy.config.validate.batch, turns it on: the fields of one form that ask the same URL within
+// that window go in one request, with YPY-Validate: field1,field2 (the names, in the order they
+// asked). It is off by default, because the server must read the list. The answer: 422 when any
+// field is invalid, 2xx when none is. The message of each invalid field comes as an
+// out-of-band element whose id is the id of that field's place, for example
+// `<small id="email-error" ypy-swap-oob="innerHTML">Taken</small>`; a field that has none is
+// valid, and its place is emptied. aria-invalid and aria-describedby follow what each place
+// shows. One field alone is checked as before, with the usual answer. If a field of a batch
+// that is still in flight asks again, the request starts over with the whole batch.
+//
 // Only the public API and the extension API are used, so it works with the built core too.
 //
 // Usage:
@@ -9036,7 +9153,8 @@ ypy.config.historyCache ??= { disable: true };
 
     let api, count = 0;
     const FIELDS = 'input,select,textarea';
-    const flight = new WeakMap();   // field -> AbortController of its request
+    const flight = new WeakMap();   // field -> AbortController of its request (.fields: those of the batch)
+    const groups = [];              // fields waiting for the end of a batch window: {form, url, fields}
 
     // The URL to ask for a field, or undefined when the field is not validated.
     function urlFor(field) {
@@ -9063,16 +9181,44 @@ ypy.config.historyCache ??= { disable: true };
         return box;
     }
 
-    function validate(field) {
-        let url = urlFor(field), name = field.name || field.id;
-        if (url == null || !name || !field.isConnected) return;
-        flight.get(field)?.abort();
-        let abort = new AbortController(), box = errorBox(field);
-        flight.set(field, abort);
+    // Asks the URL for the fields, in one request, and shows each answer in its place.
+    function send(fields, url) {
+        for (let f of fields) flight.get(f)?.abort();
+        let abort = new AbortController(), boxes = fields.map(errorBox);
+        abort.fields = fields;
+        for (let f of fields) flight.set(f, abort);
         ypy.ajax('POST', url, {
-            source: field, target: box, swap: 'innerHTML', headers: {'YPY-Validate': name},
-            request: {signal: abort.signal}, fieldValidation: {field, box}
+            source: fields[0], target: boxes[0], swap: fields[1] ? 'none' : 'innerHTML',
+            headers: {'YPY-Validate': fields.map(f => f.name || f.id).join(',')},
+            request: {signal: abort.signal}, fieldValidation: {field: fields[0], box: boxes[0], fields, boxes, abort}
         }).catch(() => {});
+    }
+
+    // The window of a field's batch in ms, or 0 for none.
+    function batchWindow(field) {
+        let host = field.closest(api.prefixSelector('[ypy-validate-batch]')), v = host ? api.attr(host, 'ypy-validate-batch') : ypy.config.validate?.batch;
+        return v === false || v === 'false' || v == null ? 0 : v === '' || v === true || v === 'true' ? 50 : ypy.parseInterval(v);
+    }
+
+    function flush(group) {
+        groups.splice(groups.indexOf(group), 1);
+        let fields = [...group.fields].filter(f => f.isConnected && (f.name || f.id));
+        if (fields.length) send(fields, group.url);
+    }
+
+    function validate(field) {
+        let url = urlFor(field), ms = url != null && batchWindow(field);
+        if (url == null || !(field.name || field.id) || !field.isConnected) return;
+        if (!ms) return send([field], url);
+        let group = groups.find(g => g.form === field.form && g.url === url);
+        if (!group) {
+            group = {form: field.form, url, fields: new Set()};
+            group.timer = setTimeout(flush, ms, group);
+            groups.push(group);
+        }
+        group.fields.add(field);
+        // a batch of the field that is still in flight starts over with it
+        flight.get(field)?.fields.forEach(f => group.fields.add(f));
     }
 
     function wire(field) {
@@ -9107,8 +9253,12 @@ ypy.config.historyCache ??= { disable: true };
 
         ypy_after_request: (elt, {ctx}) => {
             let v = ctx.fieldValidation;
+            if (!v) return;
+            let ok = ctx.response.status < 400;
+            // a batch: every place starts empty, the answer fills those of the invalid fields
+            if (v.fields[1] && (ok || ctx.response.status === 422)) v.boxes.forEach(b => b.replaceChildren());
             // valid and nothing to say: leave nothing of an earlier message
-            if (v && ctx.response.status < 400 && !ctx.text.trim()) {
+            else if (ok && !ctx.text.trim()) {
                 ctx.swap = 'none';
                 v.box.replaceChildren();
             }
@@ -9123,20 +9273,26 @@ ypy.config.historyCache ??= { disable: true };
             }
             let a = name => api.attr(v.field, 'ypy-error-' + name), focus = a('focus');
             ctx.target = v.box;
-            ctx.swap = a('swap') || 'innerHTML';
+            ctx.swap = v.fields[1] ? 'none' : a('swap') || 'innerHTML';
             ctx.focus = focus == null || focus === 'false' ? false : focus;
         },
 
         ypy_finally_request: (elt, {ctx}) => {
             let v = ctx.fieldValidation;
-            if (!v || ctx.status !== 'swapped') return;
-            let {field, box} = v, status = ctx.response.status, ids = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
-            if (status === 422) {
-                field.setAttribute('aria-invalid', 'true');
-                if (!ids.includes(box.id)) field.setAttribute('aria-describedby', [...ids, box.id].join(' '));
-            } else if (status < 400) {
-                field.removeAttribute('aria-invalid');
-            }
+            if (!v) return;
+            for (let f of v.fields) if (flight.get(f) === v.abort) flight.delete(f);
+            if (ctx.status !== 'swapped') return;
+            let status = ctx.response.status;
+            v.fields.forEach((field, i) => {
+                let box = v.boxes[i], ids = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+                // a batch names the invalid fields by what their places show
+                if (status === 422 && (!v.fields[1] || box.hasChildNodes())) {
+                    field.setAttribute('aria-invalid', 'true');
+                    if (!ids.includes(box.id)) field.setAttribute('aria-describedby', [...ids, box.id].join(' '));
+                } else if (status < 400 || status === 422) {
+                    field.removeAttribute('aria-invalid');
+                }
+            });
         }
     });
 
@@ -9654,5 +9810,118 @@ ypy.config.historyCache ??= { disable: true };
     }
 
     ypy.registerExtension('ypy-telemetry', hooks);
+
+})();
+// SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-switch.js
+//
+// Shows or hides a part of a form according to the value of a field, with no request.
+//
+// ypy-switch on the part says when it is shown:
+//
+//   ypy-switch="kind=company"          the field `kind` has the value company
+//   ypy-switch="kind=company|ngo"      ... one of these values
+//   ypy-switch="kind!=person"          ... is not one of these values
+//   ypy-switch="newsletter"            the field has a value (a checkbox or radio: it is checked)
+//
+// The field is found by name, inside the form that holds the part (in the whole page when the
+// part is in no form). A radio group or a set of checkboxes with the same name counts as one
+// field; a select with several options chosen has several values and any of them can match. A
+// checkbox with no value attribute has the value "on".
+//
+// A part that is not shown gets the hidden attribute, and the fields inside it are disabled: they
+// are not submitted and a required one does not stop the submit. When the part is shown again the
+// fields that the extension disabled come back (one that the page had disabled stays disabled). If
+// your CSS gives the part a display value, add `[hidden] { display: none }` for it.
+//
+// It follows the input and change events of the form, a reset, and content that arrives in a swap.
+// A script that sets a value without an event calls ypy.switch.update(). A part fires
+// ypy:switch ({shown}) when it changes; its first evaluation is silent. Nested parts are
+// evaluated in document order, so an outer part that is hidden keeps the inner ones disabled.
+//
+// Only the public API and the extension API are used, so it works with the built core too.
+//
+// Usage:
+//   <script src="ypy-switch.js"></script>
+//   <form>
+//     <select name="kind"><option value="person">Person<option value="company">Company</select>
+//     <div ypy-switch="kind=company"><input name="cnpj" required></div>
+//   </form>
+//==========================================================
+(() => {
+
+    let api;
+    const state = new WeakMap();   // part -> shown last time
+    const off = new WeakSet();     // fields this extension disabled
+    const CONTROLS = 'input,select,textarea,button,fieldset';
+    const parts = () => api.prefixSelector('[ypy-switch]');
+
+    // The values of the fields named `name` in the scope, as a list of strings.
+    function values(scope, name) {
+        let out = [];
+        for (let f of scope.querySelectorAll(`[name="${CSS.escape(name)}"]`)) {
+            if (f.type === 'checkbox' || f.type === 'radio') {
+                if (f.checked) out.push(f.value);
+            } else if (f.tagName === 'SELECT') {
+                out.push(...[...f.selectedOptions].map(o => o.value));
+            } else {
+                out.push(f.value);
+            }
+        }
+        return out;
+    }
+
+    // Does the rule `name`, `name=a|b` or `name!=a|b` hold for the part?
+    function holds(part, rule) {
+        let [, name, not, list] = /^\s*([^=!\s]+)\s*(!?)(?:=\s*(.*?))?\s*$/.exec(rule) || [];
+        if (!name) return true;
+        let have = values(part.closest('form') || document, name);
+        if (list == null) return have.some(v => v !== '');
+        let wanted = list.split('|').map(v => v.trim());
+        return have.some(v => wanted.includes(v)) !== !!not;
+    }
+
+    function show(part, shown) {
+        let first = !state.has(part), was = state.get(part);
+        state.set(part, shown);
+        part.hidden = !shown;
+        // inside a part that is hidden, the fields stay disabled whatever this part says
+        let up = part.parentElement?.closest(parts());
+        while (up && !up.hidden) up = up.parentElement?.closest(parts());
+        for (let f of part.matches(CONTROLS) ? [part] : part.querySelectorAll(CONTROLS)) {
+            if ((!shown || up) && !f.disabled) { f.disabled = true; off.add(f) }
+            else if (shown && !up && off.delete(f)) f.disabled = false;
+        }
+        if (!first && was !== shown) api.triggerEvent(part, 'ypy:switch', {shown});
+    }
+
+    // Evaluates the parts of a subtree, outer ones first.
+    function update(root = document) {
+        for (let part of [...root.matches?.(parts()) ? [root] : [], ...root.querySelectorAll?.(parts()) ?? []]) {
+            show(part, holds(part, api.attr(part, 'ypy-switch') || ''));
+        }
+    }
+
+    // The parts that depend on the form of a field
+    const refresh = field => update(field.form || document);
+
+    document.addEventListener('input', evt => refresh(evt.target));
+    document.addEventListener('change', evt => refresh(evt.target));
+    document.addEventListener('reset', evt => setTimeout(update, 0, evt.target));
+
+    ypy.registerExtension('ypy-switch', {
+
+        init: (internalApi) => {
+            api = internalApi;
+            ypy.switch = {
+                /** Evaluates the parts again: call it after a script set a value without an event. */
+                update
+            };
+        },
+
+        // new content: its own parts, and the parts of the form it joined
+        ypy_after_process: (elt) => { update(elt.closest?.('form') || elt) }
+    });
 
 })();

@@ -1859,9 +1859,11 @@ export interface YpyConfig {
 
 /** ypy-cache extension API (see https://ypy.dev/docs/reference/cache). */
 export interface YpyCache {
-  /** Drops the copies named by comma separated URL patterns (`/items*`, `/cart`, `*`); returns how many. */
+  /** Marks old the copies named by comma separated patterns (`/items*`, `/cart`, `*`, `tag:products`): they are still shown, then revalidated; returns how many. */
   expire(patterns: string): number;
-  /** Drops every copy. */
+  /** Deletes the copies named by comma separated patterns; returns how many. */
+  evict(patterns: string): number;
+  /** Deletes every copy. */
   clear(): number;
   /** What the store holds. */
   stats(): { entries: number; chars: number };
@@ -1902,8 +1904,8 @@ export interface YpyNativeEventMap {
   'ypy:cache:hit': { ctx: YpyRequestCtx; url: string; age: number; offline: boolean };
   /** The check after a shown copy ended; `changed` is true when new content was swapped in. */
   'ypy:cache:revalidated': { ctx: YpyRequestCtx; url: string; changed: boolean; status: number };
-  /** Copies were dropped. Fired on `document`. */
-  'ypy:cache:expire': { patterns: string[]; removed: number };
+  /** Copies were marked old (still shown, then revalidated). Fired on `document`. */
+  'ypy:cache:expire': { patterns: string[]; expired: number };
   /** The optimistic change was made. Cancel it to undo the change at once. */
   'ypy:optimistic:applied': { ctx: YpyRequestCtx; target: Element; nodes: Node[] };
   /** The server accepted the request. */
@@ -2110,5 +2112,44 @@ export interface YpyNativeEventMap {
   'ypy:stream:pause': { stream: object };
   /** The tab is visible again and the paused stream opens its connection. */
   'ypy:stream:resume': { stream: object };
+}
+// #endregion
+
+// #region TASK-078 cache expire and evict, nav focus prefetch and current link, validate batch, ypy-switch
+export interface YpyNavConfig {
+  /** Mark the link to the current page with `aria-current="page"` and the class `ypy-current`, and renew the mark on every navigation. @default true */
+  current?: boolean;
+}
+
+export interface YpyNativeEventMap {
+  /** Copies were deleted (`YPY-Cache-Evict`, `ypy.cache.evict()`, `ypy.cache.clear()`, or a successful non-GET request). Fired on `document`. */
+  'ypy:cache:evict': { patterns: string[]; removed: number };
+}
+
+/** Settings of the field validation of `ypy-validate`, in `ypy.config.validate`. */
+export interface YpyValidateConfig {
+  /** The window in which the fields of one form that ask the same URL go in a single request, as a time (`"50ms"`) or milliseconds; `true` means 50 ms. `ypy-validate-batch` overrides it. @default false */
+  batch?: boolean | number | string;
+}
+
+export interface YpyConfig {
+  /** `ypy-validate` settings. */
+  validate?: Partial<YpyValidateConfig>;
+}
+
+/** ypy-switch extension API (see https://ypy.dev/docs/reference/switch). */
+export interface YpySwitch {
+  /** Evaluates the `ypy-switch` parts inside `root` (the page by default) again; call it after a script set a value without an event. */
+  update(root?: Element | Document): void;
+}
+
+export interface Ypy {
+  /** ypy-switch extension API, available when the extension is loaded */
+  switch?: YpySwitch;
+}
+
+export interface YpyNativeEventMap {
+  /** A part with `ypy-switch` was shown or hidden. Its first evaluation is silent. Fires on the part. */
+  'ypy:switch': { shown: boolean };
 }
 // #endregion
