@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/ypy-develop/ypy/internal/assets"
 	"github.com/ypy-develop/ypy/internal/bench"
 	"github.com/ypy-develop/ypy/internal/build"
 	"github.com/ypy-develop/ypy/internal/check"
@@ -31,7 +32,7 @@ func main() {
 			bench.Command(),
 			build.Command(),
 			check.Command(),
-			gen.Command(),
+			assets.Under(gen.Command()),
 			gates.Command(),
 			check.MigrateCommand(),
 			testrun.Command(),
