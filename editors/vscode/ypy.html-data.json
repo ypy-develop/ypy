@@ -1108,6 +1108,13 @@
       }
     },
     {
+      "name": "ypy-on::switch",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:switch` fires. Fires on a part with `ypy-switch` when it goes from shown to hidden or the other way. Its first evaluation is silent."
+      }
+    },
+    {
       "name": "ypy-on::upload:progress",
       "description": {
         "kind": "markdown",
@@ -2419,6 +2426,13 @@
       "description": {
         "kind": "markdown",
         "value": "Like `ypy-stream`, with a DELETE request.\n\nRequires the `ypy-stream` extension."
+      }
+    },
+    {
+      "name": "ypy-switch",
+      "description": {
+        "kind": "markdown",
+        "value": "Shows this part of a form only while a rule about a field holds, with no request: `kind=company`, `kind=company|ngo`, `kind!=person`, or just `news` for a field that has a value (a checkbox that is checked). The field is found by name in the form that holds the part. A hidden part gets the `hidden` attribute and its fields are disabled, so they are not submitted and a required one does not block the submit.\n\nRequires the `ypy-switch` extension.\n\nSyntax: `<field>[=<value>[|<value>...]] | <field>!=<value>[|<value>...]`"
       }
     },
     {

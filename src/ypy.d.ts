@@ -2043,4 +2043,20 @@ export interface YpyConfig {
   /** `ypy-validate` settings. */
   validate?: Partial<YpyValidateConfig>;
 }
+
+/** ypy-switch extension API (see https://ypy.dev/docs/reference/switch). */
+export interface YpySwitch {
+  /** Evaluates the `ypy-switch` parts inside `root` (the page by default) again; call it after a script set a value without an event. */
+  update(root?: Element | Document): void;
+}
+
+export interface Ypy {
+  /** ypy-switch extension API, available when the extension is loaded */
+  switch?: YpySwitch;
+}
+
+export interface YpyNativeEventMap {
+  /** A part with `ypy-switch` was shown or hidden. Its first evaluation is silent. Fires on the part. */
+  'ypy:switch': { shown: boolean };
+}
 // #endregion
