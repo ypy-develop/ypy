@@ -1,0 +1,19 @@
+=== about
+append with limit 3: the oldest (first) items go.
+=== page
+<ul id="log"><li>1</li><li>2</li><li>3</li></ul>
+=== input
+event: ypy-patch-elements
+data: mode append
+data: selector #log
+data: limit 3
+data: elements <li>4</li>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #log
+data: limit 3
+data: elements <li>5</li><li>6</li>
+
+=== dom
+<ul id="log"><li>4</li><li>5</li><li>6</li></ul>

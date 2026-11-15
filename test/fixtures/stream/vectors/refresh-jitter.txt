@@ -1,0 +1,16 @@
+=== about
+A refresh with jitter still makes its request, after a random wait.
+=== page
+<div id="cart" ypy-get="/cart">0</div>
+=== input
+event: ypy-refresh
+data: selector #cart
+data: debounce 0
+data: jitter 30
+
+=== dom
+<div id="cart" ypy-get="/cart">1</div>
+=== respond
+/cart => 1
+=== requests
+GET /cart

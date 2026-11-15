@@ -1,0 +1,45 @@
+=== about
+The eight patch modes with a selector, applied in order to one list.
+=== page
+<ul id="l"><li id="a">A</li><li id="b">B</li><li id="c">C</li></ul>
+=== input
+event: ypy-patch-elements
+data: selector #b
+data: elements <li id="b" class="x">B2</li>
+
+event: ypy-patch-elements
+data: mode inner
+data: selector #a
+data: elements <i>A2</i>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #l
+data: elements <li id="d">D</li>
+
+event: ypy-patch-elements
+data: mode prepend
+data: selector #l
+data: elements <li id="z">Z</li>
+
+event: ypy-patch-elements
+data: mode before
+data: selector #c
+data: elements <li id="y">Y</li>
+
+event: ypy-patch-elements
+data: mode after
+data: selector #c
+data: elements <li id="x">X</li>
+
+event: ypy-patch-elements
+data: mode replace
+data: selector #d
+data: elements <li id="w">W</li>
+
+event: ypy-patch-elements
+data: mode remove
+data: selector #z
+
+=== dom
+<ul id="l"><li id="a"><i>A2</i></li><li id="b" class="x">B2</li><li id="y">Y</li><li id="c">C</li><li id="x">X</li><li id="w">W</li></ul>

@@ -1,0 +1,27 @@
+=== about
+prepend and append with key and limit together, by selector and by id: the key is applied before the limit.
+=== page
+<ul id="feed"><li id="a">A</li><li id="b">B</li></ul>
+=== input
+event: ypy-patch-elements
+data: mode prepend
+data: selector #feed
+data: key id
+data: limit 2
+data: elements <li id="b">B2</li>
+
+event: ypy-patch-elements
+data: mode prepend
+data: selector #feed
+data: key id
+data: limit 2
+data: elements <li id="c">C</li>
+
+event: ypy-patch-elements
+data: mode append
+data: key id
+data: limit 2
+data: elements <ul id="feed"><li id="d">D</li></ul>
+
+=== dom
+<ul id="feed"><li id="a">A</li><li id="d">D</li></ul>

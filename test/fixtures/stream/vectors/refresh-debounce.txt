@@ -1,0 +1,29 @@
+=== about
+Refresh events with the same selector inside the debounce window make one request; another selector makes its own.
+=== page
+<div id="cart" ypy-get="/cart">0</div><div id="clock" ypy-get="/clock">0</div>
+=== input
+event: ypy-refresh
+data: selector #cart
+data: debounce 60
+
+event: ypy-refresh
+data: selector #cart
+data: debounce 60
+
+event: ypy-refresh
+data: selector #clock
+data: debounce 60
+
+event: ypy-refresh
+data: selector #cart
+data: debounce 60
+
+=== dom
+<div id="cart" ypy-get="/cart">1</div><div id="clock" ypy-get="/clock">2</div>
+=== respond
+/cart => 1
+/clock => 2
+=== requests
+GET /cart
+GET /clock
