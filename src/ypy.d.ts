@@ -2540,3 +2540,29 @@ export interface YpyNativeEventMap {
   'ypy:native:navigate': { url: string; action?: 'advance' | 'replace' | 'restore' };
 }
 // #endregion
+
+// #region TASK-090 model streaming (ADR-0018)
+/** Texts of the live region for a model answer (`ypy-model`). The core carries no text: an unset message says nothing. */
+export interface YpyAnnounceMessages {
+  /** Said when an answer starts being written (a container with `ypy-untrusted` and `aria-busy="true"` appears). */
+  answerStart?: string;
+  /** Said when the answer is finished. */
+  answerReady?: string;
+  /** Said, assertive, when the answer was stopped. */
+  answerStopped?: string;
+  /** Said, assertive, when the answer failed. */
+  answerFailed?: string;
+}
+
+export interface YpyAnnounceConfig {
+  /** `"blocks"` says the text of each closed block of an answer, shortened, at most once every 3 seconds. Off by default: only the start and the end are said. */
+  stream?: 'blocks';
+}
+
+export interface YpyStreamConfig {
+  /** Merge consecutive `inner`, `outer` and `append` patches of one selector that wait to be applied (protocol 5.3): the last `inner` or `outer` wins and `append` payloads join. @default true */
+  merge: boolean;
+  /** Apply the events one animation frame apart (at most 100 ms in a hidden tab), so a fast stream such as model tokens costs one round of DOM work per frame. @default false */
+  frame: boolean;
+}
+// #endregion

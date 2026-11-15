@@ -6,6 +6,10 @@ list-append-limit
 list-key
 list-key-limit
 list-prepend-limit
+model-answer
+model-merge
+model-plain-text
+model-stopped
 refresh-debounce
 refresh-jitter
 refresh-page

@@ -3723,6 +3723,10 @@ ypy.config.historyCache ??= { disable: true };
 // pauseOnBackground (ypy.config.stream, or ypy-config='{"stream":{"pauseOnBackground":true}}') closes the
 // connection while the tab is hidden and opens it again, with Last-Event-ID, when it is visible.
 // useViewTransition=true asks for a view transition, which the ypy-transitions extension runs.
+// Events are queued and applied in order, one animation frame apart when config.stream.frame is true (off by default; a model answer turns it on).
+// Consecutive patches of one selector are merged (config.stream.merge, on by default): inner and outer
+// keep the last one, append concatenates, so a model answer of many tokens costs few DOM operations.
+// ypy:abort on the element of the stream closes it (the Stop button of a model answer).
 // Uses only the public API and the extension API. Load it before ypy-sse: an element with
 // ypy-sse:connect stays with that extension.
 //==========================================================
@@ -3906,7 +3910,20 @@ ypy.config.historyCache ??= { disable: true };
     const EVENTS = {'ypy-patch-elements': patchElements, 'ypy-patch-signals': patchSignals, 'ypy-redirect': redirect, 'ypy-event': fire, 'ypy-refresh': refresh};
 
     // data lines are "key value"; a repeated key joins its values with a line feed. An unknown event is ignored.
-    async function handle(st, f) {
+    // The events of a stream wait in st.q and run one at a time. A patch that follows another one of the same
+    // mode and selector is merged into it (the optional rule of protocol 5.3), so a slow browser catches up
+    // with the work of one patch, not of all of them.
+    const ONE = ['key', 'limit', 'useViewTransition'];
+
+    function merge(a, b) {
+        let m = b.k.mode || 'outer', x = a.k, y = b.k;
+        if (a.ev != 'ypy-patch-elements' || b.ev != a.ev || !y.selector || y.selector != x.selector || m != (x.mode || 'outer')
+            || (y.namespace || 'html') != (x.namespace || 'html') || !/^(?:inner|outer|append)$/.test(m) || ONE.some(n => n in x || n in y)) return;
+        x.elements = m == 'append' ? (x.elements ?? '') + (y.elements ?? '') : y.elements;
+        return true;
+    }
+
+    function push(st, f) {
         let fn = EVENTS[f.event];
         if (!fn) return;
         let k = Object.create(null);
@@ -3914,7 +3931,23 @@ ypy.config.historyCache ??= { disable: true };
             let i = l.indexOf(' '), n = i < 0 ? l : l.slice(0, i), v = i < 0 ? '' : l.slice(i + 1);
             k[n] = n in k ? k[n] + '\n' + v : v;
         }
-        try { await fn(st, k) } catch (e) { fail(st, e) }
+        let q = st.q ??= [], item = {fn, ev: f.event, k};
+        if (st.merge && q.length && merge(q[q.length - 1], item)) return;
+        q.push(item);
+        if (!st.busy) { st.busy = true; st.dp = drain(st) }
+    }
+
+    // one animation frame; a hidden tab has none, so it waits 100 ms at most
+    const frame = () => new Promise(resolve => { let t = setTimeout(resolve, 100); requestAnimationFrame(() => { clearTimeout(t); resolve() }) });
+
+    async function drain(st) {
+        while (st.q.length && !st.stop) {
+            if (st.frame) await frame();
+            let item = st.q.shift();
+            if (st.stop || !item) break;
+            try { await item.fn(st, item.k) } catch (e) { fail(st, e) }
+        }
+        st.busy = false;
     }
 
     //============================================================================================
@@ -3922,7 +3955,9 @@ ypy.config.historyCache ??= { disable: true };
     //============================================================================================
     function make(elt, m, url) {
         let cfg = {...ypy.config.stream, ...api.HCON.parse(api.attributeValue(elt, 'ypy-config')).stream};
-        let st = {elt, m, url, id: '', retry: 1000, att: 0, ac: new AbortController(), pause: !!cfg.pauseOnBackground};
+        let st = {elt, m, url, id: '', retry: 1000, att: 0, ac: new AbortController(), pause: !!cfg.pauseOnBackground,
+            merge: cfg.merge !== false, frame: cfg.frame === true, q: [], abort: () => close(st, 'abort')};
+        elt.addEventListener('ypy:abort', st.abort);
         api.ypyProp(elt).stream = st;
         open.add(st);
         (mo ??= new MutationObserver(() => open.forEach(s => s.elt.isConnected || close(s, 'removed')))).observe(document, {childList: true, subtree: true});
@@ -3947,6 +3982,8 @@ ypy.config.historyCache ??= { disable: true };
         if (!open.size) mo?.disconnect();
         if (vl && ![...open].some(s => s.pause)) document.removeEventListener('visibilitychange', vl), vl = null;
         st.rf?.forEach(clearTimeout);
+        st.elt.removeEventListener('ypy:abort', st.abort);
+        st.q = [];
         if (st.elt._ypy?.stream === st) delete st.elt._ypy.stream;
         st.ac.abort();
         st.rd?.cancel().catch(() => {});
@@ -3973,9 +4010,10 @@ ypy.config.historyCache ??= { disable: true };
                 for (let f of feed(dec.decode(r.value, {stream: true}))) {
                     if (st.stop) break;
                     st.att = 0;
-                    await handle(st, f);
+                    push(st, f);
                 }
             }
+            await st.dp;   // what has arrived is applied before the next connection
         } catch (e) {
             if (!st.stop && e.name != 'AbortError') fail(st, e);
         }
@@ -11017,6 +11055,201 @@ ypy.config.historyCache ??= { disable: true };
                 }
             }
             ctx.disabledElements = [];
+        }
+    });
+})();
+// SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-model.js
+//
+// The client side of a language-model answer that streams into fragments (ADR-0018, protocol 5.8). The
+// words of a model are untrusted: what they could do is stopped here as a second wall behind the server's
+// renderer. This extension has four jobs.
+//
+//   ypy-untrusted   marks a container whose content is written by a model. Everything that enters it (and
+//                   every container with the attribute that arrives in a response) loses scripts, styles,
+//                   forms, frames, svg, ypy-*, data-ypy-*, on* and framework attributes, javascript: and
+//                   data: addresses and, unless the value is "images", media that loads from the network.
+//   announce        a container with aria-busy="true" is an answer being written. The live region says one
+//                   short message when it starts (ypy-announce-start, or config.announce.messages.answerStart)
+//                   and one when aria-busy goes away: ypy-announce / answerReady, or ypy-announce-stop /
+//                   answerStopped when data-ypy-answer is "stopped", ypy-announce-error / answerFailed when it is
+//                   "failed" (assertive). Nothing is said in between, unless config.announce.stream is
+//                   "blocks": then the text of each closed block, shortened, at most once every 3 seconds.
+//   ypy-follow      on the container: the page scrolls down with the answer, only when the reader was already
+//                   at the bottom and prefers-reduced-motion is not set.
+//   ypy-stop        on a button: ypy-stop="#selector" sends ypy:abort to those elements, which closes their
+//                   stream. The answer that was open is closed in the page as stopped (the server records the
+//                   stop with its own request, for example ypy-post on the same button).
+//
+// Usage:
+//   <article id="a1" ypy-untrusted ypy-follow aria-busy="true"><div id="a1-done"></div><div id="a1-tail"></div></article>
+//   <button ypy-post="/generations/1/stop" ypy-swap="none" ypy-stop="#gen">Stop</button>
+//
+// Uses only the public API and the extension API.
+//==========================================================
+(() => {
+    let api, sel;
+    // answers being written: container id -> element that holds the stream
+    const open = new Map(), said = new Map();
+    const BAD = 'script,style,iframe,frame,frameset,object,embed,applet,form,input,button,select,textarea,link,meta,base,template,noscript,svg,math,portal';
+    const MEDIA = 'img,picture,source,video,audio,track';
+    const URL_ATTR = /^(?:href|src|action|formaction|poster|data|xlink:href|srcset)$/;
+    const BLOCK_EVERY = 3000, BLOCK_LENGTH = 140;
+
+    //============================================================================================
+    // The wall: what is left of a model's HTML
+    //============================================================================================
+    function clean(root, images) {
+        let pfx = ypy.config.prefix ? ypy.config.prefix.toLowerCase() : null, bad = images ? BAD : BAD + ',' + MEDIA;
+        for (let e of root.querySelectorAll('*')) {
+            if (e.matches(bad)) { e.remove(); continue }
+            for (let a of [...e.attributes]) {
+                let n = a.name.toLowerCase(), v = a.value.replace(/[\0-\x20\x7f-\x9f]/g, '').toLowerCase();
+                if (/^(?:on|ypy-|data-ypy-|x-|[@:])/.test(n) || pfx && n.startsWith(pfx) || /^(?:style|srcdoc|target|form)$/.test(n)
+                    || URL_ATTR.test(n) && /^(?:javascript|data|vbscript):/.test(v)) e.removeAttribute(a.name);
+            }
+            if (e.localName == 'a' && e.hasAttribute('href')) e.setAttribute('rel', 'noopener noreferrer nofollow');
+        }
+    }
+
+    const wants = box => api.attr(box, 'ypy-untrusted') == 'images';
+
+    // Before the swap: the content of every task that goes into an untrusted container, or that is one
+    function guard(ctx, tasks) {
+        let m = ctx.model = {ids: [], boxes: new Set(), text: ''};
+        for (let t of tasks) {
+            let f = t.fragment, tg = t.target instanceof Element ? t.target : null, box = tg?.closest(sel);
+            let style = t.swapSpec?.style ?? t.swapSpec ?? '';
+            if (box && !(box == tg && /^outer/.test(style))) {
+                // everything of the content is the model's (an outer patch of the container itself brings the
+                // container, which the server wrote)
+                clean(f, wants(box));
+                m.boxes.add(box);
+                if (style == 'beforeend') m.text += (f.textContent || '').trim() + ' ';
+            } else {
+                for (let r of f.querySelectorAll(sel)) { clean(r, wants(r)); r.id && m.ids.push(r.id) }
+                if (box) m.boxes.add(box);
+            }
+        }
+    }
+
+    //============================================================================================
+    // The live region
+    //============================================================================================
+    function say(box, ctx, message, politeness) {
+        let cfg = ypy.config.announce;
+        if (!message || !(cfg ?? true)) return;
+        let detail = {ctx, message, politeness};
+        if (!api.triggerEvent(box, 'ypy:announce', detail) || !detail.message) return;
+        let level = detail.politeness, live = document.querySelector('[data-ypy-live=' + level + ']');
+        if (!live) {
+            // the core makes the polite region at start-up and the other on first use; the style that hides it is the core's
+            live = document.createElement('div');
+            live.setAttribute('data-ypy-live', level);
+            live.setAttribute('role', level == 'polite' ? 'status' : 'alert');
+            live.setAttribute('aria-live', level);
+            document.body.append(live);
+        }
+        let s = live._ypy_state ||= {};
+        clearTimeout(s.t);
+        live.textContent = '';
+        s.t = setTimeout(() => {
+            live.textContent = detail.message;
+            s.t = setTimeout(() => live.textContent = '', ypy.config.announce?.clearAfter ?? 5000);
+        }, 50);
+    }
+
+    const text = (box, attr, key) => api.attr(box, attr) || ypy.config.announce?.messages?.[key];
+
+    // the end of an answer: aria-busy is gone, data-ypy-answer says how it ended
+    function ended(box, ctx) {
+        let state = box.getAttribute('data-ypy-answer');
+        if (state == 'stopped') say(box, ctx, text(box, 'ypy-announce-stop', 'answerStopped'), 'assertive');
+        else if (state == 'failed') say(box, ctx, text(box, 'ypy-announce-error', 'answerFailed'), 'assertive');
+        else say(box, ctx, text(box, 'ypy-announce', 'answerReady'), 'polite');
+    }
+
+    function track(box, ctx, blocks) {
+        let id = box.id;
+        if (!id) return;
+        let busy = box.getAttribute('aria-busy') == 'true';
+        if (open.has(id) && !open.get(id).isConnected) open.delete(id);   // its stream went away with the page
+        if (busy && !open.has(id)) {
+            open.set(id, ctx.sourceElement);
+            say(box, ctx, text(box, 'ypy-announce-start', 'answerStart'), 'polite');
+        } else if (!busy && open.has(id)) {
+            open.delete(id);
+            said.delete(id);
+            ended(box, ctx);
+        } else if (busy && blocks && Date.now() - (said.get(id) ?? 0) >= BLOCK_EVERY) {
+            let t = ctx.model.text.trim();
+            if (t) {
+                said.set(id, Date.now());
+                say(box, ctx, t.length > BLOCK_LENGTH ? t.slice(0, BLOCK_LENGTH - 1) + '…' : t, 'polite');
+            }
+        }
+    }
+
+    //============================================================================================
+    // Following the answer
+    //============================================================================================
+    const atBottom = () => innerHeight + scrollY >= document.documentElement.scrollHeight - 24;
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    ypy.registerExtension('ypy-model', {
+        init(internalAPI) {
+            api = internalAPI;
+            sel = api.prefixSelector('[ypy-untrusted]');
+        },
+
+        ypy_before_swap(elt, {ctx, tasks}) {
+            guard(ctx, tasks);
+            let m = ctx.model;
+            m.follow = atBottom() && !still() && [...m.boxes].some(b => api.attr(b, 'ypy-follow') != null && b.getAttribute('aria-busy') == 'true');
+        },
+
+        ypy_after_swap(elt, {ctx}) {
+            let m = ctx.model;
+            if (!m) return;
+            let boxes = new Set(m.boxes);
+            for (let id of m.ids) { let b = document.getElementById(id); b && boxes.add(b) }
+            let blocks = ypy.config.announce?.stream == 'blocks';
+            for (let b of boxes) {
+                if (!b.isConnected) continue;
+                b = b.closest(sel) || b;
+                track(b, ctx, blocks);
+            }
+            if (m.follow) scrollTo(scrollX, document.documentElement.scrollHeight);
+        },
+
+        // A stream that ends while an answer is open (the user pressed Stop, or the request failed) leaves a
+        // page that says so: stopped after an abort, failed after an error
+        ypy_stream_close(elt, {reason}) {
+            let how = /^(?:abort|api)$/.test(reason) ? 'stopped' : /^(?:error|status )/.test(reason) ? 'failed' : null;
+            if (!how) return;
+            for (let [id, from] of [...open]) {
+                if (from != elt) continue;
+                open.delete(id);
+                said.delete(id);
+                let box = document.getElementById(id);
+                if (!box) continue;
+                box.removeAttribute('aria-busy');
+                if (!box.hasAttribute('data-ypy-answer')) box.setAttribute('data-ypy-answer', how);
+                ended(box, {sourceElement: elt});
+            }
+        },
+
+        ypy_after_process(root) {
+            if (!root.querySelectorAll) return;
+            let stop = api.prefixSelector('[ypy-stop]');
+            for (let b of [root, ...root.querySelectorAll(stop)]) {
+                if (!b.matches?.(stop) || api.ypyProp(b).stopBound) continue;
+                api.ypyProp(b).stopBound = true;
+                b.addEventListener('click', () => {
+                    for (let t of api.findAll(b, api.attr(b, 'ypy-stop'))) api.triggerEvent(t, 'ypy:abort');
+                });
+            }
         }
     });
 })();

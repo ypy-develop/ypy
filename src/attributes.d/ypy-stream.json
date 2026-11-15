@@ -131,6 +131,22 @@
         "type": "boolean"
       },
       "default": false
+    },
+    {
+      "name": "stream.merge",
+      "description": "Merge consecutive `ypy-patch-elements` events of the same mode (`inner`, `outer`, `append`) and selector that are waiting to be applied: the last `inner` or `outer` wins and `append` payloads join. The page ends the same. On by default.",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": true
+    },
+    {
+      "name": "stream.frame",
+      "description": "Apply the events of a stream one animation frame apart (at most 100 ms in a hidden tab), so a fast stream, such as the tokens of a model answer, costs one round of DOM work per frame. Off by default.",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": false
     }
   ],
   "internalNames": [
