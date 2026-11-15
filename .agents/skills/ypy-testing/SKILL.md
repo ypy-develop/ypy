@@ -41,7 +41,7 @@ One new file per change, in the directory that matches what it exercises:
 | `test/tests/ext/` | one file per extension, named like it |
 | `test/tests/security/` | what a hostile response or a strict CSP must not be able to do |
 | `test/tests/css/` | the state classes and the stylesheet |
-| `test/e2e/`, `internal/e2e/` | scenarios against `examples/server` |
+| `test/e2e/`, `internal/e2e/` | scenarios against `examples/server`, run in Chrome, Firefox and Safari (`--suite e2e --browsers ...`); a new scenario is a `Register(...)` call in its own file, see `internal/e2e/scenarios.go` |
 
 Do not edit another change's test file to make yours pass. A file starts with
 `setupTest(this)` and ends cleaned up by the helper; `test/lib/helpers.js` has
