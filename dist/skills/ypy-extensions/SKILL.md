@@ -25,7 +25,7 @@ the core plus the common extensions in one file (`ypy.version` ends in `-max`):
 stream, sse, ws, preload, browser-indicator, download, pending, targets, live,
 history-cache, upsert, alpine-compat, retry, lock, signals, layers, nav,
 progress, persist, lazy, cache, optimistic, validate, upload, csrf, poll, list,
-telemetry. The rest (`ypy-csp`, `ypy-multipart`, `ypy-head`, `ypy-prompt`, `ypy-ptag`,
+telemetry. The rest (`ypy-csp`, `ypy-multipart`, `ypy-head`, `ypy-prompt`, `ypy-ptag`, `ypy-native`,
 `ypy-dev`, `ypy-inspector`, `ypy-test`) load on their own.
 
 An allowlist closes the door on a script you did not mean to run:

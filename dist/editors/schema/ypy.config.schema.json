@@ -693,6 +693,29 @@
       },
       "type": "object"
     },
+    "native": {
+      "additionalProperties": false,
+      "description": "Defaults of the ypy-native extension. Requires the `ypy-native` extension.",
+      "markdownDescription": "Defaults of the ypy-native extension. Requires the `ypy-native` extension.",
+      "properties": {
+        "path": {
+          "default": "/.well-known/ypy-native.json",
+          "description": "The URL of the path configuration document, or `false` to not load it. The shell reads the same document. Requires the `ypy-native` extension.",
+          "markdownDescription": "The URL of the path configuration document, or `false` to not load it. The shell reads the same document. Requires the `ypy-native` extension.",
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "web": {
+          "default": false,
+          "description": "Outside the app, open the routes whose path configuration says `context: modal` as a layer (needs `ypy-layers`). Requires the `ypy-native` extension.",
+          "markdownDescription": "Outside the app, open the routes whose path configuration says `context: modal` as a layer (needs `ypy-layers`). Requires the `ypy-native` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "nav": {
       "additionalProperties": false,
       "description": "Settings of global boost and prefetch. Requires the `ypy-nav` extension.",
