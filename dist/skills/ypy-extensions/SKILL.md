@@ -24,9 +24,9 @@ them. The build writes `dist/ext/<name>.js` and `.min.js`. `dist/ypy.max.js` is
 the core plus the common extensions in one file (`ypy.version` ends in `-max`):
 stream, sse, ws, preload, browser-indicator, download, pending, targets, live,
 history-cache, upsert, alpine-compat, retry, lock, signals, layers, nav,
-progress, persist, lazy, cache, optimistic, validate, upload, csrf, poll, list.
-The rest (`ypy-csp`, `ypy-multipart`, `ypy-head`, `ypy-prompt`, `ypy-ptag`,
-`ypy-dev`, `ypy-inspector`) load on their own.
+progress, persist, lazy, cache, optimistic, validate, upload, csrf, poll, list,
+telemetry. The rest (`ypy-csp`, `ypy-multipart`, `ypy-head`, `ypy-prompt`, `ypy-ptag`,
+`ypy-dev`, `ypy-inspector`, `ypy-test`) load on their own.
 
 An allowlist closes the door on a script you did not mean to run:
 
@@ -55,6 +55,7 @@ every extension; set, it refuses any other and `registerExtension` returns
 | `ypy-csp` | run under a strict Content Security Policy: author code only through the page nonce |
 | `ypy-alpine-compat` | run beside Alpine.js |
 | `ypy-dev`, `ypy-inspector` | development aids; leave them out of production |
+| `ypy-test` | end-to-end tests: `await ypy.idle()` before asserting |
 
 The attributes each one adds are in `attributes.json` and `attributes.d/` (and in
 your editor, after `ypy gen`). Read the extension's source in `src/ext/` for its

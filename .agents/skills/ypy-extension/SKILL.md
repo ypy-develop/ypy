@@ -103,9 +103,9 @@ is better than a budget raised. The budgets are in `internal/build/sizes.go` and
 changing one is an ADR, not a commit.
 
 An extension joins the `ypy.max` bundle only by being in the `maxExtensions`
-list of `internal/build/config.go`, in load order. Seven of them are not there
+list of `internal/build/config.go`, in load order. Eight of them are not there
 today and stay separate files: `ypy-csp`, `ypy-dev`, `ypy-head`,
-`ypy-inspector`, `ypy-multipart`, `ypy-prompt` and `ypy-ptag`. Check the list
+`ypy-inspector`, `ypy-multipart`, `ypy-prompt`, `ypy-ptag` and `ypy-test`. Check the list
 before deciding, because it changes. Add a name only when every page that loads
 `ypy.max` should get the extension; the build test `TestGenerateAllParts` walks
 the same list, so a name that has no file in `src/ext/` fails it.

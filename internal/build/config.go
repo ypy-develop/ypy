@@ -37,7 +37,7 @@ var maxExtensions = []string{
 	"ypy-stream", "ypy-sse", "ypy-ws", "ypy-preload", "ypy-browser-indicator", "ypy-download",
 	"ypy-pending", "ypy-targets", "ypy-live", "ypy-history-cache", "ypy-upsert",
 	"ypy-alpine-compat", "ypy-retry", "ypy-lock", "ypy-signals", "ypy-layers",
-	"ypy-nav", "ypy-progress", "ypy-persist", "ypy-lazy", "ypy-cache", "ypy-optimistic", "ypy-validate", "ypy-upload", "ypy-csrf", "ypy-poll", "ypy-list",
+	"ypy-nav", "ypy-progress", "ypy-persist", "ypy-lazy", "ypy-cache", "ypy-optimistic", "ypy-validate", "ypy-upload", "ypy-csrf", "ypy-poll", "ypy-list", "ypy-telemetry",
 }
 
 // maxPreamble is written between the core and the extensions of the bundle.
