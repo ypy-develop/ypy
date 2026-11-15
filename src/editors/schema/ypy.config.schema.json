@@ -203,6 +203,25 @@
       },
       "type": "object"
     },
+    "dedupe": {
+      "additionalProperties": false,
+      "description": "Settings of the sharing of identical GET requests. Requires the `ypy-dedupe` extension.",
+      "markdownDescription": "Settings of the sharing of identical GET requests. Requires the `ypy-dedupe` extension.",
+      "properties": {
+        "ignore": {
+          "default": [
+            "YPY-Source"
+          ],
+          "description": "Names of the request headers that do not make two requests different (compared without regard to case). Every other header must be equal for the requests to be shared. Requires the `ypy-dedupe` extension.",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Names of the request headers that do not make two requests different (compared without regard to case). Every other header must be equal for the requests to be shared. Requires the `ypy-dedupe` extension.",
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "defaultFocusScroll": {
       "default": false,
       "description": "Scrolls the focused element into view after each swap.",

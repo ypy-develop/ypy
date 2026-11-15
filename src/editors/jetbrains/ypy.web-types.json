@@ -575,6 +575,18 @@
           }
         },
         {
+          "name": "ypy-dedupe",
+          "description": "Set to `false` on an element to keep its GET requests out of the sharing of identical requests that are in flight. Write `ypy-dedupe:inherited=\"false\"` on a container to do it for everything inside. Requires the `ypy-dedupe` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-dedupe:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `false`: This element's requests are never shared."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-head",
           "description": "On the `<head>` of a response, chooses how the head is merged into the page. On an element of the current `<head>`, `re-eval` removes and appends it again on every response so scripts run again. Requires the `ypy-head` extension.",
           "description-sections": {
@@ -1573,6 +1585,10 @@
         {
           "name": "csrf:missing",
           "description": "An unsafe (not GET or HEAD) request to the page's own origin is about to leave without a CSRF token: the `ypy-csrf` meta tag is missing or empty. Cancel it to silence the console warning, which is shown once per URL. The request is still sent. Requires the `ypy-csrf` extension."
+        },
+        {
+          "name": "dedupe:joined",
+          "description": "Fires on the source element when its GET request joined an identical request that was already in flight, so only one request goes to the network. `waiters` counts the requests that wait for it, this one included. Requires the `ypy-dedupe` extension."
         },
         {
           "name": "dev:message",

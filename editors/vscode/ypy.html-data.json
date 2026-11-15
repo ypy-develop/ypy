@@ -772,6 +772,13 @@
       }
     },
     {
+      "name": "ypy-on::dedupe:joined",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:dedupe:joined` fires. Fires on the source element when its GET request joined an identical request that was already in flight, so only one request goes to the network. `waiters` counts the requests that wait for it, this one included."
+      }
+    },
+    {
       "name": "ypy-on::dev:message",
       "description": {
         "kind": "markdown",
@@ -1720,6 +1727,22 @@
         "kind": "markdown",
         "value": "Marks a YPY element as server-rendered trusted markup: its value must equal the page nonce, or `ypy-csp` strips every `ypy-*` and `data-ypy-*` attribute from the element. Only the element's own attribute counts, never an inherited one.\n\nRequires the `ypy-csp` extension."
       }
+    },
+    {
+      "name": "ypy-dedupe",
+      "description": {
+        "kind": "markdown",
+        "value": "Set to `false` on an element to keep its GET requests out of the sharing of identical requests that are in flight. Write `ypy-dedupe:inherited=\"false\"` on a container to do it for everything inside.\n\nRequires the `ypy-dedupe` extension.\n\n**Values**\n\n- `false`: This element's requests are never shared.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-dedupe:inherited`) to apply this attribute to YPY requests in child elements."
+      },
+      "values": [
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "This element's requests are never shared."
+          }
+        }
+      ]
     },
     {
       "name": "ypy-head",

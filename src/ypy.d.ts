@@ -2092,3 +2092,20 @@ export interface YpyNativeEventMap {
   'ypy:sort:revert': { ids: string[]; reason: 'cancelled' | 'failed' };
 }
 // #endregion
+
+// #region TASK-079 ypy-dedupe
+/** Settings of `ypy-dedupe`, in `ypy.config.dedupe`. */
+export interface YpyDedupeConfig {
+  /** Names of the request headers that do not make two requests different. @default ["YPY-Source"] */
+  ignore?: string[];
+}
+
+export interface YpyConfig {
+  dedupe?: YpyDedupeConfig;
+}
+
+export interface YpyNativeEventMap {
+  /** A GET request joined an identical one in flight. `waiters` counts the requests that wait for it, this one included. */
+  'ypy:dedupe:joined': { ctx: YpyRequestCtx; url: string; waiters: number };
+}
+// #endregion
