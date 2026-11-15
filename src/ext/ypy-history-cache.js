@@ -1,7 +1,34 @@
 // SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-history-cache.js
+//
+// Pages kept in sessionStorage for back and forward (see historyCache in the configuration).
+//
+// historyCache.encrypt seals the snapshots with WebCrypto (AES-GCM, a 256 bit key made for the
+// session, a new IV for each snapshot, the snapshot id as additional data), so what a page showed
+// is not readable in the storage of the browser:
+//
+//   ypy.config.historyCache = {encrypt: true}       // the key is kept in sessionStorage: the
+//                                                   // snapshots survive a reload of the tab
+//   ypy.config.historyCache = {encrypt: 'memory'}   // the key lives in memory only: after a reload
+//                                                   // the old snapshots can not be read and the
+//                                                   // pages come from the server
+//
+// ypy.history.clear() forgets every snapshot and also replaces the key. Without WebCrypto (a page
+// that is not a secure context) nothing is stored: a snapshot is never written in the clear when
+// encryption was asked for. The key is as safe as the page itself: a script of the page can read
+// it, so this protects the storage at rest, not the page from its own scripts. Sealing is
+// asynchronous, so ypy:history:cache:after:save fires when the snapshot is stored. A restore of a
+// sealed snapshot is asynchronous as well: if a ypy:history:cache:hit listener cancels it, or the
+// snapshot can not be opened, the page is reloaded instead of requested.
+//==========================================================
 (() => {
     let api;
     let _currentId = null;
+    let _raw = null;        // the key of the session, base64
+    let _sealKey = null;    // {raw, key: Promise<CryptoKey>}
+    let _gen = 0;           // grows when the key is replaced: a snapshot sealed before is dropped
+    const KEY_NAME = 'ypy-history-key';
 
     const INDEX_KEY = 'ypy-history-index';
 
@@ -122,13 +149,11 @@
         sessionStorage.setItem(INDEX_KEY, JSON.stringify(index));
     }
 
-    function saveToStorage(ypyId, entry) {
-        if (!canUseStorage() || cfg().size <= 0) return false;
+    function store(ypyId, data) {
         let index = readIndex().filter(id => id !== ypyId);
         while (index.length >= cfg().size) {
             sessionStorage.removeItem('ypy-history-' + index.shift());
         }
-        let data = JSON.stringify(entry);
         while (true) {
             try {
                 sessionStorage.setItem('ypy-history-' + ypyId, data);
@@ -140,6 +165,57 @@
                 sessionStorage.removeItem('ypy-history-' + index.shift());
             }
         }
+    }
+
+    // --- encryption (historyCache.encrypt) ---
+
+    const b64 = bytes => btoa(String.fromCharCode(...bytes));
+    const unb64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+    const encrypting = () => cfg().encrypt ? cfg().encrypt === 'memory' ? 'memory' : 'session' : null;
+
+    // the key of the session, made when `create` says so; the one in sessionStorage survives a reload
+    function rawKey(create) {
+        if (!_raw && encrypting() === 'session') try { _raw = sessionStorage.getItem(KEY_NAME); } catch (_) { /* no storage */ }
+        if (!_raw && create) {
+            _raw = b64(crypto.getRandomValues(new Uint8Array(32)));
+            if (encrypting() === 'session') try { sessionStorage.setItem(KEY_NAME, _raw); } catch (_) { /* memory only */ }
+        }
+        return _raw;
+    }
+
+    function cryptoKey(create) {
+        let raw = rawKey(create);
+        if (!raw) return null;
+        if (_sealKey?.raw !== raw) {
+            _sealKey = {raw, key: crypto.subtle.importKey('raw', unb64(raw), 'AES-GCM', false, ['encrypt', 'decrypt'])};
+        }
+        return _sealKey.key;
+    }
+
+    async function seal(ypyId, entry) {
+        let iv = crypto.getRandomValues(new Uint8Array(12));
+        let data = await crypto.subtle.encrypt({name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(ypyId)},
+            await cryptoKey(true), new TextEncoder().encode(JSON.stringify(entry)));
+        return JSON.stringify({enc: 1, iv: b64(iv), data: b64(new Uint8Array(data))});
+    }
+
+    async function open(ypyId, record) {
+        let data = await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(record.iv), additionalData: new TextEncoder().encode(ypyId)},
+            await cryptoKey(false), unb64(record.data));
+        return JSON.parse(new TextDecoder().decode(data));
+    }
+
+    // Stores a snapshot. Returns true, or false when it could not be stored; with encryption it
+    // returns the promise of that, so the caller can wait for the snapshot to be there.
+    function saveToStorage(ypyId, entry) {
+        if (!canUseStorage() || cfg().size <= 0) return false;
+        if (!encrypting()) return store(ypyId, JSON.stringify(entry));
+        if (!crypto?.subtle) {
+            console.warn('ypy-history-cache: encrypt needs WebCrypto (a secure context); the page is not cached');
+            return false;
+        }
+        let gen = _gen;
+        return seal(ypyId, entry).then(data => gen === _gen && store(ypyId, data), () => false);
     }
 
     function getFromStorage(ypyId) {
@@ -165,8 +241,9 @@
         let content = cleanContent(target);
         head = detail.head;
 
-        saveToStorage(targetId, { content, head, scroll, title });
-        api.triggerEvent(document, 'ypy:history:cache:after:save', { content, head, scroll, title });
+        let saved = saveToStorage(targetId, { content, head, scroll, title });
+        let announce = () => api.triggerEvent(document, 'ypy:history:cache:after:save', { content, head, scroll, title });
+        saved instanceof Promise ? saved.then(announce) : announce();
     }
 
     function getCachedContent() {
@@ -201,13 +278,32 @@
         });
     }
 
-    // Forgets every snapshot of this tab (call it when the user signs out).
+    // Forgets every snapshot of this tab (call it when the user signs out). With encryption the key
+    // is replaced too, so a snapshot that was being sealed, or one that is left somewhere, is lost.
     function clearAll() {
+        _gen++;
+        _raw = _sealKey = null;
         try {
             for (let key of Object.keys(sessionStorage)) {
-                if (key === INDEX_KEY || key.startsWith('ypy-history-')) sessionStorage.removeItem(key);
+                if (key === INDEX_KEY || key.startsWith('ypy-history-')) sessionStorage.removeItem(key);   // the key too
             }
         } catch (_) { /* storage unavailable: nothing was stored */ }
+        if (encrypting() && crypto?.subtle) rawKey(true);   // the new key
+    }
+
+    // The restore of a sealed snapshot: the core was told to wait, so whatever goes wrong here is a reload.
+    async function restoreSealed(ypyId, record, path) {
+        let item;
+        try {
+            item = await open(ypyId, record);
+        } catch (_) {
+            sessionStorage.removeItem('ypy-history-' + ypyId);
+            api.triggerEvent(document, 'ypy:history:cache:miss', { path, refreshOnMiss: true });
+            return location.reload();
+        }
+        let hitDetail = { path, item };
+        if (api.triggerEvent(document, 'ypy:history:cache:hit', hitDetail) === false) return location.reload();
+        restoreFromCache(hitDetail.item);
     }
 
     ypy.registerExtension('ypy-history-cache', {
@@ -219,6 +315,7 @@
             ypy.config.historyCache.refreshOnMiss ??= false;
             ypy.config.historyCache.disable       ??= false;
             ypy.config.historyCache.swapStyle     ??= 'outerSync';
+            ypy.config.historyCache.encrypt       ??= false;
             // Only stamp if core already tagged this entry (YPY-navigated page).
             // If history.state is null this is a fresh/POST-result page - leave it
             // alone so F5 still triggers the browser's resubmit prompt.
@@ -255,6 +352,16 @@
             }
 
             let item = getCachedContent();
+            if (item?.enc) {
+                // sealed: it can only be opened without a key if there is one to open it
+                if (encrypting() && rawKey(false)) {
+                    detail.cancelled = true;
+                    restoreSealed(destinationId, item, detail.path);
+                    return false;
+                }
+                sessionStorage.removeItem('ypy-history-' + destinationId);
+                item = null;
+            }
             if (!item) {
                 let missDetail = { path: detail.path, refreshOnMiss: cfg().refreshOnMiss };
                 api.triggerEvent(document, 'ypy:history:cache:miss', missDetail);

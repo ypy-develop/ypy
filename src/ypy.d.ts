@@ -2109,3 +2109,22 @@ export interface YpyNativeEventMap {
   'ypy:dedupe:joined': { ctx: YpyRequestCtx; url: string; waiters: number };
 }
 // #endregion
+
+// #region TASK-079 encrypted history cache
+export interface YpyHistoryCacheConfig {
+  /**
+   * Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM). `true` keeps the key in `sessionStorage`,
+   * so the pages survive a reload; `"memory"` keeps it in memory only. Without WebCrypto nothing is stored.
+   * `ypy.history.clear()` replaces the key. @default false
+   */
+  encrypt: boolean | 'memory';
+}
+
+export interface Ypy {
+  /** `ypy-history-cache` extension API, available when the extension is loaded. */
+  history?: {
+    /** Forgets every page kept for back and forward, and replaces the encryption key. Call it when the user signs out. */
+    clear(): void;
+  };
+}
+// #endregion

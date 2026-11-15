@@ -331,6 +331,19 @@
           "markdownDescription": "Turn the cache off without unloading the extension. Requires the `ypy-history-cache` extension.",
           "type": "boolean"
         },
+        "encrypt": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "const": "memory"
+            }
+          ],
+          "default": false,
+          "description": "Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM, a key made for the session). `true` keeps the key in `sessionStorage`, so the pages survive a reload; `\"memory\"` keeps it in memory only, so after a reload the old pages are not readable. Without WebCrypto nothing is stored. `ypy.history.clear()` replaces the key. Requires the `ypy-history-cache` extension.",
+          "markdownDescription": "Seal the pages kept in `sessionStorage` with WebCrypto (AES-GCM, a key made for the session). `true` keeps the key in `sessionStorage`, so the pages survive a reload; `\"memory\"` keeps it in memory only, so after a reload the old pages are not readable. Without WebCrypto nothing is stored. `ypy.history.clear()` replaces the key. Requires the `ypy-history-cache` extension."
+        },
         "refreshOnMiss": {
           "default": false,
           "description": "Reload the page on back or forward when it is not in the cache. Requires the `ypy-history-cache` extension.",
