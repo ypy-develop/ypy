@@ -2657,19 +2657,26 @@ var ypy = (() => {
             this.#historyPaths.add(location.pathname + location.search);
         }
 
+        /**
+         * Writes the history. A browser may refuse (Safari allows 100 writes per 10 seconds and
+         * throws a SecurityError past that): the page is already swapped, so a refused write is
+         * dropped and the URL stays as it was.
+         */
+        #writeHistory(method, state, path) {
+            try { history[method](state, '', path); return true } catch {}
+        }
+
         #pushUrlIntoHistory(path, scroll = [scrollX, scrollY]) {
             if (!this.config.history) return;
             // remember where the page being left was scrolled to (read by #restoreHistory); other
             // keys of the entry's state are kept, and an entry that another router owns is left alone
-            if (history.state?.ypy) history.replaceState({...history.state, scroll}, '', location.href);
-            history.pushState({ypy: true}, '', path);
-            this.#trigger(document, "ypy:after:history:push", {path});
+            if (history.state?.ypy) this.#writeHistory('replaceState', {...history.state, scroll}, location.href);
+            this.#writeHistory('pushState', {ypy: true}, path) && this.#trigger(document, "ypy:after:history:push", {path});
         }
 
         #replaceUrlInHistory(path) {
             if (!this.config.history) return;
-            history.replaceState({ypy: true}, '', path);
-            this.#trigger(document, "ypy:after:history:replace", {path});
+            this.#writeHistory('replaceState', {ypy: true}, path) && this.#trigger(document, "ypy:after:history:replace", {path});
         }
 
         /**
@@ -2771,7 +2778,7 @@ var ypy = (() => {
             // Stamp the current entry on the first YPY swap after a fresh page load (or after another
             // script replaced its state), so back traversals to this page are interceptable.
             if (!history.state?.ypy) {
-                history.replaceState({...history.state, ypy: true}, '', location.href);
+                this.#writeHistory('replaceState', {...history.state, ypy: true}, location.href);
                 this.#markHistoryPath();
             }
             let action = this.#resolveHistoryAction(ctx);
@@ -5481,7 +5488,7 @@ ypy.config.historyCache ??= { disable: true };
             cleanupNavigation = () => {
                 hideBrowserIndicator();
                 // restore after resolving (replaceState during a pending intercept aborts the signal early)
-                history.replaceState(savedState, '');
+                try { history.replaceState(savedState, ''); } catch {}   // a browser may refuse the write (Safari: 100 per 10 seconds)
             };
         }, {once: true});
     }
@@ -6750,7 +6757,9 @@ ypy.config.historyCache ??= { disable: true };
         let id = state.ypyId;
         if (!id) {
             id = genId();
-            history.replaceState({ ...state, ypyId: id }, '', location.href);
+            // a browser may refuse the write (Safari: 100 per 10 seconds): the entry is then not stamped and a
+            // return to it is a cache miss
+            try { history.replaceState({ ...state, ypyId: id }, '', location.href); } catch {}
         }
         _currentId = id;
     }
@@ -8137,9 +8146,12 @@ ypy.config.historyCache ??= { disable: true };
         sync();
         if (L.mode == 'popup' && L.source?.isConnected) L.source.classList.add(opener());
         if (L.history && L.url) {
-            if (!history.state?.ypy) history.replaceState({ypy: true}, '', location.href);
-            history.pushState({ypy: true, ypyLayer: d.id}, '', L.url);
-            L.pushed = true;
+            // a browser may refuse a write (Safari: 100 per 10 seconds): the layer then opens without its URL
+            try {
+                if (!history.state?.ypy) history.replaceState({ypy: true}, '', location.href);
+                history.pushState({ypy: true, ypyLayer: d.id}, '', L.url);
+                L.pushed = true;
+            } catch {}
         }
         focus(L);
         api.triggerEvent(d, 'ypy:layer:opened', {layer: L});
@@ -8290,7 +8302,7 @@ ypy.config.historyCache ??= { disable: true };
         }
         if (L.shown) {
             focus(L);
-            if (own && L.pushed && L.url) history.replaceState({ypy: true, ypyLayer: d.id}, '', L.url);
+            if (own && L.pushed && L.url) try { history.replaceState({ypy: true, ypyLayer: d.id}, '', L.url) } catch {}
         }
     }
 
@@ -8377,6 +8389,12 @@ ypy.config.historyCache ??= { disable: true };
                 e.preventDefault();
                 if (t.escape) t.dismiss('escape');
             }
+        });
+        // The page behind a modal cannot take the focus. The dialog makes it inert, but Safari does so after
+        // the next render: until then a script (or a click) can still focus something behind it.
+        document.addEventListener('focusin', e => {
+            let t = stack.findLast(l => l.mode != 'popup');
+            if (t?.shown && !t.element.contains(e.target)) focus(t);
         });
         document.addEventListener('pointerdown', e => {
             let t = stack.at(-1);

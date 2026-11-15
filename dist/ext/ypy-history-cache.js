@@ -134,7 +134,9 @@
         let id = state.ypyId;
         if (!id) {
             id = genId();
-            history.replaceState({ ...state, ypyId: id }, '', location.href);
+            // a browser may refuse the write (Safari: 100 per 10 seconds): the entry is then not stamped and a
+            // return to it is a cache miss
+            try { history.replaceState({ ...state, ypyId: id }, '', location.href); } catch {}
         }
         _currentId = id;
     }
