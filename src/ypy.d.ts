@@ -663,6 +663,8 @@ export interface YpyEventMap extends YpyNativeEventMap {
    * Fires after YPY has finished processing a DOM node or subtree.
    */
   'ypy:after:process': Record<string, never>;
+  /** Fires once on `document.body` after the first process (extension `ypy-boot`). */
+  'ypy:ready': Record<string, never>;
 
   /**
    * Fires before YPY attaches `ypy-on` event listeners to an element.
@@ -755,6 +757,22 @@ export interface YpyAjaxOptions {
   replace?: string | boolean;
 }
 
+/**
+ * What `ypy.registerExtension()` takes: hooks named after the events (`ypy_after_swap`) and these keys,
+ * which `ypy-boot` reads. The rest is hooks.
+ */
+export interface YpyExtension {
+  /** The version, `"1.2.0"`; the extension is known as `name@1`. */
+  version?: string;
+  /** Features that have to be registered already, `["ypy-signals@1"]`; otherwise the extension is refused with a warning. */
+  requires?: string[];
+  /** Features the extension adds, `["expr@1"]`. */
+  provides?: string[];
+  /** Called once with the internal API. */
+  init?(api: any): void;
+  [hook: string]: any;
+}
+
 export interface Ypy {
   /** YPY version string */
   version: string;
@@ -828,7 +846,13 @@ export interface Ypy {
    * Register an YPY extension. The extension must be listed in `ypy.config.extensions`
    * (unless that list is empty). Duplicate registrations are silently ignored.
    */
-  registerExtension(name: string, ext: any): void;
+  registerExtension(name: string, ext: YpyExtension): false | void;
+  /**
+   * Whether a feature is there: an extension by name (`"ypy-signals"`), by name and major version
+   * (`"ypy-signals@1"`), or something an extension `provides` (`"expr@1"`). Available when the
+   * `ypy-boot` extension is loaded, and it knows the extensions registered after it.
+   */
+  supports?(feature: string): boolean;
   /**
    * Dispatch a `CustomEvent` on `elt` and return `true` if it was not cancelled.
    */
