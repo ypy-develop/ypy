@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `ypy-signals` sends the signals only when asked: `ypy-signals-send` on the element (or `ypy-signals-send:inherited` on a container) or `ypy.config.signals.send: true`. Signals whose name starts with `_` are never sent.
 - `ypy migrate` converts a project written before YPY directly to YPY (`dist/ypy.min.js`), and `ypy check` lists what behaves differently. The migration guide, the `ypy migrate` and `ypy check` guides and the recipes (Arandu included) describe that path. ADR-0002 is Superseded by.
 - YPY: a hypermedia-oriented JavaScript framework. Any HTML element can issue an HTTP request and swap the HTML fragment the server returns into the page.
 - One global object, `ypy`. Events are `ypy:*`, extension hooks are `ypy_*`, the configuration meta tag is `ypy-config`, and the state classes are `ypy-request`, `ypy-swapping`, `ypy-settling`, `ypy-added` and `ypy-indicator` (configurable through `ypy.config.classes`).
