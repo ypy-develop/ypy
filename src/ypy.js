@@ -262,7 +262,7 @@ var ypy = (() => {
         }
 
         __initConfig() {
-            this.version = '0.1.0-dev'
+            this.version = '0.1.1'
             this.config = {
                 logAll: false,
                 prefix: "",   // extra custom prefix; ypy- and data-ypy- always work

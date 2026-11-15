@@ -162,7 +162,14 @@ func Load(root string) (*Table, error) {
 	if core.Extension != "" {
 		return nil, fmt.Errorf("%s: the core table has no \"extension\"", CoreTable)
 	}
-	t := &Table{Version: core.Version, Internal: map[string]string{}}
+	if core.Version != "" {
+		return nil, fmt.Errorf("%s: no \"version\" here; the version is the file VERSION at the root", CoreTable)
+	}
+	version, err := os.ReadFile(filepath.Join(root, "VERSION"))
+	if err != nil {
+		return nil, err
+	}
+	t := &Table{Version: strings.TrimSpace(string(version)), Internal: map[string]string{}}
 	t.add("", core)
 
 	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(FragmentsDir)))
@@ -187,7 +194,7 @@ func Load(root string) (*Table, error) {
 			return nil, fmt.Errorf("%s: \"extension\" is %q, want %q (the file name)", rel, f.Extension, slug)
 		}
 		if f.Version != "" {
-			return nil, fmt.Errorf("%s: only the core table has a \"version\"", rel)
+			return nil, fmt.Errorf("%s: no \"version\" here; the version is the file VERSION at the root", rel)
 		}
 		t.Extensions = append(t.Extensions, slug)
 		t.add(slug, f)
@@ -288,7 +295,7 @@ func (t *Table) Validate() []string {
 		}
 	}
 	if t.Version == "" {
-		bad("%s has no \"version\"", CoreTable)
+		bad("the file VERSION is empty")
 	}
 
 	seen := map[string]string{}

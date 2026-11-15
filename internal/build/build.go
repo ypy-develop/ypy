@@ -12,6 +12,7 @@ package build
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -130,6 +131,16 @@ func Generate(opts Options) (Output, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A tree without VERSION is an old commit the benchmarks build (ypy bench --ref): its core
+	// keeps the version it had. The repository has the file, and version_test.go keeps it so.
+	switch version, err := readFile(root, versionFile); {
+	case err == nil:
+		if src.core, err = stampVersion(src.core, strings.TrimSpace(string(version))); err != nil {
+			return nil, err
+		}
+	case !errors.Is(err, fs.ErrNotExist):
+		return nil, fmt.Errorf("version: %w", err)
+	}
 	out := Output{}
 	want := func(p Part) bool { return opts.Only == PartAll || opts.Only == p }
 
@@ -190,9 +201,9 @@ func Generate(opts Options) (Output, error) {
 		}
 	}
 
-	// brotli copies of every script of dist/ and dist/ext (not of source maps)
+	// brotli copies of every script of dist/ and dist/ext (not of source maps or embed/)
 	for _, name := range out.Names() {
-		if strings.HasSuffix(name, ".js") && !strings.HasPrefix(name, outEditorsDir+"/") {
+		if strings.HasSuffix(name, ".js") && !strings.HasPrefix(name, outEditorsDir+"/") && !strings.HasPrefix(name, outEmbedDir+"/") {
 			br, err := compressBrotli(out[name])
 			if err != nil {
 				return nil, err
@@ -203,13 +214,16 @@ func Generate(opts Options) (Output, error) {
 	return out, nil
 }
 
-// addMin adds the minified file, its source map and nothing else.
+// addMin adds the minified file with its source map comment, the source map,
+// and the same code without the comment under embed/ for whoever embeds the
+// file (a Go program, a bundle) and does not serve the map next to it.
 func addMin(out Output, minName, srcName string, src []byte, esm bool) error {
 	code, sm, err := minify(src, path.Base(srcName), path.Base(minName), esm)
 	if err != nil {
 		return err
 	}
-	out[minName] = code
+	out[path.Join(outEmbedDir, minName)] = code
+	out[minName] = append(append([]byte(nil), code...), "//# sourceMappingURL="+path.Base(minName)+".map\n"...)
 	out[minName+".map"] = sm
 	return nil
 }
