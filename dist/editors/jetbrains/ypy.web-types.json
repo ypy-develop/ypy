@@ -1,0 +1,1769 @@
+{
+  "$schema": "https://json.schemastore.org/web-types",
+  "name": "ypy",
+  "version": "0.1.0-dev",
+  "js-types-syntax": "typescript",
+  "description-markup": "markdown",
+  "contributions": {
+    "html": {
+      "elements": [
+        {
+          "name": "ypy-partial",
+          "description": "Routes a piece of a response to its own target. Use `ypy-target` or `id` to choose the destination and `ypy-swap` to choose the swap style.",
+          "attributes": [
+            {
+              "name": "ypy-target",
+              "description": "Sets where the response is inserted. Takes a CSS selector, `this`, or an extended selector: `closest <selector>`, `find <selector>`, `next [selector]`, `previous [selector]`. Defaults to the element itself.",
+              "description-sections": {
+                "Inheritance": "Use the `:inherited` modifier (for example, `ypy-target:inherited`) to apply this attribute to YPY requests in child elements."
+              },
+              "value": {
+                "kind": "plain",
+                "type": "string"
+              }
+            },
+            {
+              "name": "ypy-swap",
+              "description": "Chooses how the response is inserted into the target. Styles: `innerHTML`, `outerHTML`, `textContent`, `beforebegin`, `afterbegin`, `beforeend`, `afterend`, `innerMorph`, `outerMorph`, `outerSync`, `delete`, `none`, and the styles that extensions add (`download`, `upsert`). Modifiers follow the style.",
+              "description-sections": {
+                "Inheritance": "Use the `:inherited` modifier (for example, `ypy-swap:inherited`) to apply this attribute to YPY requests in child elements.",
+                "Modifiers": "- `swap:<time>`: Delay before the swap.\n- `settle:<time>`: Delay between the swap and the settle.\n- `transition:true`: Uses the View Transitions API for this swap.\n- `ignoreTitle:true`: Does not update the document title from the response.\n- `scroll:top|bottom`: Scrolls the target after the swap.\n- `show:top|bottom`: Scrolls the target into the viewport.\n- `scrollTarget:<selector>`: Scrolls this element instead of the target.\n- `showTarget:<selector>`: Scrolls this element into view instead of the target.\n- `strip:true`: Removes the outer wrapper element before swapping.\n- `focusScroll:true`: Scrolls to the focused element.\n- `swapEmpty:true`: Runs the main swap even when nothing remains after the out-of-band and partial content is removed.\n- `target:<selector>`: Retargets the swap.",
+                "Syntax": "`<style> [<modifier>...]`",
+                "Values": "- `innerHTML`: Replaces the inner HTML of the target.\n- `outerHTML`: Replaces the target element.\n- `outerSync`: Morphs the attributes of the target, then replaces its children. The target stays in the DOM.\n- `innerMorph`: Morphs the children of the target, keeping DOM state such as focus and open details. The default.\n- `outerMorph`: Morphs the target itself, keeping DOM state.\n- `textContent`: Replaces the text of the target. The response is not parsed as HTML.\n- `beforebegin`: Inserts before the target. `before` is a synonym.\n- `afterbegin`: Inserts before the first child of the target. `prepend` is a synonym.\n- `beforeend`: Inserts after the last child of the target. `append` is a synonym.\n- `afterend`: Inserts after the target. `after` is a synonym.\n- `delete`: Deletes the target whatever the response holds.\n- `none`: Does not swap. Out-of-band swaps and headers still run."
+              },
+              "value": {
+                "kind": "plain",
+                "type": "string"
+              }
+            }
+          ]
+        },
+        {
+          "name": "ypy-csrf",
+          "description": "Not an element: the `name` of the `<meta name=\"ypy-csrf\" content=\"TOKEN\">` tag that carries the CSRF token. `data-header` names the request header (default `X-CSRF-Token`).\n\nRequires the `ypy-csrf` extension."
+        },
+        {
+          "name": "ypy-progress-bar",
+          "description": "The progress bar: one element appended to `<html>` while a navigation waits, a shadow root host with its own adopted stylesheet. Theme it with the `--ypy-progress-*` variables on `:root`.\n\nRequires the `ypy-progress` extension."
+        }
+      ],
+      "attributes": [
+        {
+          "name": "ypy-get",
+          "description": "Issues a `GET` request to the URL and swaps the response into the DOM.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-post",
+          "description": "Issues a `POST` request to the URL and swaps the response into the DOM.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-put",
+          "description": "Issues a `PUT` request to the URL and swaps the response into the DOM.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-patch",
+          "description": "Issues a `PATCH` request to the URL and swaps the response into the DOM.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-delete",
+          "description": "Issues a `DELETE` request to the URL and swaps the response into the DOM.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-query",
+          "description": "Issues a `QUERY` request to the URL and swaps the response into the DOM.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-action",
+          "description": "Sets the request URL when the method comes from `ypy-method`.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-method",
+          "description": "Sets the HTTP method, paired with `ypy-action`.",
+          "description-sections": {
+            "Values": "- `get`: Issue a GET request.\n- `post`: Issue a POST request.\n- `put`: Issue a PUT request.\n- `patch`: Issue a PATCH request.\n- `delete`: Issue a DELETE request.\n- `query`: Issue a QUERY request."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-trigger",
+          "description": "Chooses which events start the request of the element. Takes a comma separated list of event specifications, each with optional filters and modifiers. Without it, inputs and selects trigger on `change`, forms on `submit` and everything else on `click`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-trigger:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Modifiers": "- `once`: Fires only once.\n- `changed`: Fires only when the value of the element changed.\n- `delay:<time>`: Debounces: a new event resets the countdown.\n- `throttle:<time>`: The first event fires at once, later events wait for the cooldown.\n- `from:<selector>`: Listens on another element. Accepts `document`, `window`, `body`, `closest`, `find`, `next`, `previous`, `self` and `outside`.\n- `target:<selector>`: Fires only when `event.target` matches the selector.\n- `prevent`: Calls `event.preventDefault()`.\n- `stop`: Calls `event.stopPropagation()`. `consume` is a synonym.\n- `halt`: Shorthand for `prevent stop`.\n- `capture`: Listens in the capture phase.\n- `passive`: Tells the browser the listener will not call `preventDefault()`.\n- `root:<selector>`: With `intersect`: the observer root.\n- `threshold:<number>`: With `intersect`: the visible fraction that fires, from 0 to 1.",
+            "Syntax": "`<event>[<filter>] [<modifier>...][, ...]`",
+            "Values": "- `load`: Fires when the element is loaded.\n- `revealed`: Fires when the element scrolls into the viewport.\n- `intersect`: Fires when the element intersects the viewport. Takes `root:<selector>` and `threshold:<number>`.\n- `every <time>`: Polls at an interval, for example `every 2s`."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-swap",
+          "description": "Chooses how the response is inserted into the target. Styles: `innerHTML`, `outerHTML`, `textContent`, `beforebegin`, `afterbegin`, `beforeend`, `afterend`, `innerMorph`, `outerMorph`, `outerSync`, `delete`, `none`, and the styles that extensions add (`download`, `upsert`). Modifiers follow the style.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-swap:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Modifiers": "- `swap:<time>`: Delay before the swap.\n- `settle:<time>`: Delay between the swap and the settle.\n- `transition:true`: Uses the View Transitions API for this swap.\n- `ignoreTitle:true`: Does not update the document title from the response.\n- `scroll:top|bottom`: Scrolls the target after the swap.\n- `show:top|bottom`: Scrolls the target into the viewport.\n- `scrollTarget:<selector>`: Scrolls this element instead of the target.\n- `showTarget:<selector>`: Scrolls this element into view instead of the target.\n- `strip:true`: Removes the outer wrapper element before swapping.\n- `focusScroll:true`: Scrolls to the focused element.\n- `swapEmpty:true`: Runs the main swap even when nothing remains after the out-of-band and partial content is removed.\n- `target:<selector>`: Retargets the swap.",
+            "Syntax": "`<style> [<modifier>...]`",
+            "Values": "- `innerHTML`: Replaces the inner HTML of the target.\n- `outerHTML`: Replaces the target element.\n- `outerSync`: Morphs the attributes of the target, then replaces its children. The target stays in the DOM.\n- `innerMorph`: Morphs the children of the target, keeping DOM state such as focus and open details. The default.\n- `outerMorph`: Morphs the target itself, keeping DOM state.\n- `textContent`: Replaces the text of the target. The response is not parsed as HTML.\n- `beforebegin`: Inserts before the target. `before` is a synonym.\n- `afterbegin`: Inserts before the first child of the target. `prepend` is a synonym.\n- `beforeend`: Inserts after the last child of the target. `append` is a synonym.\n- `afterend`: Inserts after the target. `after` is a synonym.\n- `delete`: Deletes the target whatever the response holds.\n- `none`: Does not swap. Out-of-band swaps and headers still run."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-target",
+          "description": "Sets where the response is inserted. Takes a CSS selector, `this`, or an extended selector: `closest <selector>`, `find <selector>`, `next [selector]`, `previous [selector]`. Defaults to the element itself.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-target:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-select",
+          "description": "Picks the part of the response to swap into the target, by CSS selector.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-select:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-select-oob",
+          "description": "Picks elements of the response by selector and swaps each one out of band, by `id`. Takes a comma separated list of `<selector>[:<swap>]`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-select-oob:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-swap-oob",
+          "description": "Marks an element of the response to be swapped out of band into the element with its `id`. The value is `true`, a swap style, or `<style>:<selector>` to pick the target.",
+          "description-sections": {
+            "Syntax": "`true | <style>[:<selector>]`",
+            "Values": "- `true`: Swap into the element with the same `id`, with the default out-of-band style."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-on",
+          "pattern": {
+            "or": [
+              {
+                "items": [
+                  "/js/events"
+                ],
+                "template": [
+                  "ypy-on:",
+                  "#...",
+                  "#item:JS event"
+                ]
+              },
+              {
+                "items": [
+                  "/js/ypy-events"
+                ],
+                "template": [
+                  "ypy-on::",
+                  "#...",
+                  "#item:YPY event"
+                ]
+              }
+            ]
+          },
+          "description": "Runs inline JavaScript when an event fires. Write `ypy-on:<event>` for any DOM event, or `ypy-on::<event>` as shorthand for `ypy-on:ypy:<event>`. Code runs only when `config.callbacks` allows it.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-vals",
+          "description": "Adds values to the request parameters. Takes JSON or HCON, or a JavaScript expression with the `js:` prefix.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-vals:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`{\"name\": \"value\"} | js:<expression>`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-include",
+          "description": "Includes the values of other elements in the request. Takes a selector, `this`, or an extended selector.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-include:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-headers",
+          "description": "Adds request headers. Takes JSON or HCON, or a JavaScript expression with the `js:` prefix.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-headers:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`{\"X-Name\": \"value\"} | js:<expression>`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-encoding",
+          "description": "Sets the request encoding. Use `multipart/form-data` for file uploads.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-encoding:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `multipart/form-data`: Sends the form as multipart, needed for file inputs."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-config",
+          "description": "Sets fetch options of the request of the element (`timeout`, `credentials`, `cache`, and so on). It cannot override `mode`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-config:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-indicator",
+          "description": "Names the elements that receive the `ypy-request` class while the request runs. Takes a selector or an extended selector.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-indicator:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-boost",
+          "description": "Turns links and forms inside the element into YPY requests that swap the body and push the URL. Set it to `false` to opt a subtree out.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-boost:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-sync",
+          "description": "Decides what happens when the element asks for a request while another from the same owner is in flight. The value is `[<selector>:]<strategy>`, with `queue first` as the default.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-sync:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`[<selector>:]<strategy>`",
+            "Values": "- `drop`: Refuses the new request.\n- `abort`: Refuses the new request. A request started with `abort` is itself aborted by any other kind of request.\n- `replace`: Aborts the request in flight, discards the waiting ones and runs the new one.\n- `queue first`: The new request waits, unless one is already waiting, then it is refused. The default.\n- `queue last`: The new request waits and replaces the one that was waiting.\n- `queue all`: The new request waits behind all the others."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-confirm",
+          "description": "Asks for confirmation before the request. The value is the message; `js:` runs an expression that may return a promise. The `ypy:confirm` event can replace the dialog.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-confirm:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-validate",
+          "description": "Validates with the browser constraint API before the request: the form, the element and the elements `ypy-include` adds. On by default for a form without `novalidate`; set it to `true` for other elements or to `false` to turn it off. On a field, with the `ypy-validate` extension, any other value (or none) is a URL: the field is checked on the server when the user leaves it.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-validate:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-disable",
+          "description": "Names the elements that are disabled while the request runs. Takes a selector or an extended selector.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-disable:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-ignore",
+          "description": "Stops YPY from processing the element and its children.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-push-url",
+          "description": "Pushes a URL into the browser history after the swap. `true` uses the request URL, `false` suppresses the push of a boosted request.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-push-url:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `true`: Pushes the URL of the request.\n- `false`: Pushes nothing."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-replace-url",
+          "description": "Replaces the current history entry after the swap. `true` uses the request URL.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-replace-url:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `true`: Replaces with the URL of the request.\n- `false`: Replaces nothing."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-history-elt",
+          "description": "Marks the element that is restored when the user navigates through the history, instead of `body`.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-status:*",
+          "pattern": {
+            "regex": "ypy-status:.+"
+          },
+          "description": "Changes how a response with one status code, or a range such as `5xx` or `50x`, is handled. The value sets `swap:`, `target:`, `select:`, `push:`, `replace:` or `transition:`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`<key>:<value> [<key>:<value>...]`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-error-target",
+          "description": "Sets where a response of status 400 or more is swapped. Takes the same selectors as `ypy-target`. Without it, a 422 goes into the form of the source element.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-error-target:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-error-swap",
+          "description": "Sets the swap style of a response of status 400 or more. Takes a swap spec as in `ypy-swap`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-error-swap:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-error-focus",
+          "description": "Says where the focus goes after an error response is swapped: `first-invalid`, a selector, or `false`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-error-focus:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `first-invalid`: The first field marked `aria-invalid=\"true\"`, or the first invalid field.\n- `false`: Does not move the focus."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-main",
+          "description": "Marks the main target: the element a swap falls back to when its target selector matches nothing. Without a marker, `<main>` is the main target.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-fallback",
+          "description": "Overrides `config.targetFallback` for the element: whether a missing target falls back to the main target.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-fallback:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `true`: Falls back when the response is a whole page or holds a main.\n- `always`: Falls back for a fragment too.\n- `false`: Never falls back."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-focus",
+          "description": "Says where the keyboard focus goes when a swap ends. After a boosted navigation it moves to the heading of the new page.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-focus:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `auto`: After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`). Any other request moves nothing.\n- `none`: Leaves the focus where the swap left it.\n- `first-heading`: The first heading of the swap target."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-scroll",
+          "description": "Sets the scroll position when a swap ends: keep it, send it to the top, to an offset, or put a saved position back.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-scroll:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `keep`: The window and the swap target return to where they were just before the swap.\n- `top`: The window and the swap target scroll to the top.\n- `restore`: The window goes to the position saved for a history entry."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-announce",
+          "description": "Tells screen readers what changed after a request, through a live region YPY manages. The value is the text, `title` for the new document title, or `none`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-announce:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `title`: Announces the title of the new document.\n- `none`: Announces nothing."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-busy",
+          "description": "Opts the element, or its target, out of the automatic `aria-busy` mark during a request when set to `false`.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-busy:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-preserve",
+          "description": "Says how much of an element a swap or morph leaves alone. No value keeps the node by `id`; `all`, `attrs`, `children` and `false` refine it. Never inherited.",
+          "description-sections": {
+            "Values": "- `true`: Keeps the same DOM node, matched by `id`.\n- `all`: Keeps the node, its attributes and its children.\n- `attrs`: The morph does not set, change or remove any attribute. Children merge as usual.\n- `children`: Attributes follow the response, children are not touched.\n- `false`: Switches off the default for third-party elements on this element."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-preserve-attrs",
+          "description": "Lists the attributes a morph must neither set nor remove. Everything else follows the response. Entries may end with `*`.",
+          "description-sections": {
+            "Syntax": "`<name>[,<name>...]`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-morph-skip",
+          "description": "Freezes the element during a morph swap: it is neither updated nor removed.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-morph-skip-children",
+          "description": "Updates the attributes of the element during a morph swap but freezes its children.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-morph-force",
+          "description": "Set in the response: lets the response win over what the user did to the element in a morph, such as the `open` state of `<details>` or the value of a field that has the focus.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-browser-indicator",
+          "description": "Shows the browser's own loading indicator (tab spinner, stop button) while the requests of this element run. Any value except `false` turns it on. Requires the `ypy-browser-indicator` extension.",
+          "description-sections": {
+            "Values": "- `true`: Show the browser indicator during the request.\n- `false`: Do not show it, even when boosted elements show it by default."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-cache",
+          "description": "Keeps the response of this element's GET and shows it at once next time, then revalidates it with `If-None-Match` and `If-Modified-Since` and swaps again only when the content changed. Same origin only; `no-store` and `private` responses are never kept (`private` unless asked). `false` turns it off for the element. Requires the `ypy-cache` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-cache:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Modifiers": "- `ttl:<time>`: A copy older than this is not shown, only revalidated. Default `10m`.\n- `fresh:<time>`: A copy younger than this is shown without asking the server. Default 0; the response's `max-age` wins.\n- `private`: Also keep responses marked `Cache-Control: private`.\n- `offline`: Keep the copy in `sessionStorage` and show it when the network fails.\n- `size:<n>`: Most copies held, least recently used first out. Default 50.\n- `bytes:<n>`: Most characters of response text held. Default 2097152.",
+            "Syntax": "`[ttl:<time>] [fresh:<time>] [private] [offline] [size:<n>] [bytes:<n>]`",
+            "Values": "- `false`: Do not cache requests of this element."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-nonce",
+          "description": "Marks a YPY element as server-rendered trusted markup: its value must equal the page nonce, or `ypy-csp` strips every `ypy-*` and `data-ypy-*` attribute from the element. Only the element's own attribute counts, never an inherited one. Requires the `ypy-csp` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-head",
+          "description": "On the `<head>` of a response, chooses how the head is merged into the page. On an element of the current `<head>`, `re-eval` removes and appends it again on every response so scripts run again. Requires the `ypy-head` extension.",
+          "description-sections": {
+            "Values": "- `merge`: Make the page head equal to the response head: remove what the response lacks, add what is new. The default when the target is `body`.\n- `append`: Only add new head elements and keep the old ones. The default when the target is not `body`.\n- `re-eval`: On a head element: remove it and append it again on every response."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-history",
+          "description": "Set to `false` anywhere on the page to keep the page out of the history cache: it is not saved when the user leaves it. Requires the `ypy-history-cache` extension.",
+          "description-sections": {
+            "Values": "- `false`: Do not cache this page."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer",
+          "description": "Opens the response of this link, form or `ypy-get`-style element in a layer built on a native `<dialog>`, instead of swapping it into the page. The value is the kind of layer. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Syntax": "modal | drawer | popup",
+            "Values": "- `modal`: A centered modal dialog.\n- `drawer`: A modal panel at the edge of the screen.\n- `popup`: A non-modal dialog, anchored below its opener."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-close-on",
+          "description": "Event names that accept the layer. The first event of one of these names, fired inside the layer (or on the page, for the top layer), closes it and its `detail` becomes the result value. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-close-on:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "<event name>[, <event name>]"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-close-on-url",
+          "description": "URL patterns that accept the layer. When the layer navigates to a matching path and query (`*` matches any text) the page is not swapped in: the layer closes with the URL as its value. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-close-on-url:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "<pattern>[, <pattern>]"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-close-on-fragment",
+          "description": "Selector that accepts the layer. When a response holds a matching element the response is not swapped in: the layer closes with the `ypy-layer-value` of that element as its value. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-close-on-fragment:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-outside",
+          "description": "`false` keeps the layer open when the user clicks outside it. Default `true`. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-outside:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "true | false"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-layer-escape",
+          "description": "`false` keeps the layer open on Esc. Default `true`. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-escape:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "true | false"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-layer-history",
+          "description": "Shows the URL of the layer in the address bar while it is open; Back closes the layer. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-history:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "true | false"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-layer-side",
+          "description": "The side a drawer comes from, written as `data-ypy-layer-side` on the dialog for the style. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-side:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "start | end | top | bottom",
+            "Values": "- `start`: The start edge.\n- `end`: The end edge (default).\n- `top`: The top edge.\n- `bottom`: The bottom edge."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-label",
+          "description": "The accessible name of the layer (`aria-label`). Without it the first heading of the content names the layer. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-label:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-class",
+          "description": "Classes added to the dialog of this layer, after those of `config.layers.classes`. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-layer-class:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "<class>[ <class>]"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-accept",
+          "description": "Inside a layer: a click on this element accepts the layer. The value, parsed as JSON when it is valid and kept as text otherwise, is the result value. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Syntax": "<value>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-dismiss",
+          "description": "Inside a layer: a click on this element dismisses the layer. The value is the reason (default `dismissed`). Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Syntax": "<reason>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-layer-value",
+          "description": "On an element of a response matched by `ypy-layer-close-on-fragment`: the value the layer is accepted with, as JSON or text. Requires the `ypy-layers` extension.",
+          "description-sections": {
+            "Syntax": "<value>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-lazy",
+          "description": "The URL of a GET request made when the element is about to be seen; the response replaces the element (`ypy-swap` changes that). The content of the element is the placeholder. Requires the `ypy-lazy` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-lazy-placeholder",
+          "description": "A selector of a `<template>` (or element) whose content replaces the children of the region when it is processed. Requires the `ypy-lazy` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-lazy-error",
+          "description": "A selector of a `<template>` (or element) whose content replaces the children of the region when it fails to load. Requires the `ypy-lazy` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-lazy-retry",
+          "description": "On an element inside a lazy region: loads the region again when clicked after an error. Requires the `ypy-lazy` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-live",
+          "description": "Runs a JavaScript expression when the element is processed and again whenever the DOM, an input or a swap may have changed what it reads. The expression runs with the `ypy-live` scope: `q()`, `take()`, `toggle()`, `trigger()`, `debounce()`, `forEvent()`, `nextFrame()`, `insert()`, `attr`, `data`, `aria`, `local` and `closest`. It needs `config.callbacks` to allow code. Requires the `ypy-live` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-live:*",
+          "pattern": {
+            "regex": "ypy-live:.+"
+          },
+          "description": "Binds a JavaScript expression to a property of the element, re-evaluated like `ypy-live`. The name after the colon is an attribute or property (`value`, `disabled`, `aria-label`, `data-x`), `text` (textContent), `html` (innerHTML), `style`, `class` (object or string), `.name` (one class) or `?name` (a boolean attribute). The short form `:name` works when `config.live.bindPrefix` is `:` (the default). Requires the `ypy-live` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-multipart:connect",
+          "description": "Opens a long-lived `multipart/mixed` or `multipart/parallel` response with a GET request to the URL, on the element's `ypy-trigger` (default `load`). Each part is swapped like a response and may carry `YPY-*` headers of its own. The connection reconnects with backoff, sends `YPY-Last-Part-ID` and pauses while the tab is in the background. Requires the `ypy-multipart` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-multipart:close",
+          "description": "Closes the connection when this event fires on the element. Requires the `ypy-multipart` extension.",
+          "description-sections": {
+            "Syntax": "<event name or trigger specification>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-prefetch",
+          "description": "Asks for the page a link opens before the click, and uses the response for the click. A bare attribute means `hover`. Only a link YPY navigates is prefetched, with GET, on the page's own origin and never with form data. The nearest one above the link decides; `false` turns it off for a link or a region. Requires the `ypy-nav` extension.",
+          "description-sections": {
+            "Syntax": "`hover | visible | hover visible | false`",
+            "Values": "- `hover`: After the pointer rests on the link, or at once on touch.\n- `visible`: When the link comes into view.\n- `false`: Never, for this link or region."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-optimistic",
+          "description": "Shows the result of the request before the server answers and puts the page back if it fails. The value is a selector of a `<template>` or element to clone, `remove`, or the name of a function registered with `ypy.optimistic.register`. `false` turns it off. Requires the `ypy-optimistic` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-optimistic:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Values": "- `remove`: Show the target gone.\n- `false`: No optimistic change for this element."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-optimistic-target",
+          "description": "Where the optimistic change goes, instead of the target of the request. Takes a selector or an extended selector. Requires the `ypy-optimistic` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-optimistic-swap",
+          "description": "How the optimistic content is put in, instead of the swap style of the request (`innerHTML`, `outerHTML`, `beforeend`, `delete`...). Requires the `ypy-optimistic` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-pending",
+          "description": "Shows the content of another element, or of a `<template>`, in the target while the request is pending. The placeholder is removed before the swap or on error. Request parameters become `data-*` attributes of the placeholder. Requires the `ypy-pending` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-pending:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-persist",
+          "description": "Keeps the element (it needs an `id`) in the page across a navigation whose response has an element with the same id. `false` turns it off. Requires the `ypy-persist` extension.",
+          "description-sections": {
+            "Syntax": "`false`",
+            "Values": "- `false`: Do not keep the element."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-track",
+          "description": "On an element of the page, usually in `<head>`: its value (`content`, `href`, `src`, `value` or text) is compared with the same element of a page response. A difference means a new deploy: the page is loaded instead of swapped. Requires the `ypy-persist` extension.",
+          "description-sections": {
+            "Syntax": "`reload`",
+            "Values": "- `reload`: Load the response as a page when the tracked values change."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-poll",
+          "description": "Options of the smart polling of an element with an `every` trigger: how a hidden tab is polled, and the shortest interval a server may ask for. `false` leaves the element to the core. Requires the `ypy-poll` extension.",
+          "description-sections": {
+            "Modifiers": "- `hidden:<n>`: Factor applied to the interval while the tab is hidden. Default 4.\n- `hidden:pause`: No polling while the tab is hidden.\n- `min:<time>`: Shortest interval that a `YPY-Poll-Interval` header may set. Default `100ms`.",
+            "Syntax": "`[hidden:<n>|pause] [min:<time>]`",
+            "Values": "- `false`: The extension does not touch the polling of this element."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-preload",
+          "description": "Fetches the `GET` response ahead of the request, on the given events, and reuses it when the real request has the same URL and the preload is still fresh. Without a value, an element with `ypy-get` preloads on `mousedown` and `touchstart`. Requires the `ypy-preload` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-preload:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Modifiers": "- `timeout:<time>`: How long the preloaded response stays valid. Default `5s`.",
+            "Syntax": "`<event> [<event> ...] [timeout:<time>]`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-progress",
+          "description": "Shows the progress bar for the requests of this element or region, not only for navigations. `false` hides it for them. Requires the `ypy-progress` extension.",
+          "description-sections": {
+            "Syntax": "`false`",
+            "Values": "- `false`: No bar for the requests of this element or region."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-prompt",
+          "description": "Asks the user a question before the request, sends the answer in the `YPY-Prompt` header and aborts the request when the user cancels. Define `window.ypyPrompt` for a custom synchronous dialog. Requires the `ypy-prompt` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-prompt:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-ptag",
+          "description": "Sets the initial per-element polling tag. YPY sends it as the `YPY-PTag` request header and replaces it with the `YPY-PTag` of each response, so a server can answer `304` when nothing changed. Requires the `ypy-ptag` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-retry",
+          "description": "Repeats a failed request, with exponential backoff and optional jitter. Off unless set. A bare attribute means 3 attempts; `false`, `on:never` or `attempts:0` turns it off for the element. By default only a request that could not reach the server is repeated; `on:error` also repeats a 5xx answer. Only safe methods are repeated unless `unsafe:true`. Requires the `ypy-retry` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-retry:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Modifiers": "- `attempts:<n>`: How many times a failed request is repeated. 3 for a bare attribute, else 0.\n- `on:<mode>`: What counts as a failure. `network` (default): the request did not reach the server. `error`: also a response with status 500 or more. `always`: also any response with status 400 or more. `never`: do not repeat. A 503 or 429 that is repeated waits at least its `Retry-After`.\n- `delay:<time>`: Wait before the first repeat. Default `1s`.\n- `max:<time>`: Longest wait between two attempts. Default `30s`.\n- `backoff:<n>`: Each wait is this many times longer than the one before. Default 2; `1` keeps it constant.\n- `jitter:<n>`: Each wait varies at random by up to this fraction (`0.2`) or percentage (`20%`), up and down, so clients do not retry at the same moment. Default `0`; `0` keeps the waits exact.\n- `methods:<list>`: Narrows the repeated methods. Default `GET HEAD QUERY`.\n- `unsafe:true`: Repeat every method, including POST, PUT, PATCH and DELETE.",
+            "Syntax": "`[attempts:<n>] [on:<mode>] [delay:<time>] [max:<time>] [backoff:<n>] [jitter:<n>] [methods:<list>] [unsafe:true]`",
+            "Values": "- `false`: Do not repeat requests of this element."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-signals",
+          "description": "Declares signals and makes the element a scope: its signals are visible to the element and its descendants. Values are literals. An existing signal keeps its value when the markup is processed again, so a morph does not reset the state. A name that starts with `_` is local and never sent to the server. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Syntax": "`name: literal, other: literal` (braces optional, JSON works too)"
+          },
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-signals.server",
+          "description": "Declares server-owned signals. The client cannot write them; only a server patch or the markup of this declaration changes them. This is a convenience of the UI, not security: the server must sign and verify the values it owns. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Syntax": "`name: literal, other: literal`"
+          },
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-signals.local",
+          "description": "Declares signals persisted in `localStorage` under the key `ypy-signals:<id>`. The element needs an `id`. Stored values replace the declared defaults, only for keys the markup declares. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Syntax": "`name: literal, other: literal`"
+          },
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-signals.session",
+          "description": "Declares signals persisted in `sessionStorage` under the key `ypy-signals:<id>`. The element needs an `id`. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Syntax": "`name: literal, other: literal`"
+          },
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-computed:*",
+          "pattern": {
+            "regex": "ypy-computed:.+"
+          },
+          "description": "Declares a derived, read-only signal named after the attribute (`ypy-computed:total-price` defines `$totalPrice`). It follows its dependencies and is never sent to the server. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-bind",
+          "description": "Keeps a form control and a signal equal. The signal fills the field and the field writes the signal. By default the field writes on `change`. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Modifiers": "- `.live`: Write the signal on every `input` event.\n- `.blur`: Write the signal on `blur` only.\n- `.debounce.<time>`: Write after the user pauses for the time (300ms when omitted). A `change` writes at once.\n- `.throttle.<time>`: Write at most once per interval with the latest value (300ms when omitted).",
+            "Syntax": "`<signal path>`"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-bind:*",
+          "pattern": {
+            "regex": "ypy-bind:.+"
+          },
+          "description": "Same as `ypy-bind`, with the signal named in the attribute name (`ypy-bind:user-name` binds `$userName`). The value is a path inside the signal. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Modifiers": "- `.live`: Write the signal on every `input` event.\n- `.blur`: Write the signal on `blur` only.\n- `.debounce.<time>`: Write after the user pauses for the time (300ms when omitted).\n- `.throttle.<time>`: Write at most once per interval with the latest value (300ms when omitted)."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-text",
+          "description": "Sets `textContent` from an expression, as text and never as markup. Objects show as JSON. It runs again when a signal it read changes. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-show",
+          "description": "Hides the element (`display: none`) while the expression is false. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-class",
+          "description": "Toggles several classes from an object expression, such as `{red: $bad, wide: $w > 3}`. A class name that has a dot goes in this object form. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-class:*",
+          "pattern": {
+            "regex": "ypy-class:.+"
+          },
+          "description": "Toggles the class named in the attribute name when the expression is truthy, such as `ypy-class:active=\"$on\"`. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-attr",
+          "description": "Sets several attributes from an object expression. `false`, `null` and `undefined` remove an attribute and `true` sets it empty. Refused: `on*` attributes, `srcdoc`, `ypy-*` attributes and script URLs. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-attr:*",
+          "pattern": {
+            "regex": "ypy-attr:.+"
+          },
+          "description": "Sets the attribute named in the attribute name from the expression. `false`, `null` and `undefined` remove it and `true` sets it empty. Requires the `ypy-signals` extension.",
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-on:*",
+          "pattern": {
+            "regex": "ypy-on:.+"
+          },
+          "description": "Runs signal statements when the DOM event fires, such as `ypy-on:click=\"$count++; $open = !$open\"`. Inside a scope this extension takes the attribute from the core's `ypy-on`: the value is the signal language, not JavaScript. The listener runs in the capture phase on the element, before a request the same element starts. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Modifiers": "- `.prevent`: Call `preventDefault()`.\n- `.stop`: Call `stopPropagation()`.\n- `.once`: Run one time.\n- `.window`: Listen on `window` instead of the element.\n- `.debounce.<time>`: Run after a pause in the events (300ms when omitted).\n- `.throttle.<time>`: Run at most once per interval, on the leading edge (300ms when omitted)."
+          },
+          "value": {
+            "kind": "expression"
+          }
+        },
+        {
+          "name": "ypy-signals-send",
+          "description": "On the element or an ancestor, set to `false` to keep the signals out of the requests it sends. Signals are never sent to another origin. Requires the `ypy-signals` extension.",
+          "description-sections": {
+            "Values": "- `false`: The requests of this element and its descendants do not carry the signals."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-sse:connect",
+          "description": "Opens a Server-Sent Events stream with a GET request to the URL. The element connects on its `ypy-trigger` (default `load`). Each unnamed message is swapped into the target like a response; a message with an `event:` field is dispatched on the element as a DOM event with `detail.data` and `detail.id`. The connection reconnects with backoff and pauses while the tab is in the background. Requires the `ypy-sse` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-sse:close",
+          "description": "Closes the stream when a message with this event name arrives. Without it the stream ends when the element is removed or the server closes it. Requires the `ypy-sse` extension.",
+          "description-sections": {
+            "Syntax": "<event name>"
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-sse-connect",
+          "description": "Legacy spelling of `ypy-sse:connect`. The extension copies it to the new name and warns in the console. Requires the `ypy-sse` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          },
+          "deprecated": true
+        },
+        {
+          "name": "ypy-sse-close",
+          "description": "Legacy spelling of `ypy-sse:close`. The extension copies it to the new name and warns in the console. Requires the `ypy-sse` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          },
+          "deprecated": true
+        },
+        {
+          "name": "ypy-sse-swap",
+          "description": "No longer supported. Unnamed SSE messages are swapped automatically and named events are dispatched as DOM events. The extension only warns in the console. Requires the `ypy-sse` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          },
+          "deprecated": true
+        },
+        {
+          "name": "ypy-stream",
+          "description": "Opens a stream of the YPY streaming protocol (Server-Sent Events) with a GET request to the URL and applies its events: `ypy-patch-elements`, `ypy-patch-signals`, `ypy-redirect` and `ypy-event`. Opens on `load` or on the element's `ypy-trigger`; reconnects with backoff, `Last-Event-ID` and the current signals. Requires the `ypy-stream` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-stream.post",
+          "description": "Like `ypy-stream`, with a POST request that carries the element's values. Requires the `ypy-stream` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-stream.put",
+          "description": "Like `ypy-stream`, with a PUT request. Requires the `ypy-stream` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-stream.patch",
+          "description": "Like `ypy-stream`, with a PATCH request. Requires the `ypy-stream` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-stream.delete",
+          "description": "Like `ypy-stream`, with a DELETE request. Requires the `ypy-stream` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-targets",
+          "description": "Swaps the same response content into every element matching the selector, instead of the single target. Requires the `ypy-targets` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-targets:inherited`) to apply this attribute to YPY requests in child elements."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-upload-progress",
+          "description": "Reports the progress of a file upload. A request whose multipart body holds a file that is not empty is sent with XMLHttpRequest and fires `ypy:upload:progress` on the element. The value is optional: a selector names an element that shows the percentage (a `<progress>` gets `value`; any element gets the CSS variable `--ypy-upload`). `false` turns it off. Requires the `ypy-upload` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-upload-progress:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`[<css selector>]`",
+            "Values": "- `false`: Do not report progress; the request uses fetch."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-validate-fields",
+          "description": "Checks every field inside this element on the server when the user leaves it: a POST with the form values and the `YPY-Validate` header (the field name). The value is the URL; a bare attribute asks the form's action. A field with `ypy-validate=\"false\"` is left out. Requires the `ypy-validate` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-validate-trigger",
+          "description": "When a field is checked: a trigger specification. Default `change delay:200ms` (the value changed, debounced). Read on the field or on the element with `ypy-validate-fields`. Requires the `ypy-validate` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-ws:connect",
+          "description": "Opens a WebSocket to the URL when the element's `ypy-trigger` fires (default `load`). `http(s)://` and relative URLs are converted to `ws(s)://`. A text message is swapped into the target as HTML; a JSON message swaps its `content` field and may carry `target`, `swap` and `select`. Other JSON is only available to listeners. The socket reconnects with backoff and closes with the element. Requires the `ypy-ws` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-ws:send",
+          "description": "Sends the element's values over the WebSocket of the nearest `ypy-ws:connect` ancestor, as JSON with a `headers` member. It collects form values and `ypy-vals` like a request. The default trigger is `submit` for a form, `change` for a field and `click` otherwise; `ypy-trigger` overrides it. Requires the `ypy-ws` extension.",
+          "value": {
+            "kind": "no-value"
+          }
+        },
+        {
+          "name": "ypy-ws-connect",
+          "description": "Legacy spelling of `ypy-ws:connect`. The extension copies it to the new name and warns in the console. Requires the `ypy-ws` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          },
+          "deprecated": true
+        },
+        {
+          "name": "ypy-ws-send",
+          "description": "Legacy spelling of `ypy-ws:send`. The extension copies it to the new name and warns in the console. Requires the `ypy-ws` extension.",
+          "value": {
+            "kind": "no-value"
+          },
+          "deprecated": true
+        }
+      ]
+    },
+    "css": {
+      "classes": [
+        {
+          "name": "ypy-added",
+          "description": "Applied to newly inserted content before it settles, then removed."
+        },
+        {
+          "name": "ypy-dirty",
+          "description": "Applied to a signals scope while a client-owned signal differs from its last saved value. The scope also gets `dirty` in `data-ypy-state` and its `$_dirty` signal is `true`.\n\nRequires the `ypy-signals` extension."
+        },
+        {
+          "name": "ypy-fade",
+          "description": "Opt-in transition of `ypy.css`: the swap target fades out while it is in the `swapping` state (use a swap delay, for example `swap:200ms`)."
+        },
+        {
+          "name": "ypy-fade-in",
+          "description": "Opt-in transition of `ypy.css`: new content fades in, starting from `@starting-style`."
+        },
+        {
+          "name": "ypy-field-error",
+          "description": "Applied to the answer element the extension creates after a field when the page has none.\n\nRequires the `ypy-validate` extension."
+        },
+        {
+          "name": "ypy-indicator",
+          "description": "Default indicator class, hidden by YPY CSS until a containing or matching element receives `ypy-request`."
+        },
+        {
+          "name": "ypy-layer-opener",
+          "description": "Put on the element that opened a popup while the popup is open, so the default style can anchor the popup below it.\n\nRequires the `ypy-layers` extension."
+        },
+        {
+          "name": "ypy-offline",
+          "description": "Applied to `<html>` while the browser reports no connection, together with `data-ypy-state=\"offline\"`."
+        },
+        {
+          "name": "ypy-optimistic",
+          "description": "Applied to the optimistic nodes while the request is in flight.\n\nRequires the `ypy-optimistic` extension."
+        },
+        {
+          "name": "ypy-pending",
+          "description": "Applied to the placeholder element inserted by `ypy-pending`, until the request ends.\n\nRequires the `ypy-pending` extension."
+        },
+        {
+          "name": "ypy-progress",
+          "description": "A fixed bar at the top of the page, styled by `ypy.css`: invisible until it is in the `request` state, then it runs. Themed by `--ypy-progress-color`, `--ypy-progress-height`, `--ypy-progress-duration` and `--ypy-progress-z`."
+        },
+        {
+          "name": "ypy-request",
+          "description": "Applied to the requesting element and to its indicators while a request is in flight."
+        },
+        {
+          "name": "ypy-revalidating",
+          "description": "Applied to the target of a request while the extension checks with the server a copy it already showed.\n\nRequires the `ypy-cache` extension."
+        },
+        {
+          "name": "ypy-settling",
+          "description": "Applied to a target during the settle phase, then removed after it completes."
+        },
+        {
+          "name": "ypy-swapping",
+          "description": "Applied to a target during the swap delay, then removed when the content is inserted."
+        }
+      ]
+    },
+    "js": {
+      "events": [
+        {
+          "name": "YPY event",
+          "pattern": {
+            "items": [
+              "/js/ypy-events"
+            ],
+            "template": [
+              "ypy:",
+              "$...",
+              "#item:YPY event"
+            ]
+          }
+        }
+      ],
+      "ypy-events": [
+        {
+          "name": "before:process",
+          "description": "Fires before YPY processes a DOM node or subtree. Cancel it to leave the subtree unprocessed."
+        },
+        {
+          "name": "after:process",
+          "description": "Fires after YPY processed a DOM node or subtree."
+        },
+        {
+          "name": "before:init",
+          "description": "Fires before YPY attaches its internal data to an element. Cancel it to leave the element alone."
+        },
+        {
+          "name": "after:init",
+          "description": "Fires after an element has all its YPY behaviors and listeners."
+        },
+        {
+          "name": "before:on:init",
+          "description": "Fires before YPY binds the `ypy-on` attributes of an element. Cancel it to leave them unbound."
+        },
+        {
+          "name": "before:cleanup",
+          "description": "Fires before YPY removes listeners and internal data from an element, on removal during a swap or before reprocessing."
+        },
+        {
+          "name": "after:cleanup",
+          "description": "Fires after YPY removed the listeners and internal data of an element."
+        },
+        {
+          "name": "confirm",
+          "description": "Fires when an element with `ypy-confirm` is triggered, before the request. Call `preventDefault()` to replace the dialog, then call `issueRequest()` or `dropRequest()`; the request waits until one is called."
+        },
+        {
+          "name": "config:request",
+          "description": "Fires after the request values are collected and validated, before encoding and sending. Change `ctx.request` to adjust headers, timeout or credentials. Cancel it to stop the request."
+        },
+        {
+          "name": "before:request",
+          "description": "Fires right before `fetch()`, after all configuration. Cancel it to stop the request."
+        },
+        {
+          "name": "before:response",
+          "description": "Fires once the response headers arrive, before the body is read. `ctx.response.raw` is the unconsumed `Response`. Cancel it to skip the body and the swap."
+        },
+        {
+          "name": "after:request",
+          "description": "Fires after the response body was read, before the swap. `ctx.response` holds the status and headers. Cancel it to skip the swap."
+        },
+        {
+          "name": "response:error",
+          "description": "Fires when the server answers with status 400 or more. It does not fire for network errors; use `ypy:error` for those."
+        },
+        {
+          "name": "error",
+          "description": "Fires when an exception ends the request or the swap. It does not fire for HTTP 4xx or 5xx. `ctx` is absent when the error happens before the request context exists."
+        },
+        {
+          "name": "finally:request",
+          "description": "Fires when a request completes, fails or is cancelled. It does not fire when processing stops before the request starts."
+        },
+        {
+          "name": "before:swap",
+          "description": "Fires after the response is parsed and before it is inserted. `tasks` lists the swap tasks. Cancel it to prevent the swap."
+        },
+        {
+          "name": "after:swap",
+          "description": "Fires after new content is in the DOM, before its elements are processed."
+        },
+        {
+          "name": "finally:swap",
+          "description": "Fires at the end of the swap lifecycle, whether it succeeded or failed."
+        },
+        {
+          "name": "before:settle",
+          "description": "Fires after new content is inserted and before CSS transitions are applied. Change `newContent` here."
+        },
+        {
+          "name": "after:settle",
+          "description": "Fires after the settle phase, including every CSS transition. The DOM is stable."
+        },
+        {
+          "name": "before:viewTransition",
+          "description": "Fires before a View Transition starts, when `config.transitions` is on and the browser supports it. Cancel it to skip the transition for this swap."
+        },
+        {
+          "name": "after:viewTransition",
+          "description": "Fires after a View Transition finished."
+        },
+        {
+          "name": "before:history:update",
+          "description": "Fires before `history.pushState()` or `history.replaceState()`. Cancel it to prevent the history update."
+        },
+        {
+          "name": "after:history:update",
+          "description": "Fires after `history.pushState()` or `history.replaceState()` completed."
+        },
+        {
+          "name": "after:history:push",
+          "description": "Fires after a new history entry was created."
+        },
+        {
+          "name": "after:history:replace",
+          "description": "Fires after the current history entry was replaced."
+        },
+        {
+          "name": "before:history:restore",
+          "description": "Fires when the user navigates back or forward, before the page is restored. Cancel it to restore by hand. Extensions such as `ypy-history-cache` can handle a cache hit."
+        },
+        {
+          "name": "history:restore:fragment",
+          "description": "Fires when a history restore got something that is not a whole page. The page is reloaded right after. Turn the safety net off with `config.historyRestore.fragment`."
+        },
+        {
+          "name": "abort",
+          "description": "Control event: dispatch it on an element to abort its request in flight. YPY listens to it; it does not fire it."
+        },
+        {
+          "name": "request:queued",
+          "description": "A request waits behind the one in flight (`queue first`, `queue last`, `queue all`)."
+        },
+        {
+          "name": "request:dropped",
+          "description": "A request that never ran was discarded; `ctx` is that request."
+        },
+        {
+          "name": "request:aborted",
+          "description": "The request in flight was aborted before its response; `ctx` is that request."
+        },
+        {
+          "name": "offline",
+          "description": "The browser went offline: `<html>` carries the offline class. Fires on `document`."
+        },
+        {
+          "name": "online",
+          "description": "The connection came back, or a response proved it. Fires on `document`."
+        },
+        {
+          "name": "announce",
+          "description": "Fires on the source element just before a message goes into the live region. A listener may change `message` and `politeness`, or cancel to say nothing."
+        },
+        {
+          "name": "target:fallback",
+          "description": "The main target selector matched nothing and the chain `[ypy-main]`, `<main>` took over. `selector` is what failed, `used` the fallback selector."
+        },
+        {
+          "name": "target:missing",
+          "description": "No target was found for a main swap, an out-of-band element or a partial. Cancel it to silence the console warning."
+        },
+        {
+          "name": "swap:error",
+          "description": "A swap task failed while the others went on. Fires once per failed task, before `ypy:after:swap`."
+        },
+        {
+          "name": "security:blocked",
+          "description": "Author code (`ypy-on`, a `js:` value or a `[filter]` trigger) was not compiled because of `config.callbacks`, or a redirect or WebSocket URL was refused (`reason` `redirect`, `websocket-origin`)."
+        },
+        {
+          "name": "cache:hit",
+          "description": "A stored copy answers the request. `age` is in ms; `offline` is true when the network failed and the copy was shown for that reason. Requires the `ypy-cache` extension."
+        },
+        {
+          "name": "cache:revalidated",
+          "description": "The check that follows a shown copy ended. `changed` is true when new content was swapped in; `status` is the status of the check. Requires the `ypy-cache` extension."
+        },
+        {
+          "name": "cache:expire",
+          "description": "Copies were dropped by a `YPY-Cache-Expire` header, the default after a successful non-GET request, or `ypy.cache.expire()`. Requires the `ypy-cache` extension."
+        },
+        {
+          "name": "security:strip",
+          "description": "Fires on an element after `ypy-csp` removed its `ypy-*` and `data-ypy-*` attributes because it carried no valid nonce. Requires the `ypy-csp` extension."
+        },
+        {
+          "name": "security:violation",
+          "description": "Fires when `ypy-csp` stops an action: code evaluated without a valid nonce (`nonce-mismatch-at-eval`), a `javascript:` or `js:` action URL (`javascript-url`) or a boosted form whose submitter changed `formaction` without a nonce (`unnonced-submitter`). Requires the `ypy-csp` extension."
+        },
+        {
+          "name": "csrf:missing",
+          "description": "An unsafe (not GET or HEAD) request to the page's own origin is about to leave without a CSRF token: the `ypy-csrf` meta tag is missing or empty. Cancel it to silence the console warning, which is shown once per URL. The request is still sent. Requires the `ypy-csrf` extension."
+        },
+        {
+          "name": "dev:message",
+          "description": "Fired by the development extension for every message it writes to the console (an error with context, a warning for incorrect or legacy use, a reload, a POST, PUT, PATCH or DELETE cut by `ypy-sync` as `sync-aborted` or `sync-dropped`, a 401, 403 or 419 as `status-401` and the like with `auth: true`). `code` is a stable name, `text` the sentence; other keys depend on the code (`ctx`, `selector`, `status`, `attribute`, `suggestion`, `guide`). Requires the `ypy-dev` extension."
+        },
+        {
+          "name": "download:start",
+          "description": "Fires on the source element when a download begins streaming. `total` is the `Content-Length`, or `null` when the server sent none. Requires the `ypy-download` extension."
+        },
+        {
+          "name": "download:progress",
+          "description": "Fires on the source element for every chunk received, for progress bars. `percent` is `null` when the total is unknown. Requires the `ypy-download` extension."
+        },
+        {
+          "name": "download:complete",
+          "description": "Fires on the source element after the file was handed to the browser as a download. Requires the `ypy-download` extension."
+        },
+        {
+          "name": "head:before:merge",
+          "description": "Fires on `document.body` before the head of a response is merged. Cancel it to skip the merge. The detail is the one of `ypy:before:response`. Requires the `ypy-head` extension."
+        },
+        {
+          "name": "head:before:add",
+          "description": "Fires before a new element is appended to `<head>`. Cancel it to leave that element out. Requires the `ypy-head` extension."
+        },
+        {
+          "name": "head:before:remove",
+          "description": "Fires before an element is removed from `<head>`. Cancel it to keep that element. Requires the `ypy-head` extension."
+        },
+        {
+          "name": "head:after:merge",
+          "description": "Fires after the head was merged, with the elements that were added, kept and removed. Requires the `ypy-head` extension."
+        },
+        {
+          "name": "history:cache:before:save",
+          "description": "Fires on `document` before the current page is saved to `sessionStorage`. `head` may be changed. Cancel it to skip saving this page. Requires the `ypy-history-cache` extension."
+        },
+        {
+          "name": "history:cache:after:save",
+          "description": "Fires on `document` after a page was saved to the cache. Requires the `ypy-history-cache` extension."
+        },
+        {
+          "name": "history:cache:before:restore",
+          "description": "Fires on `document` before cached content is swapped back. A listener may set `ready` to a promise that the extension awaits before the swap. Requires the `ypy-history-cache` extension."
+        },
+        {
+          "name": "history:cache:after:restore",
+          "description": "Fires on `document` after cached content was restored and the scroll position was set. Requires the `ypy-history-cache` extension."
+        },
+        {
+          "name": "history:cache:hit",
+          "description": "Fires on `document` when back or forward finds the page in the cache. Cancel it to ignore the cache and request the page. `item` may be replaced. Requires the `ypy-history-cache` extension."
+        },
+        {
+          "name": "history:cache:miss",
+          "description": "Fires on `document` when back or forward finds no cached page. A listener may set `refreshOnMiss` to reload the page. Requires the `ypy-history-cache` extension."
+        },
+        {
+          "name": "layer:before:open",
+          "description": "Fires on the opener (or on the document for a call of `ypy.layers.open()`) before a layer is built. Cancel it to open nothing. Requires the `ypy-layers` extension."
+        },
+        {
+          "name": "layer:opened",
+          "description": "Fires on the dialog once its content is in and it is shown, with the focus inside. Requires the `ypy-layers` extension."
+        },
+        {
+          "name": "layer:before:close",
+          "description": "Fires on the dialog before it closes, by accept or dismiss. Cancel it to keep the layer open (for example, unsaved changes). Requires the `ypy-layers` extension."
+        },
+        {
+          "name": "layer:accepted",
+          "description": "Fires on the dialog, still in the page, when the layer is accepted. `detail.value` is the result value. Requires the `ypy-layers` extension."
+        },
+        {
+          "name": "layer:dismissed",
+          "description": "Fires on the dialog, still in the page, when the layer is dismissed. `detail.reason` says why: `escape`, `outside`, `parent`, `history`, `toggle`, `navigate`, `error`, `dropped`, `replaced` or the text given to `dismiss()`. Requires the `ypy-layers` extension."
+        },
+        {
+          "name": "lazy:error",
+          "description": "A region with `ypy-lazy` failed to load (no connection, a status of 400 or more, a swap error). The region has `data-ypy-state=\"error\"`. Requires the `ypy-lazy` extension."
+        },
+        {
+          "name": "list:pruned",
+          "description": "Fires on the list after a swap with `limit:<n>` removed its oldest items to keep the limit. `removed` holds them, in document order; they are already out of the page. Requires the `ypy-list` extension."
+        },
+        {
+          "name": "multipart:before:connection",
+          "description": "Fires before a multipart connection is used, and again before each reconnect. Cancel it, or set `detail.connection.cancelled = true`, to stop. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "multipart:after:connection",
+          "description": "Fires when a multipart response was accepted, on the first connection and after each successful reconnect. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "multipart:before:part",
+          "description": "Fires for each part before it is handled. Cancel it, or set `detail.cancelled = true`, to skip the part. `detail.waitUntil(promise)` delays handling. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "multipart:after:part",
+          "description": "Fires after a part was swapped or its header actions ran. The part id then counts as received for reconnects. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "multipart:error",
+          "description": "Fires when a connection attempt, a reconnect or the parsing of the stream fails. `detail.status` is set when a reconnect got an unusable response. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "multipart:close",
+          "description": "Fires once when the connection is cleaned up. `detail.reason` is `cancelled`, `ended`, `removed`, `part` (a `ypy-multipart:close` event fired) or `cleanup`. Requires the `ypy-multipart` extension."
+        },
+        {
+          "name": "optimistic:applied",
+          "description": "The optimistic change was made. Cancel it to undo the change at once. Requires the `ypy-optimistic` extension."
+        },
+        {
+          "name": "optimistic:confirmed",
+          "description": "The server accepted the request. The server's content replaces the optimistic one where they meet; elsewhere the optimistic content stays. Requires the `ypy-optimistic` extension."
+        },
+        {
+          "name": "optimistic:rolledback",
+          "description": "The page was put back: `reason` is `status`, `error`, `aborted` or `cancelled`. Requires the `ypy-optimistic` extension."
+        },
+        {
+          "name": "track:reload",
+          "description": "A page response carries other `ypy-track=\"reload\"` values than the page. Cancel it to swap the response instead of loading `url`. Requires the `ypy-persist` extension."
+        },
+        {
+          "name": "poll:stop",
+          "description": "Fires on the element when a response with status `286` stopped its polling. The content of that response is swapped as usual. Requires the `ypy-poll` extension."
+        },
+        {
+          "name": "prompt",
+          "description": "Fires on the element after the user answered. Cancel it to abort the request. Requires the `ypy-prompt` extension."
+        },
+        {
+          "name": "request:retry",
+          "description": "Fires on the source element before a failed request is repeated, after `delay` ms or when the window goes online. `attempt` is 1 for the first repeat. `status` is the status of the answer that is repeated, absent after a network failure. Cancel it to give up; the error is then reported as usual, or the answer is handled as without retry. Requires the `ypy-retry` extension."
+        },
+        {
+          "name": "signals:patch",
+          "description": "Fires before a merge patch is applied to the signals, whether it came from a JSON response or from `ypy.signals.patch()`. Cancel it to discard the patch. Requires the `ypy-signals` extension."
+        },
+        {
+          "name": "signals:readonly",
+          "description": "Fires when a write to a read-only signal (server-owned or computed) was refused. `detail.warn` carries the message and is logged as a warning. Requires the `ypy-signals` extension."
+        },
+        {
+          "name": "signals:error",
+          "description": "Fires when an expression did not parse, a handler or effect threw, or a patch was not usable. The attribute that failed does nothing and the rest of the page keeps working. Requires the `ypy-signals` extension."
+        },
+        {
+          "name": "sse:before:connection",
+          "description": "Fires before a connection is made, and again before each reconnect attempt. Call `evt.preventDefault()` or set `detail.connection.cancelled = true` to stop connecting. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "sse:after:connection",
+          "description": "Fires when a response with `text/event-stream` was accepted, on the first connection and after each successful reconnect. `detail.connection.status` is the HTTP status. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "sse:before:message",
+          "description": "Fires for each parsed message before it is used. Cancel it, or set `detail.cancelled = true`, to ignore the message. Register asynchronous work with `detail.waitUntil(promise)`; YPY waits for it before deciding. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "sse:after:message",
+          "description": "Fires after a message was swapped, or after its named event was dispatched on the element. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "sse:error",
+          "description": "Fires when a connection attempt or the stream fails. `detail.status` is set when a reconnect got a non-2xx response. An aborted stream is a normal end and does not fire it. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "sse:close",
+          "description": "Fires once when the connection is cleaned up. `detail.reason` is `cancelled`, `message` (a `ypy-sse:close` event arrived), `ended`, `removed` or `cleanup`. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "release",
+          "description": "Named SSE event a server can send to release the request early (the queue slot and the indicators) while the stream stays open. It is dispatched on the element like any named event. Requires the `ypy-sse` extension."
+        },
+        {
+          "name": "stream:open",
+          "description": "A connection delivered its headers and is being read, the first time or after a reconnection. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:reconnect",
+          "description": "The client is about to wait `detail.delay` ms before the next connection attempt. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:close",
+          "description": "The stream ended for good. `detail.reason` is `api`, `removed`, `redirect`, `replaced`, `status <code>` or `error`. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:error",
+          "description": "An event failed, or the read broke; after a read error the client reconnects. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:signals",
+          "description": "A signals patch arrived and the signals extension is not loaded, so the page can apply it itself. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "upload:progress",
+          "description": "Fires on the source element while a file is sent. `percent` is a whole number from 0 to 100; `total` is 0 when the browser does not know the size of the body. Requires the `ypy-upload` extension."
+        },
+        {
+          "name": "ws:before:connection",
+          "description": "Fires before a socket is created, and again before each reconnect. Call `evt.preventDefault()` or set `detail.connection.cancelled = true` to stop; a `ypy:ws:close` event with reason `cancelled` follows. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:after:connection",
+          "description": "Fires when the socket opens. Queued outgoing messages are sent right after it. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:close",
+          "description": "Fires when the socket closes. `detail.reason` is `closed` (with the close `code`), `cancelled` or `removed`; `code` is `null` for the last two. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:error",
+          "description": "Fires on a socket error, a failed send, a full outgoing queue, or a send with no open connection. `detail.error` is an `Event`, an `Error` or a message string; `detail.connection` is absent when there is no connection. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:before:message:outgoing",
+          "description": "Fires before a message is sent. Edit `detail.message.headers`, `detail.message.values` or set `detail.message.data` to send raw data instead of JSON. Cancel it, or set `detail.cancelled = true`, to drop the message. `detail.waitUntil(promise)` delays the send. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:after:message:outgoing",
+          "description": "Fires after a message was written to the socket. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:before:message:incoming",
+          "description": "Fires when a message arrives, before it is swapped. Cancel it, or set `detail.cancelled = true`, to ignore it (the data stays available to this listener). `detail.waitUntil(promise)` delays processing. Requires the `ypy-ws` extension."
+        },
+        {
+          "name": "ws:after:message:incoming",
+          "description": "Fires after an incoming message was processed and any content swapped. Requires the `ypy-ws` extension."
+        }
+      ]
+    }
+  }
+}

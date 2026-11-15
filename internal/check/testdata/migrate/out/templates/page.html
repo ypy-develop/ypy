@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="ypy-config" content='{"defaultSwapStyle": "outerHTML"}'>
+    <script src="/static/ypy.min.js" crossorigin="anonymous"></script>
+    <script src="/static/ext/ypy-sse.js"></script>
+    <script src="https://unpkg.com/bolt.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>.ypy-request { opacity: .5 } [ypy-get] { cursor: pointer }</style>
+</head>
+<body ypy-boost="true" ypy-headers='{"YPY-Request": "x", "X-CSRF-Token": "t"}'>
+    <!-- acme-get stays in a comment -->
+    <p>Write acme-get to fetch, and read ACME-Request on the server.</p>
+    <div id="out" ypy-target="#out" ypy-swap="innerHTML show:top"></div>
+    <button ypy-get="/items/1" ypy-trigger="click" class="btn ypy-indicator" ypy-on::after-swap="done()"
+        ypy-on:ypy:afterSwap="again()" data-ypy-vals='{"a": 1}' ypy-on-ypy-after-request="log()">Load</button>
+    <ypy-partial id="p">x</ypy-partial>
+    <div ypy-sse:connect="/stream" ypy-sse-swap="message"></div>
+    <input type="search" ypy-get="/search" ypy-trigger="keyup changed delay:300ms, ypy:load from:body">
+    <video preload="auto"></video>
+    <a href="/x" ypy-preload="mouseover">fast</a>
+    <script>
+        document.body.addEventListener('ypy:afterSwap', fn);
+        ypy.addClass(el, 'on');
+        ypy.config.historyCacheSize = 5;
+        var headers = {"YPY-Request": "true"};
+        el.dataset.ypyTarget = "#x";
+        if (window.ypy) { ypy.process(el) }
+        el.innerHTML = '<button ypy-post="/x" class="ypy-request">x</button>';
+    </script>
+</body>
+</html>

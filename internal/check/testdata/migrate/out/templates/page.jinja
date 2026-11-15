@@ -1,0 +1,3 @@
+<div ypy-get="{{ url_for('items') }}" ypy-target="#out">
+  {% if request.headers.get('YPY-Request') %}<span ypy-swap="none"></span>{% endif %}
+</div>

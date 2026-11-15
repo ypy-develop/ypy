@@ -1,0 +1,3 @@
+<div acme-get="{{ url_for('items') }}" acme-target="#out">
+  {% if request.headers.get('ACME-Request') %}<span acme-swap="none"></span>{% endif %}
+</div>

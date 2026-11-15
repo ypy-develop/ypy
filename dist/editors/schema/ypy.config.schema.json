@@ -1,0 +1,1054 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The object written in `<meta name=\"ypy-config\" content='...'>` and the keys of `ypy.config`.",
+  "properties": {
+    "allowEmptySwapAfterOOB": {
+      "default": false,
+      "description": "Runs the main swap when the response held only out-of-band elements. `<ypy-partial>` content always prevents the main swap.",
+      "markdownDescription": "Runs the main swap when the response held only out-of-band elements. `<ypy-partial>` content always prevents the main swap.",
+      "type": "boolean"
+    },
+    "announce": {
+      "additionalProperties": false,
+      "description": "Announcements through the managed live region. Unset means on; `false` turns them off; an object sets the messages.",
+      "markdownDescription": "Announcements through the managed live region. Unset means on; `false` turns them off; an object sets the messages.",
+      "properties": {
+        "clearAfter": {
+          "default": 5000,
+          "description": "Milliseconds before the live region is emptied.",
+          "markdownDescription": "Milliseconds before the live region is emptied.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "messages": {
+          "additionalProperties": false,
+          "description": "Texts for the live region. The core carries none: a message that is not set says nothing.",
+          "markdownDescription": "Texts for the live region. The core carries none: a message that is not set says nothing.",
+          "properties": {
+            "done": {
+              "description": "Said when a request ends and its response was swapped.",
+              "markdownDescription": "Said when a request ends and its response was swapped.",
+              "type": "string"
+            },
+            "error": {
+              "description": "Said when a request failed for any other reason.",
+              "markdownDescription": "Said when a request failed for any other reason.",
+              "type": "string"
+            },
+            "loading": {
+              "description": "Said when a request starts.",
+              "markdownDescription": "Said when a request starts.",
+              "type": "string"
+            },
+            "offline": {
+              "description": "Said when a request failed for lack of a connection.",
+              "markdownDescription": "Said when a request failed for lack of a connection.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": [
+        "boolean",
+        "object"
+      ]
+    },
+    "ariaBusy": {
+      "description": "Marks the target `aria-busy=\"true\"` while a request runs. Unset means on.",
+      "markdownDescription": "Marks the target `aria-busy=\"true\"` while a request runs. Unset means on.",
+      "type": "boolean"
+    },
+    "boostBrowserIndicator": {
+      "default": false,
+      "description": "Show the browser indicator for every boosted element, without writing `ypy-browser-indicator` on each one. Requires the `ypy-browser-indicator` extension.",
+      "markdownDescription": "Show the browser indicator for every boosted element, without writing `ypy-browser-indicator` on each one. Requires the `ypy-browser-indicator` extension.",
+      "type": "boolean"
+    },
+    "cache": {
+      "additionalProperties": false,
+      "description": "Defaults for `ypy-cache`; the attribute overrides them per element. Requires the `ypy-cache` extension.",
+      "markdownDescription": "Defaults for `ypy-cache`; the attribute overrides them per element. Requires the `ypy-cache` extension.",
+      "properties": {
+        "all": {
+          "default": false,
+          "description": "Cache every GET of the page, not only the elements with `ypy-cache`. Requires the `ypy-cache` extension.",
+          "markdownDescription": "Cache every GET of the page, not only the elements with `ypy-cache`. Requires the `ypy-cache` extension.",
+          "type": "boolean"
+        },
+        "bytes": {
+          "default": 2097152,
+          "description": "Most characters of response text held. Requires the `ypy-cache` extension.",
+          "markdownDescription": "Most characters of response text held. Requires the `ypy-cache` extension.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "fresh": {
+          "default": 0,
+          "description": "A copy younger than this is shown without asking the server. Requires the `ypy-cache` extension.",
+          "markdownDescription": "A copy younger than this is shown without asking the server. Requires the `ypy-cache` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "offline": {
+          "default": false,
+          "description": "Keep copies in `sessionStorage` and show them when the network fails. Requires the `ypy-cache` extension.",
+          "markdownDescription": "Keep copies in `sessionStorage` and show them when the network fails. Requires the `ypy-cache` extension.",
+          "type": "boolean"
+        },
+        "private": {
+          "default": false,
+          "description": "Also keep responses marked `Cache-Control: private`. Requires the `ypy-cache` extension.",
+          "markdownDescription": "Also keep responses marked `Cache-Control: private`. Requires the `ypy-cache` extension.",
+          "type": "boolean"
+        },
+        "size": {
+          "default": 50,
+          "description": "Most copies held. Requires the `ypy-cache` extension.",
+          "markdownDescription": "Most copies held. Requires the `ypy-cache` extension.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "ttl": {
+          "default": "10m",
+          "description": "A copy older than this is not shown, only revalidated. Requires the `ypy-cache` extension.",
+          "markdownDescription": "A copy older than this is not shown, only revalidated. Requires the `ypy-cache` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "callbacks": {
+      "description": "What author code (`ypy-on`, `js:` values, `[filter]` triggers) may do: `none` never compiles code, `nonce` runs it only through `ypy-csp`, `all` always runs it. Unset means `none`.",
+      "enum": [
+        "none",
+        "nonce",
+        "all"
+      ],
+      "markdownDescription": "What author code (`ypy-on`, `js:` values, `[filter]` triggers) may do: `none` never compiles code, `nonce` runs it only through `ypy-csp`, `all` always runs it. Unset means `none`."
+    },
+    "classes": {
+      "additionalProperties": false,
+      "description": "State classes, one entry per state, each a space separated list. Set an entry to replace it.",
+      "markdownDescription": "State classes, one entry per state, each a space separated list. Set an entry to replace it.",
+      "properties": {
+        "added": {
+          "default": "ypy-added",
+          "description": "Applied to freshly swapped content until it settles.",
+          "markdownDescription": "Applied to freshly swapped content until it settles.",
+          "type": "string"
+        },
+        "dirty": {
+          "default": "ypy-dirty",
+          "description": "Class added to a signals scope element while it holds unsaved changes. Set it to a space separated list to replace the default. Requires the `ypy-signals` extension.",
+          "markdownDescription": "Class added to a signals scope element while it holds unsaved changes. Set it to a space separated list to replace the default. Requires the `ypy-signals` extension.",
+          "type": "string"
+        },
+        "error": {
+          "description": "Added to the error target after a response of 400 or more was swapped. There is no default class: `data-ypy-state=\"error\"` is enough to style it.",
+          "markdownDescription": "Added to the error target after a response of 400 or more was swapped. There is no default class: `data-ypy-state=\"error\"` is enough to style it.",
+          "type": "string"
+        },
+        "indicator": {
+          "default": "ypy-indicator",
+          "description": "Applied to elements that show only during a request.",
+          "markdownDescription": "Applied to elements that show only during a request.",
+          "type": "string"
+        },
+        "offline": {
+          "default": "ypy-offline",
+          "description": "Applied to `<html>` while the browser reports no connection.",
+          "markdownDescription": "Applied to `<html>` while the browser reports no connection.",
+          "type": "string"
+        },
+        "request": {
+          "default": "ypy-request",
+          "description": "Applied to the requesting element and to its indicators while a request runs.",
+          "markdownDescription": "Applied to the requesting element and to its indicators while a request runs.",
+          "type": "string"
+        },
+        "settling": {
+          "default": "ypy-settling",
+          "description": "Applied to the swap target while it settles.",
+          "markdownDescription": "Applied to the swap target while it settles.",
+          "type": "string"
+        },
+        "swapping": {
+          "default": "ypy-swapping",
+          "description": "Applied to the swap target between the start of the swap and the swap itself.",
+          "markdownDescription": "Applied to the swap target between the start of the swap and the swap itself.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "defaultFocusScroll": {
+      "default": false,
+      "description": "Scrolls the focused element into view after each swap.",
+      "markdownDescription": "Scrolls the focused element into view after each swap.",
+      "type": "boolean"
+    },
+    "defaultSettleDelay": {
+      "default": 1,
+      "description": "Delay in milliseconds between the swap and the settle phases.",
+      "markdownDescription": "Delay in milliseconds between the swap and the settle phases.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "defaultSwap": {
+      "description": "The swap style used when `ypy-swap` is not set: `innerMorph`.",
+      "markdownDescription": "The swap style used when `ypy-swap` is not set: `innerMorph`.",
+      "type": "string"
+    },
+    "defaultTimeout": {
+      "default": 60000,
+      "description": "Default request timeout in milliseconds.",
+      "markdownDescription": "Default request timeout in milliseconds.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "dev": {
+      "additionalProperties": false,
+      "description": "Options of the development extension `ypy-dev`; `false` turns it off. Requires the `ypy-dev` extension.",
+      "markdownDescription": "Options of the development extension `ypy-dev`; `false` turns it off. Requires the `ypy-dev` extension.",
+      "properties": {
+        "docs": {
+          "default": "https://ypy.dev/guides/upgrade-check",
+          "description": "Base URL of the guide pages that the legacy warnings link to. Requires the `ypy-dev` extension.",
+          "markdownDescription": "Base URL of the guide pages that the legacy warnings link to. Requires the `ypy-dev` extension.",
+          "type": "string"
+        },
+        "latency": {
+          "description": "Simulated latency in milliseconds, or `[min, max]` (the JSON form of the tag). Off by default. Requires the `ypy-dev` extension.",
+          "markdownDescription": "Simulated latency in milliseconds, or `[min, max]` (the JSON form of the tag). Off by default. Requires the `ypy-dev` extension.",
+          "type": [
+            "number",
+            "array"
+          ]
+        },
+        "lint": {
+          "default": true,
+          "description": "`false` turns the markup and legacy warnings off. Requires the `ypy-dev` extension.",
+          "markdownDescription": "`false` turns the markup and legacy warnings off. Requires the `ypy-dev` extension.",
+          "type": "boolean"
+        },
+        "log": {
+          "default": true,
+          "description": "`false` keeps the console quiet; messages are still recorded and fired as `ypy:dev:message`. Requires the `ypy-dev` extension.",
+          "markdownDescription": "`false` keeps the console quiet; messages are still recorded and fired as `ypy:dev:message`. Requires the `ypy-dev` extension.",
+          "type": "boolean"
+        },
+        "offline": {
+          "default": false,
+          "description": "Start with the simulated offline state on. Requires the `ypy-dev` extension.",
+          "markdownDescription": "Start with the simulated offline state on. Requires the `ypy-dev` extension.",
+          "type": "boolean"
+        },
+        "overlay": {
+          "description": "Show a panel with the status, the URL, the start of the response and the element when a request fails; Esc closes it. On by default only on a development host (`localhost`, `127.*`, `[::1]`, `*.local`, `*.test`, `*.localhost`). Requires the `ypy-dev` extension.",
+          "markdownDescription": "Show a panel with the status, the URL, the start of the response and the element when a request fails; Esc closes it. On by default only on a development host (`localhost`, `127.*`, `[::1]`, `*.local`, `*.test`, `*.localhost`). Requires the `ypy-dev` extension.",
+          "type": "boolean"
+        },
+        "reload": {
+          "default": false,
+          "description": "Reload the page when a template changes: `true` listens on `/__ypy/reload`, a string is the URL of the Server-Sent Events endpoint. Requires the `ypy-dev` extension.",
+          "markdownDescription": "Reload the page when a template changes: `true` listens on `/__ypy/reload`, a string is the URL of the Server-Sent Events endpoint. Requires the `ypy-dev` extension.",
+          "type": [
+            "boolean",
+            "string"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "boolean"
+      ]
+    },
+    "extensions": {
+      "default": "",
+      "description": "Comma separated list of the extensions allowed to register. Empty allows all.",
+      "markdownDescription": "Comma separated list of the extensions allowed to register. Empty allows all.",
+      "type": "string"
+    },
+    "history": {
+      "default": true,
+      "description": "Controls history management: `true` pushes URLs and restores by request, `false` turns history off, `\"reload\"` pushes URLs and reloads the page on back and forward.",
+      "enum": [
+        true,
+        false,
+        "reload"
+      ],
+      "markdownDescription": "Controls history management: `true` pushes URLs and restores by request, `false` turns history off, `\"reload\"` pushes URLs and reloads the page on back and forward."
+    },
+    "historyCache": {
+      "additionalProperties": false,
+      "description": "Options of the history cache extension. Requires the `ypy-history-cache` extension.",
+      "markdownDescription": "Options of the history cache extension. Requires the `ypy-history-cache` extension.",
+      "properties": {
+        "disable": {
+          "default": false,
+          "description": "Turn the cache off without unloading the extension. Requires the `ypy-history-cache` extension.",
+          "markdownDescription": "Turn the cache off without unloading the extension. Requires the `ypy-history-cache` extension.",
+          "type": "boolean"
+        },
+        "refreshOnMiss": {
+          "default": false,
+          "description": "Reload the page on back or forward when it is not in the cache. Requires the `ypy-history-cache` extension.",
+          "markdownDescription": "Reload the page on back or forward when it is not in the cache. Requires the `ypy-history-cache` extension.",
+          "type": "boolean"
+        },
+        "size": {
+          "default": 10,
+          "description": "How many pages are kept in `sessionStorage`; the oldest is dropped first. `0` turns saving off. Requires the `ypy-history-cache` extension.",
+          "markdownDescription": "How many pages are kept in `sessionStorage`; the oldest is dropped first. `0` turns saving off. Requires the `ypy-history-cache` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "swapStyle": {
+          "default": "outerSync",
+          "description": "Swap style used to put the cached content back. Requires the `ypy-history-cache` extension.",
+          "markdownDescription": "Swap style used to put the cached content back. Requires the `ypy-history-cache` extension.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "historyRestore": {
+      "additionalProperties": false,
+      "description": "Options of the request that restores a page from history.",
+      "markdownDescription": "Options of the request that restores a page from history.",
+      "properties": {
+        "cache": {
+          "description": "The fetch `cache` mode of the request that restores a page on back and forward. The default is `no-cache`.",
+          "enum": [
+            "default",
+            "no-store",
+            "reload",
+            "no-cache",
+            "force-cache",
+            "only-if-cached"
+          ],
+          "markdownDescription": "The fetch `cache` mode of the request that restores a page on back and forward. The default is `no-cache`."
+        },
+        "fragment": {
+          "description": "Reloads the page when a restore gets something that is not a whole page, instead of swapping the fragment. On by default.",
+          "markdownDescription": "Reloads the page when a restore gets something that is not a whole page, instead of swapping the fragment. On by default.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "includeIndicatorCSS": {
+      "default": true,
+      "description": "Includes the built-in CSS of the indicator class.",
+      "markdownDescription": "Includes the built-in CSS of the indicator class.",
+      "type": "boolean"
+    },
+    "inlineScriptNonce": {
+      "description": "The `nonce` of the inline `<script>` elements YPY creates, for a strict CSP.",
+      "markdownDescription": "The `nonce` of the inline `<script>` elements YPY creates, for a strict CSP.",
+      "type": "string"
+    },
+    "inspector": {
+      "additionalProperties": false,
+      "description": "Options of the inspector panel `ypy-inspector`; `false` leaves the page untouched. Requires the `ypy-inspector` extension.",
+      "markdownDescription": "Options of the inspector panel `ypy-inspector`; `false` leaves the page untouched. Requires the `ypy-inspector` extension.",
+      "properties": {
+        "key": {
+          "default": "Alt+Shift+Y",
+          "description": "The shortcut that opens and closes the panel: modifiers (`Alt`, `Shift`, `Ctrl`, `Meta`) and a letter, joined with `+`. Requires the `ypy-inspector` extension.",
+          "markdownDescription": "The shortcut that opens and closes the panel: modifiers (`Alt`, `Shift`, `Ctrl`, `Meta`) and a letter, joined with `+`. Requires the `ypy-inspector` extension.",
+          "type": "string"
+        },
+        "max": {
+          "default": 500,
+          "description": "Rows kept in each list; the oldest go first. Requires the `ypy-inspector` extension.",
+          "markdownDescription": "Rows kept in each list; the oldest go first. Requires the `ypy-inspector` extension.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "open": {
+          "default": false,
+          "description": "Show the panel at start. Requires the `ypy-inspector` extension.",
+          "markdownDescription": "Show the panel at start. Requires the `ypy-inspector` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": [
+        "object",
+        "boolean"
+      ]
+    },
+    "layers": {
+      "additionalProperties": false,
+      "description": "Defaults of the ypy-layers extension. Requires the `ypy-layers` extension.",
+      "markdownDescription": "Defaults of the ypy-layers extension. Requires the `ypy-layers` extension.",
+      "properties": {
+        "classes": {
+          "description": "Classes added to the dialog of each kind (`modal`, `drawer`, `popup`), for example Tailwind utilities, and `opener`, the class a popup puts on its opener for anchoring. Requires the `ypy-layers` extension.",
+          "markdownDescription": "Classes added to the dialog of each kind (`modal`, `drawer`, `popup`), for example Tailwind utilities, and `opener`, the class a popup puts on its opener for anchoring. Requires the `ypy-layers` extension.",
+          "properties": {
+            "drawer": {
+              "type": "string"
+            },
+            "modal": {
+              "type": "string"
+            },
+            "opener": {
+              "type": "string"
+            },
+            "popup": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "escape": {
+          "default": true,
+          "description": "Whether Esc dismisses a layer. Requires the `ypy-layers` extension.",
+          "markdownDescription": "Whether Esc dismisses a layer. Requires the `ypy-layers` extension.",
+          "type": "boolean"
+        },
+        "history": {
+          "default": false,
+          "description": "Whether layers show their URL in the address bar by default. Requires the `ypy-layers` extension.",
+          "markdownDescription": "Whether layers show their URL in the address bar by default. Requires the `ypy-layers` extension.",
+          "type": "boolean"
+        },
+        "outside": {
+          "default": true,
+          "description": "Whether a click outside a layer dismisses it. Requires the `ypy-layers` extension.",
+          "markdownDescription": "Whether a click outside a layer dismisses it. Requires the `ypy-layers` extension.",
+          "type": "boolean"
+        },
+        "scrollLock": {
+          "default": true,
+          "description": "`false` leaves the page scrolling behind a modal or a drawer. The lock is the attribute `data-ypy-layer-lock` on `<html>`. Requires the `ypy-layers` extension.",
+          "markdownDescription": "`false` leaves the page scrolling behind a modal or a drawer. The lock is the attribute `data-ypy-layer-lock` on `<html>`. Requires the `ypy-layers` extension.",
+          "type": "boolean"
+        },
+        "style": {
+          "default": true,
+          "description": "`false` does not add the optional default stylesheet (zero specificity, `--ypy-layer-*` variables). Requires the `ypy-layers` extension.",
+          "markdownDescription": "`false` does not add the optional default stylesheet (zero specificity, `--ypy-layer-*` variables). Requires the `ypy-layers` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "lazy": {
+      "additionalProperties": false,
+      "description": "Settings of lazy regions. Requires the `ypy-lazy` extension.",
+      "markdownDescription": "Settings of lazy regions. Requires the `ypy-lazy` extension.",
+      "properties": {
+        "margin": {
+          "default": "200px",
+          "description": "How far outside the window a region is loaded, as a CSS margin. Requires the `ypy-lazy` extension.",
+          "markdownDescription": "How far outside the window a region is loaded, as a CSS margin. Requires the `ypy-lazy` extension.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "live": {
+      "additionalProperties": false,
+      "description": "Settings of the ypy-live extension. Requires the `ypy-live` extension.",
+      "markdownDescription": "Settings of the ypy-live extension. Requires the `ypy-live` extension.",
+      "properties": {
+        "bindPrefix": {
+          "default": ":",
+          "description": "Short binding prefix: `\":\"` makes `:text` work, `\"ypy:\"` makes `ypy:text` work, and `\"\"` or `false` turns the short form off. When Alpine.js is detected the short form is off unless this is set. Requires the `ypy-live` extension.",
+          "markdownDescription": "Short binding prefix: `\":\"` makes `:text` work, `\"ypy:\"` makes `ypy:text` work, and `\"\"` or `false` turns the short form off. When Alpine.js is detected the short form is off unless this is set. Requires the `ypy-live` extension.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "const": false
+            }
+          ]
+        },
+        "inputDebounce": {
+          "default": 100,
+          "description": "Debounces `input` events before expressions are re-evaluated, in ms or as an interval string. Requires the `ypy-live` extension.",
+          "markdownDescription": "Debounces `input` events before expressions are re-evaluated, in ms or as an interval string. Requires the `ypy-live` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "useDollar": {
+          "default": false,
+          "description": "Adds `$()` as an alias of `q()` in `ypy-live`, `:attr`, `ypy-on`, `js:` attributes and `ypy-trigger` filters. Requires the `ypy-live` extension.",
+          "markdownDescription": "Adds `$()` as an alias of `q()` in `ypy-live`, `:attr`, `ypy-on`, `js:` attributes and `ypy-trigger` filters. Requires the `ypy-live` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "locked": {
+      "default": false,
+      "description": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone. Requires the `ypy-lock` extension.",
+      "markdownDescription": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone. Requires the `ypy-lock` extension.",
+      "type": "boolean"
+    },
+    "logAll": {
+      "default": false,
+      "description": "Logs every YPY event to the console.",
+      "markdownDescription": "Logs every YPY event to the console.",
+      "type": "boolean"
+    },
+    "metaCharacter": {
+      "description": "Replaces `:` in attribute modifiers, for templating engines that treat `:` specially.",
+      "markdownDescription": "Replaces `:` in attribute modifiers, for templating engines that treat `:` specially.",
+      "type": "string"
+    },
+    "mode": {
+      "default": "same-origin",
+      "description": "The fetch `mode` of every YPY request. Elements cannot override it.",
+      "enum": [
+        "same-origin",
+        "cors",
+        "no-cors"
+      ],
+      "markdownDescription": "The fetch `mode` of every YPY request. Elements cannot override it."
+    },
+    "morphIgnore": {
+      "default": [
+        "data-ypy-powered",
+        "data-ypy-state"
+      ],
+      "description": "Attribute name prefixes a morph leaves alone.",
+      "items": {
+        "type": "string"
+      },
+      "markdownDescription": "Attribute name prefixes a morph leaves alone.",
+      "type": "array"
+    },
+    "morphScanLimit": {
+      "default": 10,
+      "description": "How many siblings a morph scans when it matches nodes.",
+      "markdownDescription": "How many siblings a morph scans when it matches nodes.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "morphSkip": {
+      "default": "[ypy-morph-skip],[data-ypy-morph-skip]",
+      "description": "Selector of the elements a morph skips entirely.",
+      "markdownDescription": "Selector of the elements a morph skips entirely.",
+      "type": "string"
+    },
+    "morphSkipChildren": {
+      "default": "[ypy-morph-skip-children],[data-ypy-morph-skip-children]",
+      "description": "Selector of the elements whose children a morph freezes. Their attributes still update.",
+      "markdownDescription": "Selector of the elements whose children a morph freezes. Their attributes still update.",
+      "type": "string"
+    },
+    "morphThirdParty": {
+      "default": "[data-reactroot],[data-v-app],[x-data]",
+      "description": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element unless it carries `ypy-preserve=\"false\"`.",
+      "markdownDescription": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element unless it carries `ypy-preserve=\"false\"`.",
+      "type": "string"
+    },
+    "multipart": {
+      "additionalProperties": false,
+      "description": "Defaults of the ypy-multipart extension. A single request overrides them with `ypy-config='{\"multipart\":{...}}'`. Requires the `ypy-multipart` extension.",
+      "markdownDescription": "Defaults of the ypy-multipart extension. A single request overrides them with `ypy-config='{\"multipart\":{...}}'`. Requires the `ypy-multipart` extension.",
+      "properties": {
+        "connectTimeout": {
+          "description": "Timeout of a connection attempt, in ms or as an interval string. `0` waits without limit. Defaults to `ypy.config.defaultTimeout`. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "Timeout of a connection attempt, in ms or as an interval string. `0` waits without limit. Defaults to `ypy.config.defaultTimeout`. Requires the `ypy-multipart` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "pauseOnBackground": {
+          "description": "Close the connection while the tab is hidden and reconnect when it is visible again. The default is `true` for an element with `ypy-multipart:connect` and `false` otherwise. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "Close the connection while the tab is hidden and reconnect when it is visible again. The default is `true` for an element with `ypy-multipart:connect` and `false` otherwise. Requires the `ypy-multipart` extension.",
+          "type": "boolean"
+        },
+        "reconnect": {
+          "description": "Reconnect after the stream ends or fails. The default is `true` for an element with `ypy-multipart:connect` and `false` for a stream opened by a request. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "Reconnect after the stream ends or fails. The default is `true` for an element with `ypy-multipart:connect` and `false` for a stream opened by a request. Requires the `ypy-multipart` extension.",
+          "type": "boolean"
+        },
+        "reconnectDelay": {
+          "default": 500,
+          "description": "Wait before the first reconnect, in ms or as an interval string. The wait doubles on each attempt up to `reconnectMaxDelay`. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "Wait before the first reconnect, in ms or as an interval string. The wait doubles on each attempt up to `reconnectMaxDelay`. Requires the `ypy-multipart` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "reconnectJitter": {
+          "default": 0.3,
+          "description": "Random spread applied to each reconnect delay, as a fraction of the delay (0.3 is plus or minus 30%). `0` turns it off. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "Random spread applied to each reconnect delay, as a fraction of the delay (0.3 is plus or minus 30%). `0` turns it off. Requires the `ypy-multipart` extension.",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "reconnectMaxAttempts": {
+          "description": "How many consecutive reconnect attempts are made before giving up. Unlimited by default. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "How many consecutive reconnect attempts are made before giving up. Unlimited by default. Requires the `ypy-multipart` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reconnectMaxDelay": {
+          "default": 60000,
+          "description": "Longest wait between two reconnect attempts, in ms or as an interval string. Requires the `ypy-multipart` extension.",
+          "markdownDescription": "Longest wait between two reconnect attempts, in ms or as an interval string. Requires the `ypy-multipart` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "nav": {
+      "additionalProperties": false,
+      "description": "Settings of global boost and prefetch. Requires the `ypy-nav` extension.",
+      "markdownDescription": "Settings of global boost and prefetch. Requires the `ypy-nav` extension.",
+      "properties": {
+        "boost": {
+          "default": false,
+          "description": "Navigate every link and form of the page with a request and a swap, with no attribute. Off when `nonce` is set. A region turns it off with `ypy-boost=\"false\"`. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Navigate every link and form of the page with a request and a swap, with no attribute. Off when `nonce` is set. A region turns it off with `ypy-boost=\"false\"`. Requires the `ypy-nav` extension.",
+          "type": "boolean"
+        },
+        "prefetch": {
+          "default": false,
+          "description": "When a link the page navigates is requested ahead of the click. Requires the `ypy-nav` extension.",
+          "enum": [
+            false,
+            true,
+            "hover",
+            "visible",
+            "hover visible",
+            "visible hover"
+          ],
+          "markdownDescription": "When a link the page navigates is requested ahead of the click. Requires the `ypy-nav` extension."
+        },
+        "prefetchDelay": {
+          "default": 65,
+          "description": "Milliseconds of hover before the prefetch starts. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Milliseconds of hover before the prefetch starts. Requires the `ypy-nav` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "prefetchMax": {
+          "default": 10,
+          "description": "Prefetched responses alive at once; the oldest is dropped. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Prefetched responses alive at once; the oldest is dropped. Requires the `ypy-nav` extension.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prefetchParallel": {
+          "default": 2,
+          "description": "Prefetches in flight at once for the visibility mode. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Prefetches in flight at once for the visibility mode. Requires the `ypy-nav` extension.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prefetchTtl": {
+          "default": 10000,
+          "description": "Milliseconds an unused prefetched response is kept. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Milliseconds an unused prefetched response is kept. Requires the `ypy-nav` extension.",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "noSwap": {
+      "default": [
+        204,
+        304
+      ],
+      "description": "HTTP status codes for which YPY does not swap content.",
+      "items": {
+        "type": "integer"
+      },
+      "markdownDescription": "HTTP status codes for which YPY does not swap content.",
+      "type": "array"
+    },
+    "nonce": {
+      "default": false,
+      "description": "Requires the `ypy-csp` extension: until it has started, YPY processes no element and sends no request. The page also needs a script with a CSP nonce, and the `ypy` Trusted Types policy when the CSP enforces them. Requires the `ypy-csp` extension.",
+      "markdownDescription": "Requires the `ypy-csp` extension: until it has started, YPY processes no element and sends no request. The page also needs a script with a CSP nonce, and the `ypy` Trusted Types policy when the CSP enforces them. Requires the `ypy-csp` extension.",
+      "type": "boolean"
+    },
+    "poll": {
+      "additionalProperties": false,
+      "description": "Default options of the smart polling for the whole page; the `ypy-poll` attribute overrides them per element. Requires the `ypy-poll` extension.",
+      "markdownDescription": "Default options of the smart polling for the whole page; the `ypy-poll` attribute overrides them per element. Requires the `ypy-poll` extension.",
+      "properties": {
+        "hidden": {
+          "default": 4,
+          "description": "Factor applied to the interval of a poll while the tab is hidden, or `\"pause\"` to stop polling until the tab is shown. Requires the `ypy-poll` extension.",
+          "markdownDescription": "Factor applied to the interval of a poll while the tab is hidden, or `\"pause\"` to stop polling until the tab is shown. Requires the `ypy-poll` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "min": {
+          "default": 100,
+          "description": "Shortest interval a `YPY-Poll-Interval` header may set, in milliseconds or as `\"100ms\"`. Requires the `ypy-poll` extension.",
+          "markdownDescription": "Shortest interval a `YPY-Poll-Interval` header may set, in milliseconds or as `\"100ms\"`. Requires the `ypy-poll` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "prefix": {
+      "default": "",
+      "description": "Adds one more attribute prefix. `ypy-` and `data-ypy-` always work. Set it in the `ypy-config` meta tag; changing it after load has no effect.",
+      "markdownDescription": "Adds one more attribute prefix. `ypy-` and `data-ypy-` always work. Set it in the `ypy-config` meta tag; changing it after load has no effect.",
+      "type": "string"
+    },
+    "preload": {
+      "additionalProperties": false,
+      "description": "Options of the preload extension. Requires the `ypy-preload` extension.",
+      "markdownDescription": "Options of the preload extension. Requires the `ypy-preload` extension.",
+      "properties": {
+        "autoBoost": {
+          "default": true,
+          "description": "Preload boosted links without writing `ypy-preload`. Set `false` to turn that off. Requires the `ypy-preload` extension.",
+          "markdownDescription": "Preload boosted links without writing `ypy-preload`. Set `false` to turn that off. Requires the `ypy-preload` extension.",
+          "type": "boolean"
+        },
+        "boostEvent": {
+          "default": "mousedown",
+          "description": "Event that starts the automatic preload of boosted links and bare `ypy-preload` elements. `touchstart` always does too. Requires the `ypy-preload` extension.",
+          "markdownDescription": "Event that starts the automatic preload of boosted links and bare `ypy-preload` elements. `touchstart` always does too. Requires the `ypy-preload` extension.",
+          "type": "string"
+        },
+        "boostTimeout": {
+          "default": 5000,
+          "description": "How long a preloaded response stays valid for the automatic preload, in milliseconds or as `\"5s\"`. Requires the `ypy-preload` extension.",
+          "markdownDescription": "How long a preloaded response stays valid for the automatic preload, in milliseconds or as `\"5s\"`. Requires the `ypy-preload` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "progress": {
+      "additionalProperties": false,
+      "description": "Settings of the progress bar. Requires the `ypy-progress` extension.",
+      "markdownDescription": "Settings of the progress bar. Requires the `ypy-progress` extension.",
+      "properties": {
+        "all": {
+          "default": false,
+          "description": "Show the bar for every request, not only navigations and elements with `ypy-progress`. Requires the `ypy-progress` extension.",
+          "markdownDescription": "Show the bar for every request, not only navigations and elements with `ypy-progress`. Requires the `ypy-progress` extension.",
+          "type": "boolean"
+        },
+        "delay": {
+          "default": 200,
+          "description": "Milliseconds a request waits before the bar shows. Requires the `ypy-progress` extension.",
+          "markdownDescription": "Milliseconds a request waits before the bar shows. Requires the `ypy-progress` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "default": "Loading",
+          "description": "The accessible name of the bar. Requires the `ypy-progress` extension.",
+          "markdownDescription": "The accessible name of the bar. Requires the `ypy-progress` extension.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "retry": {
+      "additionalProperties": false,
+      "description": "Default retry options for the whole page; the `ypy-retry` attribute overrides them per element. Requires the `ypy-retry` extension.",
+      "markdownDescription": "Default retry options for the whole page; the `ypy-retry` attribute overrides them per element. Requires the `ypy-retry` extension.",
+      "properties": {
+        "attempts": {
+          "default": 0,
+          "description": "How many times a failed request is repeated. Requires the `ypy-retry` extension.",
+          "markdownDescription": "How many times a failed request is repeated. Requires the `ypy-retry` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "backoff": {
+          "default": 2,
+          "description": "Each wait is this many times longer than the one before. `1` keeps it constant. Requires the `ypy-retry` extension.",
+          "markdownDescription": "Each wait is this many times longer than the one before. `1` keeps it constant. Requires the `ypy-retry` extension.",
+          "type": "number"
+        },
+        "delay": {
+          "default": 1000,
+          "description": "Wait before the first repeat, in milliseconds or as `\"1s\"`. Requires the `ypy-retry` extension.",
+          "markdownDescription": "Wait before the first repeat, in milliseconds or as `\"1s\"`. Requires the `ypy-retry` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "jitter": {
+          "default": 0,
+          "description": "How much each wait varies at random, as a fraction (`0.2`) or a percentage (`\"20%\"`), up and down. `0` keeps the waits exact. Requires the `ypy-retry` extension.",
+          "markdownDescription": "How much each wait varies at random, as a fraction (`0.2`) or a percentage (`\"20%\"`), up and down. `0` keeps the waits exact. Requires the `ypy-retry` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "max": {
+          "default": 30000,
+          "description": "Longest wait between two attempts, in milliseconds or as `\"30s\"`. Requires the `ypy-retry` extension.",
+          "markdownDescription": "Longest wait between two attempts, in milliseconds or as `\"30s\"`. Requires the `ypy-retry` extension.",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "methods": {
+          "default": "GET HEAD QUERY",
+          "description": "Methods that are repeated, a space or comma separated string or an array of upper-case names. It can only narrow the safe methods. Requires the `ypy-retry` extension.",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Methods that are repeated, a space or comma separated string or an array of upper-case names. It can only narrow the safe methods. Requires the `ypy-retry` extension.",
+          "type": [
+            "string",
+            "array"
+          ]
+        },
+        "on": {
+          "default": "network",
+          "description": "What counts as a failure: `network` (the request did not reach the server), `error` (also a 5xx answer), `always` (also a 4xx answer) or `never`. Requires the `ypy-retry` extension.",
+          "enum": [
+            "network",
+            "error",
+            "always",
+            "never"
+          ],
+          "markdownDescription": "What counts as a failure: `network` (the request did not reach the server), `error` (also a 5xx answer), `always` (also a 4xx answer) or `never`. Requires the `ypy-retry` extension.",
+          "type": "string"
+        },
+        "unsafe": {
+          "default": false,
+          "description": "Repeat every method, including POST, PUT, PATCH and DELETE. The server may have run the first attempt. Requires the `ypy-retry` extension.",
+          "markdownDescription": "Repeat every method, including POST, PUT, PATCH and DELETE. The server may have run the first attempt. Requires the `ypy-retry` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "safeEval": {
+      "default": false,
+      "description": "Replaces `Function` and `AsyncFunction` with nonce-based script injection, so `ypy-on`, `js:` values and `ypy-confirm` code run without `unsafe-eval` in the CSP. Needs `ypy-csp`. Requires the `ypy-csp` extension.",
+      "markdownDescription": "Replaces `Function` and `AsyncFunction` with nonce-based script injection, so `ypy-on`, `js:` values and `ypy-confirm` code run without `unsafe-eval` in the CSP. Needs `ypy-csp`. Requires the `ypy-csp` extension.",
+      "type": "boolean"
+    },
+    "selfRequestsOnly": {
+      "deprecated": true,
+      "description": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.",
+      "markdownDescription": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.",
+      "type": "boolean"
+    },
+    "sse": {
+      "additionalProperties": false,
+      "description": "Defaults of the ypy-sse extension. A single element overrides them with `ypy-config='{\"sse\":{...}}'`. Requires the `ypy-sse` extension.",
+      "markdownDescription": "Defaults of the ypy-sse extension. A single element overrides them with `ypy-config='{\"sse\":{...}}'`. Requires the `ypy-sse` extension.",
+      "properties": {
+        "connectTimeout": {
+          "description": "Timeout of a connection attempt, in ms or as an interval string. `0` waits without limit. Defaults to `ypy.config.defaultTimeout`. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Timeout of a connection attempt, in ms or as an interval string. `0` waits without limit. Defaults to `ypy.config.defaultTimeout`. Requires the `ypy-sse` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "pauseOnBackground": {
+          "description": "Close the stream while the tab is hidden and reconnect when it is visible again. The default is `true` for an element with `ypy-sse:connect` and `false` otherwise. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Close the stream while the tab is hidden and reconnect when it is visible again. The default is `true` for an element with `ypy-sse:connect` and `false` otherwise. Requires the `ypy-sse` extension.",
+          "type": "boolean"
+        },
+        "reconnect": {
+          "description": "Reconnect after the stream ends or fails. The default is `true` for an element with `ypy-sse:connect` and `false` for a stream opened by a request. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Reconnect after the stream ends or fails. The default is `true` for an element with `ypy-sse:connect` and `false` for a stream opened by a request. Requires the `ypy-sse` extension.",
+          "type": "boolean"
+        },
+        "reconnectDelay": {
+          "default": 500,
+          "description": "Wait before the first reconnect, in ms or as an interval string. The wait doubles on each attempt up to `reconnectMaxDelay`. A `retry:` field from the server replaces it. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Wait before the first reconnect, in ms or as an interval string. The wait doubles on each attempt up to `reconnectMaxDelay`. A `retry:` field from the server replaces it. Requires the `ypy-sse` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "reconnectJitter": {
+          "default": 0.3,
+          "description": "Random spread applied to each reconnect delay, as a fraction of the delay (0.3 is plus or minus 30%). `0` turns it off. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Random spread applied to each reconnect delay, as a fraction of the delay (0.3 is plus or minus 30%). `0` turns it off. Requires the `ypy-sse` extension.",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "reconnectMaxAttempts": {
+          "description": "How many consecutive reconnect attempts are made before giving up. Unlimited by default. Requires the `ypy-sse` extension.",
+          "markdownDescription": "How many consecutive reconnect attempts are made before giving up. Unlimited by default. Requires the `ypy-sse` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reconnectMaxDelay": {
+          "default": 60000,
+          "description": "Longest wait between two reconnect attempts, in ms or as an interval string. Requires the `ypy-sse` extension.",
+          "markdownDescription": "Longest wait between two reconnect attempts, in ms or as an interval string. Requires the `ypy-sse` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "releaseOn": {
+          "description": "When the request gives back its queue slot and indicators: `immediate`, after the `first` swapped message, or at the `end` of the stream. The default is `immediate` for an element with `ypy-sse:connect` and `end` otherwise. Requires the `ypy-sse` extension.",
+          "enum": [
+            "immediate",
+            "first",
+            "end"
+          ],
+          "markdownDescription": "When the request gives back its queue slot and indicators: `immediate`, after the `first` swapped message, or at the `end` of the stream. The default is `immediate` for an element with `ypy-sse:connect` and `end` otherwise. Requires the `ypy-sse` extension.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "targetFallback": {
+      "description": "What happens when a target selector matches nothing: `true` falls back to the main target for a whole page or a response with a main, `\"always\"` also for a fragment, `false` never. Unset means on.",
+      "enum": [
+        true,
+        false,
+        "always"
+      ],
+      "markdownDescription": "What happens when a target selector matches nothing: `true` falls back to the main target for a whole page or a response with a main, `\"always\"` also for a fragment, `false` never. Unset means on."
+    },
+    "transitions": {
+      "default": false,
+      "description": "Uses the View Transitions API for swap animations.",
+      "markdownDescription": "Uses the View Transitions API for swap animations.",
+      "type": "boolean"
+    },
+    "ws": {
+      "additionalProperties": false,
+      "description": "Defaults of the ypy-ws extension. A single element overrides them with `ypy-config='{\"ws\":{...}}'`. Requires the `ypy-ws` extension.",
+      "markdownDescription": "Defaults of the ypy-ws extension. A single element overrides them with `ypy-config='{\"ws\":{...}}'`. Requires the `ypy-ws` extension.",
+      "properties": {
+        "maxOutgoingMessagesQueueSize": {
+          "default": 100,
+          "description": "How many messages wait for the socket to open. A message sent when the queue is full fires `ypy:ws:error`. Requires the `ypy-ws` extension.",
+          "markdownDescription": "How many messages wait for the socket to open. A message sent when the queue is full fires `ypy:ws:error`. Requires the `ypy-ws` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pauseOnBackground": {
+          "default": true,
+          "description": "Close the socket while the tab is hidden and reconnect when it is visible again. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Close the socket while the tab is hidden and reconnect when it is visible again. Requires the `ypy-ws` extension.",
+          "type": "boolean"
+        },
+        "protocols": {
+          "description": "Sub-protocols passed to the `WebSocket` constructor. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Sub-protocols passed to the `WebSocket` constructor. Requires the `ypy-ws` extension.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "reconnect": {
+          "default": true,
+          "description": "Reconnect after the socket closes with one of `reconnectCodes`. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Reconnect after the socket closes with one of `reconnectCodes`. Requires the `ypy-ws` extension.",
+          "type": "boolean"
+        },
+        "reconnectCodes": {
+          "default": [
+            1001,
+            1005,
+            1006,
+            1011,
+            1012,
+            1013,
+            1014
+          ],
+          "description": "Close codes that trigger a reconnect. Any other code ends the connection. Requires the `ypy-ws` extension.",
+          "items": {
+            "type": "integer"
+          },
+          "markdownDescription": "Close codes that trigger a reconnect. Any other code ends the connection. Requires the `ypy-ws` extension.",
+          "type": "array"
+        },
+        "reconnectDelay": {
+          "default": 500,
+          "description": "Wait before the first reconnect, in ms or as an interval string. The wait doubles on each attempt up to `reconnectMaxDelay`. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Wait before the first reconnect, in ms or as an interval string. The wait doubles on each attempt up to `reconnectMaxDelay`. Requires the `ypy-ws` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "reconnectJitter": {
+          "default": 0.3,
+          "description": "Random spread applied to each reconnect delay, as a fraction of the delay (0.3 is plus or minus 30%). `0` turns it off. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Random spread applied to each reconnect delay, as a fraction of the delay (0.3 is plus or minus 30%). `0` turns it off. Requires the `ypy-ws` extension.",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "reconnectMaxAttempts": {
+          "description": "How many consecutive reconnect attempts are made before giving up. Unlimited by default. Requires the `ypy-ws` extension.",
+          "markdownDescription": "How many consecutive reconnect attempts are made before giving up. Unlimited by default. Requires the `ypy-ws` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reconnectMaxDelay": {
+          "default": 60000,
+          "description": "Longest wait between two reconnect attempts, in ms or as an interval string. Requires the `ypy-ws` extension.",
+          "markdownDescription": "Longest wait between two reconnect attempts, in ms or as an interval string. Requires the `ypy-ws` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "YPY configuration",
+  "type": "object"
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<html>
+<head>
+    <script>
+        window.fetch = function(url, options) {
+            return new Promise((resolve) => {
+                setTimeout(() => resolve({
+                    ok: true,
+                    status: 200,
+                    headers: new Headers({'YPY-Redirect': 'https://example.com'}),
+                    text: () => Promise.resolve(''),
+                    clone() { return this; }
+                }), 1500);
+            });
+        };
+    </script>
+    <script src="../../src/ypy.js"></script>
+</head>
+<body>
+    <h1>YPY-Redirect indicator preservation</h1>
+    <p>
+        Click the button. The <code>.ypy-request</code> class and <code>disabled</code> state
+        should remain active during the 1.5s delay <em>and</em> after the response arrives
+        (while the page would normally be redirecting). They should <strong>not</strong> be
+        removed before navigation.
+    </p>
+
+    <button id="btn"
+            ypy-post="/redirect"
+            ypy-disabled-elt="#btn"
+            ypy-indicator="#spinner">
+        Click me
+    </button>
+
+    <span id="spinner" class="ypy-indicator"> ⏳ loading...</span>
+
+    <p>
+        Button should stay <strong>disabled</strong> and spinner should stay
+        <strong>visible</strong> after the response — not flash back to normal.
+    </p>
+
+    <p>
+        <strong>keepIndicators override:</strong> set <code>ctx.keepIndicators = false</code>
+        via event to force cleanup even on redirect:
+    </p>
+
+    <button id="btn2"
+            ypy-post="/redirect"
+            ypy-disabled-elt="#btn2"
+            ypy-indicator="#spinner2"
+            ypy-on:ypy:finally:request="event.detail.ctx.keepIndicators = false">
+        Click me (indicators cleared on redirect)
+    </button>
+
+    <span id="spinner2" class="ypy-indicator"> ⏳ loading...</span>
+</body>
+</html>

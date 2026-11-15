@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="bolt-config" content='{"defaultSwapStyle": "outerHTML"}'>
+    <script src="/static/bolt.min.js" integrity="sha384-abc" crossorigin="anonymous"></script>
+    <script src="/static/ext/acme-sse.js"></script>
+    <script src="https://unpkg.com/bolt.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>.bolt-request { opacity: .5 } [acme-get] { cursor: pointer }</style>
+</head>
+<body acme-boost="true" acme-headers='{"ACME-Request": "x", "X-CSRF-Token": "t"}'>
+    <!-- acme-get stays in a comment -->
+    <p>Write acme-get to fetch, and read ACME-Request on the server.</p>
+    <div id="out" acme-target="#out" acme-swap="innerHTML show:top"></div>
+    <button acme-get="/items/1" acme-trigger="click" class="btn bolt-indicator" acme-on::after-swap="done()"
+        acme-on:bolt:afterSwap="again()" data-acme-vals='{"a": 1}' acme-on-bolt-after-request="log()">Load</button>
+    <acme-partial id="p">x</acme-partial>
+    <div sse-connect="/stream" sse-swap="message"></div>
+    <input type="search" acme-get="/search" acme-trigger="keyup changed delay:300ms, bolt:load from:body">
+    <video preload="auto"></video>
+    <a href="/x" preload="mouseover">fast</a>
+    <script>
+        document.body.addEventListener('bolt:afterSwap', fn);
+        bolt.addClass(el, 'on');
+        bolt.config.historyCacheSize = 5;
+        var headers = {"ACME-Request": "true"};
+        el.dataset.acmeTarget = "#x";
+        if (window.bolt) { bolt.process(el) }
+        el.innerHTML = '<button acme-post="/x" class="bolt-request">x</button>';
+    </script>
+</body>
+</html>

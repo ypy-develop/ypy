@@ -1,0 +1,32 @@
+retry: 40
+
+event: ypy-patch-elements
+data: elements <ul id="messages">
+data: elements   <li>héllo</li>
+data: elements </ul>
+
+event: ypy-patch-signals
+data: signals {"name":"Ana","online":3}
+
+event: ypy-patch-elements
+data: mode append
+data: selector #messages
+data: elements <li>how are you?</li>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #chart
+data: namespace svg
+data: elements <circle cx="10" cy="10" r="4"/>
+
+event: ypy-patch-elements
+data: mode remove
+data: selector #typing
+
+event: ypy-event
+data: name message:new
+data: detail {"id":42}
+
+event: ypy-redirect
+data: url /rooms
+

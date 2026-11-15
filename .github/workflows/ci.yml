@@ -1,0 +1,106 @@
+# Lean CI. One Linux job that runs `go run ./cmd/ypy ci`, the same command every
+# contributor runs before a push, so what is green here was green locally.
+#
+# It runs on pushes to `develop`, on pull requests to `develop` or `main`, and
+# by hand. `main` only receives fast-forwards of commits already validated on
+# `develop`, so pushing `main` runs nothing. A new push to a pull request
+# cancels its run in progress. Changes to documentation and repository
+# metadata that no test reads run nothing.
+#
+# Every gate fails on findings, the name gate included, without exceptions.
+
+name: ci
+
+on:
+  push:
+    branches: [develop]
+    paths-ignore:
+      - "*.md"
+      - "spec/**"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
+  pull_request:
+    branches: [develop, main]
+    paths-ignore:
+      - "*.md"
+      - "spec/**"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: gates (names, licenses, spdx, Go, sizes, Chrome and Firefox suites, e2e, tsc)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # Actions are pinned by commit; Dependabot proposes the updates.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The Go version is the one go.mod pins (`toolchain`), never "stable".
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # Fails on a reachable vulnerability in the standard library or a module.
+      - name: Vulnerability scan
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+      # TypeScript compiler for the ypy.d.ts test. It lives outside the repository
+      # (no package.json, no node_modules here): the exact release is downloaded from
+      # the npm registry, checked against a pinned SHA-256 and unpacked in the runner's
+      # temporary directory. Node itself comes with the runner image.
+      - name: TypeScript compiler (tsc 6.0.3, outside the repository)
+        env:
+          TSC_VERSION: "6.0.3"
+          TSC_SHA256: 33cd0ee1beaa8c9e9d15a9da836c62ddea4c34a42d7c2d349dbc80d94165d22a
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/typescript"
+          mkdir -p "$dir" "$RUNNER_TEMP/tsc-bin"
+          curl -sSfL --retry 3 -o "$dir/typescript.tgz" "https://registry.npmjs.org/typescript/-/typescript-${TSC_VERSION}.tgz"
+          echo "${TSC_SHA256}  $dir/typescript.tgz" | sha256sum --check --strict
+          tar -xzf "$dir/typescript.tgz" -C "$dir"
+          printf '#!/bin/sh\nexec node "%s/package/bin/tsc" "$@"\n' "$dir" > "$RUNNER_TEMP/tsc-bin/tsc"
+          chmod +x "$RUNNER_TEMP/tsc-bin/tsc"
+          echo "$RUNNER_TEMP/tsc-bin" >> "$GITHUB_PATH"
+
+      # Chrome, Firefox and geckodriver come with the runner image. The image sets
+      # GECKOWEBDRIVER to the geckodriver folder; it is put on the PATH when the
+      # binary is not already there, and the step fails if either browser is missing.
+      - name: Browsers
+        run: |
+          set -euo pipefail
+          if ! command -v geckodriver >/dev/null 2>&1 && [ -n "${GECKOWEBDRIVER:-}" ]; then
+            echo "$GECKOWEBDRIVER" >> "$GITHUB_PATH"
+            export PATH="$GECKOWEBDRIVER:$PATH"
+          fi
+          firefox --version
+          geckodriver --version | head -n 1
+
+      # YPY_REQUIRE_FIREFOX makes the browser gate fail when Firefox or geckodriver
+      # is missing (locally it falls back to Chrome with a warning), and
+      # YPY_REQUIRE_TSC makes the ypy.d.ts compile test fail instead of skipping.
+      - name: Gates
+        env:
+          YPY_REQUIRE_FIREFOX: "1"
+          YPY_REQUIRE_TSC: "1"
+        run: go run ./cmd/ypy ci

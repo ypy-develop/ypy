@@ -1,0 +1,5 @@
+<div acme-target="#out" {{ if .Ajax }}acme-get="{{ .URL }}"{{ end }}>
+    <button acme-post="{{ .Props.AcmeTarget }}" acme-confirm="{{ .AcmeConfirm }}" class="{{ .Class }} bolt-request">Go</button>
+    {{ if eq (.Request.Header.Get "ACME-Request") "true" }}partial{{ end }}
+    {{/* acme-get in a template comment stays */}}
+</div>

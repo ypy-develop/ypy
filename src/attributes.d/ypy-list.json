@@ -1,0 +1,20 @@
+{
+  "extension": "ypy-list",
+  "internalNames": [
+    "ypy-list"
+  ],
+  "events": [
+    {
+      "name": "ypy:list:pruned",
+      "description": "Fires on the list after a swap with `limit:<n>` removed its oldest items to keep the limit. `removed` holds them, in document order; they are already out of the page.",
+      "detail": {
+        "removed": "Element[]",
+        "limit": "number",
+        "task": "YpySwapTask"
+      },
+      "cancelable": false,
+      "target": "element",
+      "doc": "https://ypy.dev/docs/reference/list"
+    }
+  ]
+}

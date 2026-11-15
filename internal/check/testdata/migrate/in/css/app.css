@@ -1,0 +1,6 @@
+.bolt-request .row { color: red }
+/* .bolt-indicator is hidden while idle */
+.bolt-indicator { opacity: 0 }
+[acme-boost] a, a[data-acme-get] { color: blue }
+[sse-connect] { display: block }
+.max-width { max-width: 1px }

@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in YPY does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A minimal, self-contained reproduction is the fastest way to a fix.
+        For security problems, do not use this form: see SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: YPY version
+      description: The version, or the commit if you build from source.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Markup
+      options:
+        - Written for YPY
+        - Converted with ypy migrate
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "Firefox 140, Safari 19"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Include console output, the failing request and the server response if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: HTML and the server response that triggers the problem, or a link to a runnable example.
+      render: html
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Extensions in use, CSS framework, CSP, server stack.

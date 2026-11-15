@@ -1,0 +1,9 @@
+<div acme-sse="connect:/events swap:message"></div> <!-- expect: V1-ATTR-SSE -->
+<div acme-ws="connect:/socket"></div> <!-- expect: V1-ATTR-WS -->
+<button acme-on="click: save()">Save</button> <!-- expect: V1-ATTR-ON-LEGACY -->
+<button acme-on="click -> save()">Save</button>
+<button acme-delete="/items/1">Remove</button> <!-- expect: V1-DELETE-BODY -->
+<button acme-get="https://api.example.com/items">Cross</button> <!-- expect: V1-CROSS-ORIGIN -->
+<script>
+    bolt.config.useTemplateFragments = true; // expect: V1-CONFIG-TEMPLATE-FRAGMENTS
+</script>

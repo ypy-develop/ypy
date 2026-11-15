@@ -1,0 +1,15 @@
+/*
+ * What a Pico site writes to style the states of YPY: the data-ypy-state attribute, with Pico's
+ * own custom properties. Pico is classless, so this is a plain attribute selector.
+ */
+#panel[data-ypy-state~="error"] {
+  border: 2px solid var(--pico-del-color);
+}
+
+.offline-banner {
+  display: none;
+}
+
+[data-ypy-state~="offline"] .offline-banner {
+  display: block;
+}

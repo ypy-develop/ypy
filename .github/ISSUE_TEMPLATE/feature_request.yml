@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a new capability or an improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        YPY keeps a small core and puts the rest in extensions, and new features must not break existing markup.
+        Describe the problem first; the solution can come second.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what is hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Attribute names, events and behavior, sketched in HTML if you can. Follow the existing patterns for naming and modifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now, and how other libraries solve it.
+  - type: dropdown
+    id: placement
+    attributes:
+      label: Where should it live?
+      options:
+        - Core
+        - Official extension
+        - Go SDK
+        - Documentation only
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: behavior
+    attributes:
+      label: Existing markup
+      options:
+        - label: This does not change the behavior of existing markup, or I describe the break and how to migrate.
+          required: true

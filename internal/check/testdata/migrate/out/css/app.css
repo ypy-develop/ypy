@@ -1,0 +1,6 @@
+.ypy-request .row { color: red }
+/* .bolt-indicator is hidden while idle */
+.ypy-indicator { opacity: 0 }
+[ypy-boost] a, a[data-ypy-get] { color: blue }
+[ypy-sse\:connect] { display: block }
+.max-width { max-width: 1px }

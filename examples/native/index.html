@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Native app</title>
+    <!-- this app uses ypy-on, so it turns author code on (it is off by default in the native profile) -->
+    <meta name="ypy-config" content='{"noSwap":[204,304,"5xx"],"callbacks":"all"}'>
+    <!--YPY_SCRIPTS-->
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 0 auto; padding: 1rem; }
+      section { border-top: 1px solid #ccc; padding: 1rem 0; min-height: 380px; }
+      td, th { text-align: left; padding: .25rem .75rem; }
+      .error { color: #b00020; }
+      .ypy-indicator { opacity: 0; }
+      .ypy-request .ypy-indicator, .ypy-request.ypy-indicator { opacity: 1; }
+      #rows td { height: 4.5rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Native app</h1>
+    <p>Library: <code id="lib-version"></code></p>
+
+    <section id="crud">
+      <h2>CRUD</h2>
+      <div id="items-wrap" ypy-get="/native/api/items" ypy-trigger="load"></div>
+      <form id="create-form" ypy-post="/native/api/items" ypy-target="#items" ypy-swap="beforeend" ypy-on::after:request="if (event.detail.ctx.response.status < 400) this.reset()">
+        <input name="name" placeholder="New item" aria-label="New item" required>
+        <button type="submit">Add</button>
+      </form>
+      <p id="flash" role="status"></p>
+    </section>
+
+    <section id="search">
+      <h2>Active search</h2>
+      <input id="search-input" type="search" name="q" placeholder="Search people" aria-label="Search people"
+             ypy-get="/native/api/search" ypy-trigger="load, input changed delay:300ms, search"
+             ypy-target="#search-results" ypy-indicator="#search-indicator">
+      <span id="search-indicator" class="ypy-indicator">Searching...</span>
+      <ul id="search-results"></ul>
+    </section>
+
+    <section id="signup">
+      <h2>Form with validation</h2>
+      <form id="signup-form" ypy-post="/native/api/signup" ypy-target="this" ypy-swap="outerHTML" novalidate>
+        <p><label>Name <input name="name" type="text"></label></p>
+        <p><label>Email <input name="email" type="text"></label></p>
+        <p><label>Password <input name="password" type="password"></label></p>
+        <button type="submit">Sign up</button>
+      </form>
+    </section>
+
+    <section id="sse">
+      <h2>Server-sent events</h2>
+      <button id="sse-start" type="button" ypy-get="/native/api/sse/panel" ypy-target="#sse-slot">Start stream</button>
+      <div id="sse-slot"></div>
+    </section>
+
+    <section id="ws">
+      <h2>WebSocket</h2>
+      <button id="ws-start" type="button" ypy-get="/native/api/ws/panel" ypy-target="#ws-slot">Open socket</button>
+      <div id="ws-slot"></div>
+    </section>
+
+    <section id="headers">
+      <h2>Headers</h2>
+      <button id="hdrs-btn" type="button" ypy-get="/native/api/headers" ypy-target="#hdrs-out">Show request headers</button>
+      <pre id="hdrs-out"></pre>
+      <button id="resp-btn" type="button" ypy-get="/native/api/respheaders" ypy-target="#hdrs-out">Server-driven response</button>
+      <div id="retarget-box"></div>
+      <p id="toast"></p>
+    </section>
+
+    <section id="scroll">
+      <h2>Infinite scroll</h2>
+      <table><tbody id="rows" ypy-get="/native/api/rows?page=1" ypy-trigger="load" ypy-swap="innerHTML"></tbody></table>
+    </section>
+
+    <script>
+      document.getElementById('lib-version').textContent = (window.ypy && window.ypy.version) || 'none';
+      document.body.addEventListener('ypy:response:error', function (evt) {
+        document.getElementById('flash').textContent = 'Request failed (' + evt.detail.ctx.response.status + ')';
+      });
+      document.body.addEventListener('toast', function () {
+        document.getElementById('toast').textContent = 'toast fired';
+      });
+    </script>
+  </body>
+</html>

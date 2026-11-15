@@ -1,0 +1,10 @@
+<!-- A page of the v4 markup: explicit inheritance, new attribute set, colon events. -->
+<div acme-target:inherited="#out" acme-swap:inherited="innerHTML"> 
+    <button acme-get="/items" acme-status:404="target:#err">Load</button> 
+    <button acme-get="/more" acme-config="timeout:5000">More</button> 
+    <p acme-ignore>left alone</p> 
+</div>
+<script>
+    document.body.addEventListener('bolt:after:swap', fn) // expect: V4-EVENT-PREFIX
+    document.body.addEventListener('bolt:error', fn) // expect: ANY-EVENT-PREFIX
+</script>

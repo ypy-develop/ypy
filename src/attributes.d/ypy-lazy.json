@@ -1,0 +1,62 @@
+{
+  "extension": "ypy-lazy",
+  "attributes": [
+    {
+      "name": "ypy-lazy",
+      "description": "The URL of a GET request made when the element is about to be seen; the response replaces the element (`ypy-swap` changes that). The content of the element is the placeholder.",
+      "valueType": "url",
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
+    },
+    {
+      "name": "ypy-lazy-placeholder",
+      "description": "A selector of a `<template>` (or element) whose content replaces the children of the region when it is processed.",
+      "valueType": "selector",
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
+    },
+    {
+      "name": "ypy-lazy-error",
+      "description": "A selector of a `<template>` (or element) whose content replaces the children of the region when it fails to load.",
+      "valueType": "selector",
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
+    },
+    {
+      "name": "ypy-lazy-retry",
+      "description": "On an element inside a lazy region: loads the region again when clicked after an error.",
+      "valueType": "boolean",
+      "inherited": false,
+      "doc": "https://ypy.dev/docs/reference/navigation"
+    }
+  ],
+  "events": [
+    {
+      "name": "ypy:lazy:error",
+      "description": "A region with `ypy-lazy` failed to load (no connection, a status of 400 or more, a swap error). The region has `data-ypy-state=\"error\"`.",
+      "detail": {
+        "ctx": "YpyRequestCtx",
+        "error": "unknown"
+      },
+      "cancelable": false,
+      "target": "element"
+    }
+  ],
+  "config": [
+    {
+      "name": "lazy",
+      "description": "Settings of lazy regions.",
+      "schema": {
+        "type": "object"
+      }
+    },
+    {
+      "name": "lazy.margin",
+      "description": "How far outside the window a region is loaded, as a CSS margin.",
+      "schema": {
+        "type": "string"
+      },
+      "default": "200px"
+    }
+  ]
+}

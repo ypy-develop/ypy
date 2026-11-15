@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ypy-csp CSP test</title>
+  <meta name="ypy-config" content='extensions:"ypy-csp",safeEval:true'>
+  <script nonce="__NONCE__" src="/ypy.js"></script>
+  <script nonce="__NONCE__" src="/ext/ypy-csp.js"></script>
+  <style nonce="__NONCE__">
+    body { font-family: sans-serif; max-width: 700px; margin: 2rem auto; }
+    .modes { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .modes a { padding: .3rem .7rem; border: 1px solid #999; border-radius: 4px; text-decoration: none; color: #333; }
+    .modes a.active { background: #333; color: #fff; }
+    section { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    h2 { margin: 0 0 .5rem; font-size: 1rem; }
+    #result, #eval-result, #unnonced-result { min-height: 2rem; padding: .5rem; background: #f5f5f5; border-radius: 4px; }
+    .csp-info { font-size: .8rem; color: #666; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+<h1>ypy-csp + Trusted Types CSP test</h1>
+
+<div class="modes">
+  <a href="/?csp=permissive">permissive</a>
+  <a href="/?csp=nonce">nonce</a>
+  <a href="/?csp=nonce-no-eval">nonce-no-eval</a>
+  <a href="/?csp=nonce-no-eval-no-safeeval">nonce-no-eval-no-safeeval &#x26A0;</a>
+  <a href="/?csp=trusted-types">trusted-types</a>
+  <a href="/?csp=trusted-types-no-eval">trusted-types-no-eval</a>
+  <a href="/?csp=trusted-types-multi">trusted-types-multi</a>
+  <a href="/?csp=trusted-types-no-ypy">trusted-types-no-ypy &#x26A0;</a>
+</div>
+
+<p class="csp-info">
+  Current mode: <strong id="mode-label"></strong><br>
+  Check the browser console and Network tab for CSP violations.
+</p>
+
+<!-- 1. Basic AJAX swap -->
+<section>
+  <h2>1. Basic ypy-get swap</h2>
+  <p>Tests that nonced elements can make requests and swap content.</p>
+  <button ypy-get="/partial" ypy-target="#result">Load partial</button>
+  <div id="result">— not loaded —</div>
+</section>
+
+<!-- 2. JS eval paths -->
+<section>
+  <h2>2. JS eval paths (all require safeEval under no-eval CSP)</h2>
+  <p>Each button exercises a different ypy JS eval entry point. Check console for output.</p>
+
+  <p><strong>ypy-on:click</strong> — inline event handler</p>
+  <button ypy-on:click="console.log('ypy-on:click fired')" ypy-nonce="__NONCE__">ypy-on:click</button>
+
+  <p><strong>ypy-trigger filter</strong> — click[expression] guard</p>
+  <button ypy-get="/partial" ypy-target="#eval-result"
+          ypy-trigger="click[console.log('filter ran') || true]">ypy-trigger filter</button>
+
+  <p><strong>ypy-vals js:</strong> — JS object expression for request body</p>
+  <button ypy-post="/partial" ypy-target="#eval-result"
+          ypy-vals="js:{ts: Date.now(), rand: Math.random()}">ypy-vals js:</button>
+
+  <p><strong>ypy-headers js:</strong> — JS object expression for request headers</p>
+  <button ypy-get="/partial" ypy-target="#eval-result"
+          ypy-headers="js:{'X-Timestamp': String(Date.now())}">ypy-headers js:</button>
+
+  <p><strong>ypy-confirm js:</strong> — async confirm via JS expression</p>
+  <button ypy-get="/partial" ypy-target="#eval-result"
+          ypy-confirm="js:confirm('ypy-confirm js: — proceed?')">ypy-confirm js:</button>
+
+  <p><strong>ypy-get js:</strong> — JS expression executed instead of HTTP request (side-effect only, no swap)</p>
+  <button ypy-get="js:console.log('ypy-get js: executed') || undefined"
+          ypy-target="#eval-result">ypy-get js:</button>
+
+  <div id="eval-result">— eval results —</div>
+</section>
+
+<!-- 3. Script tag execution -->
+<section>
+  <h2>3. Script tag execution in swapped responses</h2>
+  <p>Tests whether scripts in partial responses execute based on their nonce.</p>
+
+  <p><strong>With nonce</strong> — script carries the response nonce, rewritten to page nonce by ypy-csp. Should execute under all modes.</p>
+  <button ypy-get="/script-with-nonce" ypy-target="#script-result">Swap in nonced script</button>
+
+  <p><strong>Without nonce</strong> — script has no nonce. Should execute in permissive, blocked by CSP in all nonce modes.</p>
+  <button ypy-get="/script-without-nonce" ypy-target="#script-result">Swap in unnnonced script</button>
+
+  <div id="script-result">— script results —</div>
+</section>
+
+<!-- 4. Blocked elements (should never fire a request) -->
+<section>
+  <h2>4. Blocked elements (should never fire a request)</h2>
+  <p>Both buttons should be stripped by ypy-csp and fire ypy:security:strip.</p>
+  <button ypy-get="/partial" ypy-target="#unnonced-result" ypy-nonce="INVALID">
+    Wrong nonce (mismatch)
+  </button>
+  <button data-no-nonce ypy-get="/partial" ypy-target="#unnonced-result">
+    No nonce (missing)
+  </button>
+  <div id="unnonced-result">— should stay empty —</div>
+</section>
+
+<script nonce="__NONCE__">
+  // Mark active mode link
+  const params = new URLSearchParams(location.search);
+  const mode = params.get('csp') || document.cookie.match(/csp-mode=([^;]+)/)?.[1] || 'permissive';
+  document.getElementById('mode-label').textContent = mode;
+  document.querySelectorAll('.modes a').forEach(a => {
+    if (a.href.includes('csp=' + mode)) a.classList.add('active');
+  });
+
+  // Log security events
+  document.addEventListener('ypy:security:strip', e => {
+    console.warn('ypy:security:strip fired on', e.target, e.detail);
+  });
+  document.addEventListener('ypy:security:violation', e => {
+    console.error('ypy:security:violation fired', e.detail);
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,752 @@
+{
+  "ANY-SCRIPT-LIBRARY": {
+    "ext": ".html",
+    "positive": "<script src=\"https://unpkg.com/bolt.org@2.0.4\"></script>",
+    "negative": "<script src=\"/static/ypy.min.js\"></script>\n<script src=\"/static/other.js\"></script>"
+  },
+  "V2-SCRIPT-EXTENSION": {
+    "ext": ".html",
+    "positive": "<script src=\"https://unpkg.com/bolt-ext-sse@2.2.2/sse.js\"></script>",
+    "negative": "<script src=\"/static/app.js\"></script>"
+  },
+  "ANY-ATTR-PREFIX": {
+    "ext": ".html",
+    "positive": "<button acme-get=\"/x\">Go</button>",
+    "negative": "<button ypy-get=\"/x\">Go</button>"
+  },
+  "ANY-META-CONFIG": {
+    "ext": ".html",
+    "positive": "<meta name=\"bolt-config\" content='{}'>",
+    "negative": "<meta name=\"ypy-config\" content='{}'>"
+  },
+  "ANY-CLASS-PREFIX": {
+    "ext": ".css",
+    "positive": ".bolt-request { opacity: .5 }",
+    "negative": ".ypy-request { opacity: .5 }"
+  },
+  "ANY-API-GLOBAL": {
+    "ext": ".js",
+    "positive": "bolt.ajax('GET', '/x')",
+    "negative": "ypy.ajax('GET', '/x')\nconst url = 'https://cdn.example/bolt.org/x.js'"
+  },
+  "ANY-EVENT-PREFIX": {
+    "ext": ".js",
+    "positive": "el.addEventListener('bolt:error', f)",
+    "negative": "el.addEventListener('ypy:error', f)"
+  },
+  "V4-EVENT-PREFIX": {
+    "ext": ".js",
+    "positive": "el.addEventListener('bolt:after:swap', f)",
+    "negative": "el.addEventListener('ypy:after:swap', f)"
+  },
+  "V1-ATTR-SSE": {
+    "ext": ".html",
+    "positive": "<div acme-sse=\"x\"></div>",
+    "negative": "<div ypy-sse=\"x\"></div>"
+  },
+  "V1-ATTR-WS": {
+    "ext": ".html",
+    "positive": "<div acme-ws=\"x\"></div>",
+    "negative": "<div ypy-ws=\"x\"></div>"
+  },
+  "V1-ATTR-ON-LEGACY": {
+    "ext": ".html",
+    "positive": "<button acme-on=\"click: save()\">x</button>",
+    "negative": "<button acme-on=\"click -> save()\">x</button>"
+  },
+  "V1-CONFIG-TEMPLATE-FRAGMENTS": {
+    "ext": ".js",
+    "positive": "bolt.config.useTemplateFragments = true",
+    "negative": "ypy.config.defaultSwap = 'innerHTML'"
+  },
+  "V1-DELETE-BODY": {
+    "ext": ".html",
+    "positive": "<button acme-delete=\"/items/1\">x</button>",
+    "negative": "<button acme-get=\"/items/1\">x</button>"
+  },
+  "V1-CROSS-ORIGIN": {
+    "ext": ".html",
+    "positive": "<button acme-get=\"https://api.example.com/items\">x</button>",
+    "negative": "<button acme-get=\"/items\">x</button>\n<button acme-get=\"{{ .Base }}/items\">x</button>"
+  },
+  "V2-ATTR-VARS": {
+    "ext": ".html",
+    "positive": "<div acme-vars=\"x\"></div>",
+    "negative": "<div ypy-vars=\"x\"></div>"
+  },
+  "V2-ATTR-PARAMS": {
+    "ext": ".html",
+    "positive": "<div acme-params=\"x\"></div>",
+    "negative": "<div ypy-params=\"x\"></div>"
+  },
+  "V2-ATTR-PROMPT": {
+    "ext": ".html",
+    "positive": "<div acme-prompt=\"x\"></div>",
+    "negative": "<div ypy-prompt=\"x\"></div>"
+  },
+  "V2-ATTR-EXT": {
+    "ext": ".html",
+    "positive": "<div acme-ext=\"x\"></div>",
+    "negative": "<div ypy-ext=\"x\"></div>"
+  },
+  "V2-ATTR-DISINHERIT": {
+    "ext": ".html",
+    "positive": "<div acme-disinherit=\"x\"></div>",
+    "negative": "<div ypy-disinherit=\"x\"></div>"
+  },
+  "V2-ATTR-INHERIT": {
+    "ext": ".html",
+    "positive": "<div acme-inherit=\"x\"></div>",
+    "negative": "<div ypy-inherit=\"x\"></div>"
+  },
+  "V2-ATTR-REQUEST": {
+    "ext": ".html",
+    "positive": "<div acme-request=\"x\"></div>",
+    "negative": "<div ypy-request=\"x\"></div>"
+  },
+  "V2-ATTR-HISTORY": {
+    "ext": ".html",
+    "positive": "<div acme-history=\"false\"></div>",
+    "negative": "<div acme-history-elt></div>"
+  },
+  "V2-ATTR-DISABLE": {
+    "ext": ".html",
+    "positive": "<div acme-disable><b>raw</b></div>",
+    "negative": "<button acme-get=\"/x\" acme-disable=\"#btn\">x</button>"
+  },
+  "V2-ATTR-DISABLED-ELT": {
+    "ext": ".html",
+    "positive": "<div acme-disabled-elt=\"x\"></div>",
+    "negative": "<div ypy-disabled-elt=\"x\"></div>"
+  },
+  "V2-ATTR-ON-DASH": {
+    "ext": ".html",
+    "positive": "<button acme-on-click=\"go()\">x</button>",
+    "negative": "<button acme-on:click=\"go()\">x</button>"
+  },
+  "V2-ATTR-OOB": {
+    "ext": ".html",
+    "positive": "<div id=\"a\" acme-swap-oob=\"true\"></div>",
+    "negative": "<div id=\"a\" acme-swap=\"outerHTML\"></div>"
+  },
+  "V2-EXT-SSE-CONNECT": {
+    "ext": ".html",
+    "positive": "<div sse-connect=\"x\"></div>",
+    "negative": "<div data-x-sse-connect=\"x\"></div>"
+  },
+  "V2-EXT-SSE-CLOSE": {
+    "ext": ".html",
+    "positive": "<div sse-close=\"x\"></div>",
+    "negative": "<div data-x-sse-close=\"x\"></div>"
+  },
+  "V2-EXT-SSE-SWAP": {
+    "ext": ".html",
+    "positive": "<div sse-swap=\"x\"></div>",
+    "negative": "<div data-x-sse-swap=\"x\"></div>"
+  },
+  "V2-EXT-WS-CONNECT": {
+    "ext": ".html",
+    "positive": "<div ws-connect=\"x\"></div>",
+    "negative": "<div data-x-ws-connect=\"x\"></div>"
+  },
+  "V2-EXT-WS-SEND": {
+    "ext": ".html",
+    "positive": "<div ws-send=\"x\"></div>",
+    "negative": "<div data-x-ws-send=\"x\"></div>"
+  },
+  "V2-EXT-PRELOAD": {
+    "ext": ".html",
+    "positive": "<a href=\"/x\" preload=\"mouseover\">x</a>",
+    "negative": "<video preload=\"none\" src=\"/c.mp4\"></video>\n<link rel=\"preload\" href=\"/a.css\" as=\"style\">"
+  },
+  "V2-EXT-RESPONSE-TARGETS": {
+    "ext": ".html",
+    "positive": "<form acme-post=\"/x\" acme-target-404=\"#nf\"></form>",
+    "negative": "<form acme-post=\"/x\" acme-target=\"#nf\"></form>"
+  },
+  "V2-SWAP-MORPH": {
+    "ext": ".html",
+    "positive": "<div acme-get=\"/x\" acme-swap=\"morph:innerHTML\"></div>",
+    "negative": "<div acme-get=\"/x\" acme-swap=\"innerMorph\"></div>"
+  },
+  "V2-SWAP-SHOW-SYNTAX": {
+    "ext": ".html",
+    "positive": "<div acme-get=\"/x\" acme-swap=\"innerHTML show:#top:top\"></div>",
+    "negative": "<div acme-get=\"/x\" acme-swap=\"innerHTML show:top showTarget:#top\"></div>"
+  },
+  "V2-TRIGGER-QUEUE": {
+    "ext": ".html",
+    "positive": "<input acme-get=\"/s\" acme-trigger=\"keyup changed queue:last\">",
+    "negative": "<input acme-get=\"/s\" acme-trigger=\"keyup changed delay:300ms\">"
+  },
+  "V2-INCLUDE-INHERIT": {
+    "ext": ".html",
+    "positive": "<div acme-include=\"inherit, #x\">x</div>",
+    "negative": "<div acme-include=\"#inherited-field\">x</div>"
+  },
+  "V2-INHERIT-IMPLICIT": {
+    "ext": ".html",
+    "positive": "<div acme-target=\"#out\"><button acme-get=\"/x\">x</button></div>",
+    "negative": "<div acme-target:inherited=\"#out\"><button acme-get=\"/x\">x</button></div>"
+  },
+  "V2-DELETE-IN-FORM": {
+    "ext": ".html",
+    "positive": "<form><button acme-delete=\"/x\">x</button></form>",
+    "negative": "<form><button acme-delete=\"/x\" acme-include=\"closest form\">x</button></form>\n<button acme-delete=\"/y\">y</button>"
+  },
+  "V2-EVENT-AFTER-ON-LOAD": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:afterOnLoad', fn)",
+    "negative": "document.body.addEventListener('ypy:after:request', fn)"
+  },
+  "V2-EVENT-AFTER-PROCESS-NODE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:afterProcessNode', fn)",
+    "negative": "document.body.addEventListener('ypy:after:init', fn)"
+  },
+  "V2-EVENT-AFTER-REQUEST": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:afterRequest', fn)",
+    "negative": "document.body.addEventListener('ypy:after:request', fn)"
+  },
+  "V2-EVENT-AFTER-SETTLE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:afterSettle', fn)",
+    "negative": "document.body.addEventListener('ypy:after:settle', fn)"
+  },
+  "V2-EVENT-AFTER-SWAP": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:afterSwap', fn)",
+    "negative": "document.body.addEventListener('ypy:after:swap', fn)"
+  },
+  "V2-EVENT-BEFORE-CLEANUP-ELEMENT": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeCleanupElement', fn)",
+    "negative": "document.body.addEventListener('ypy:before:cleanup', fn)"
+  },
+  "V2-EVENT-BEFORE-HISTORY-SAVE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeHistorySave', fn)",
+    "negative": "document.body.addEventListener('ypy:before:history:update', fn)"
+  },
+  "V2-EVENT-BEFORE-HISTORY-UPDATE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeHistoryUpdate', fn)",
+    "negative": "document.body.addEventListener('ypy:before:history:update', fn)"
+  },
+  "V2-EVENT-BEFORE-ON-LOAD": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeOnLoad', fn)",
+    "negative": "document.body.addEventListener('ypy:before:response', fn)"
+  },
+  "V2-EVENT-BEFORE-PROCESS-NODE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeProcessNode', fn)",
+    "negative": "document.body.addEventListener('ypy:before:init', fn)"
+  },
+  "V2-EVENT-BEFORE-REQUEST": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeRequest', fn)",
+    "negative": "document.body.addEventListener('ypy:before:request', fn)"
+  },
+  "V2-EVENT-BEFORE-SEND": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeSend', fn)",
+    "negative": "document.body.addEventListener('ypy:before:request', fn)"
+  },
+  "V2-EVENT-BEFORE-SWAP": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeSwap', fn)",
+    "negative": "document.body.addEventListener('ypy:before:swap', fn)"
+  },
+  "V2-EVENT-BEFORE-TRANSITION": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:beforeTransition', fn)",
+    "negative": "document.body.addEventListener('ypy:before:viewTransition', fn)"
+  },
+  "V2-EVENT-CONFIG-REQUEST": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:configRequest', fn)",
+    "negative": "document.body.addEventListener('ypy:config:request', fn)"
+  },
+  "V2-EVENT-HISTORY-CACHE-MISS": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyCacheMiss', fn)",
+    "negative": "document.body.addEventListener('ypy:before:history:restore', fn)"
+  },
+  "V2-EVENT-HISTORY-RESTORE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyRestore', fn)",
+    "negative": "document.body.addEventListener('ypy:before:history:restore', fn)"
+  },
+  "V2-EVENT-LOAD": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:load', fn)",
+    "negative": "document.body.addEventListener('ypy:after:process', fn)"
+  },
+  "V2-EVENT-OOB-AFTER-SWAP": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:oobAfterSwap', fn)",
+    "negative": "document.body.addEventListener('ypy:after:swap', fn)"
+  },
+  "V2-EVENT-OOB-BEFORE-SWAP": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:oobBeforeSwap', fn)",
+    "negative": "document.body.addEventListener('ypy:before:swap', fn)"
+  },
+  "V2-EVENT-PUSHED-INTO-HISTORY": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:pushedIntoHistory', fn)",
+    "negative": "document.body.addEventListener('ypy:after:history:push', fn)"
+  },
+  "V2-EVENT-REPLACED-IN-HISTORY": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:replacedInHistory', fn)",
+    "negative": "document.body.addEventListener('ypy:after:history:replace', fn)"
+  },
+  "V2-EVENT-RESPONSE-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:responseError', fn)",
+    "negative": "document.body.addEventListener('ypy:response:error', fn)"
+  },
+  "V2-EVENT-SEND-ABORT": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sendAbort', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-SEND-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sendError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-SWAP-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:swapError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-TARGET-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:targetError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-TIMEOUT": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:timeout', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-PROMPT": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:prompt', fn)",
+    "negative": "document.body.addEventListener('ypy:prompt', fn)"
+  },
+  "V2-EVENT-SSE-OPEN": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sseOpen', fn)",
+    "negative": "document.body.addEventListener('ypy:sse:after:connection', fn)"
+  },
+  "V2-EVENT-SSE-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sseError', fn)",
+    "negative": "document.body.addEventListener('ypy:sse:error', fn)"
+  },
+  "V2-EVENT-SSE-BEFORE-MESSAGE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sseBeforeMessage', fn)",
+    "negative": "document.body.addEventListener('ypy:sse:before:message', fn)"
+  },
+  "V2-EVENT-SSE-MESSAGE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sseMessage', fn)",
+    "negative": "document.body.addEventListener('ypy:sse:after:message', fn)"
+  },
+  "V2-EVENT-SSE-CLOSE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:sseClose', fn)",
+    "negative": "document.body.addEventListener('ypy:sse:close', fn)"
+  },
+  "V2-EVENT-WS-OPEN": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsOpen', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:after:connection', fn)"
+  },
+  "V2-EVENT-WS-CLOSE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsClose', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:close', fn)"
+  },
+  "V2-EVENT-WS-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsError', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:error', fn)"
+  },
+  "V2-EVENT-WS-CONFIG-SEND": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsConfigSend', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:before:message:outgoing', fn)"
+  },
+  "V2-EVENT-WS-BEFORE-SEND": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsBeforeSend', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:before:message:outgoing', fn)"
+  },
+  "V2-EVENT-WS-AFTER-SEND": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsAfterSend', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:after:message:outgoing', fn)"
+  },
+  "V2-EVENT-WS-BEFORE-MESSAGE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsBeforeMessage', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:before:message:incoming', fn)"
+  },
+  "V2-EVENT-WS-AFTER-MESSAGE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:wsAfterMessage', fn)",
+    "negative": "document.body.addEventListener('ypy:ws:after:message:incoming', fn)"
+  },
+  "V2-EVENT-VALIDATION-VALIDATE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:validation:validate', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-VALIDATION-FAILED": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:validation:failed', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-VALIDATION-HALTED": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:validation:halted', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-XHR-LOADSTART": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:xhr:loadstart', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-XHR-LOADEND": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:xhr:loadend', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-XHR-PROGRESS": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:xhr:progress', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-XHR-ABORT": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:xhr:abort', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-HISTORY-CACHE-MISS-LOAD": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyCacheMissLoad', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-HISTORY-CACHE-MISS-LOAD-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyCacheMissLoadError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-HISTORY-CACHE-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyCacheError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-HISTORY-CACHE-HIT": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyCacheHit', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-HISTORY-ITEM-CREATED": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:historyItemCreated', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-VALIDATE-URL": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:validateUrl', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-PROCESS-TEMPLATE": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:processTemplate', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-OOB-ERROR-NO-TARGET": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:oobErrorNoTarget', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-ON-LOAD-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:onLoadError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-EVENT-EVAL-DISALLOWED-ERROR": {
+    "ext": ".js",
+    "positive": "document.body.addEventListener('bolt:evalDisallowedError', fn)",
+    "negative": "document.body.addEventListener('ypy:error', fn)"
+  },
+  "V2-DETAIL-SWAP-DECISION": {
+    "ext": ".js",
+    "positive": "e.detail.shouldSwap = false",
+    "negative": "const text = e.detail.ctx.text"
+  },
+  "V2-DETAIL-REQUEST": {
+    "ext": ".js",
+    "positive": "e.detail.xhr.status",
+    "negative": "e.detail.ctx.response.status"
+  },
+  "V2-API-ADD-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.addClass(el, 'on')",
+    "negative": "element.addClass(el, 'on')"
+  },
+  "V2-API-REMOVE-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.removeClass(el, 'on')",
+    "negative": "element.removeClass(el, 'on')"
+  },
+  "V2-API-TOGGLE-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.toggleClass(el, 'on')",
+    "negative": "element.toggleClass(el, 'on')"
+  },
+  "V2-API-CLOSEST": {
+    "ext": ".js",
+    "positive": "bolt.closest(el, 'on')",
+    "negative": "element.closest(el, 'on')"
+  },
+  "V2-API-REMOVE": {
+    "ext": ".js",
+    "positive": "bolt.remove(el, 'on')",
+    "negative": "element.remove(el, 'on')"
+  },
+  "V2-API-OFF": {
+    "ext": ".js",
+    "positive": "bolt.off(el, 'on')",
+    "negative": "element.off(el, 'on')"
+  },
+  "V2-API-LOCATION": {
+    "ext": ".js",
+    "positive": "bolt.location(el, 'on')",
+    "negative": "element.location(el, 'on')"
+  },
+  "V2-API-TAKE-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.takeClass(el, 'on')",
+    "negative": "ypy.live.take(el, 'on')"
+  },
+  "V2-API-LOG-ALL": {
+    "ext": ".js",
+    "positive": "bolt.logAll(el, 'on')",
+    "negative": "ypy.config.logAll = true"
+  },
+  "V2-API-LOG-NONE": {
+    "ext": ".js",
+    "positive": "bolt.logNone(el, 'on')",
+    "negative": "ypy.config.logAll = false"
+  },
+  "V2-API-LOGGER": {
+    "ext": ".js",
+    "positive": "bolt.logger = function () {}",
+    "negative": "console.logger = function () {}"
+  },
+  "V2-API-VALUES": {
+    "ext": ".js",
+    "positive": "bolt.values(el, 'on')",
+    "negative": "element.values(el, 'on')"
+  },
+  "V2-API-DEFINE-EXTENSION": {
+    "ext": ".js",
+    "positive": "bolt.defineExtension(el, 'on')",
+    "negative": "ypy.registerExtension('x', {})"
+  },
+  "V2-CONFIG-DEFAULT-SWAP-STYLE": {
+    "ext": ".js",
+    "positive": "bolt.config.defaultSwapStyle = 1",
+    "negative": "myOptions.defaultSwapStyle = 1"
+  },
+  "V2-CONFIG-GLOBAL-VIEW-TRANSITIONS": {
+    "ext": ".js",
+    "positive": "bolt.config.globalViewTransitions = 1",
+    "negative": "myOptions.globalViewTransitions = 1"
+  },
+  "V2-CONFIG-HISTORY-ENABLED": {
+    "ext": ".js",
+    "positive": "bolt.config.historyEnabled = 1",
+    "negative": "myOptions.historyEnabled = 1"
+  },
+  "V2-CONFIG-INCLUDE-INDICATOR-STYLES": {
+    "ext": ".js",
+    "positive": "bolt.config.includeIndicatorStyles = 1",
+    "negative": "myOptions.includeIndicatorStyles = 1"
+  },
+  "V2-CONFIG-TIMEOUT": {
+    "ext": ".js",
+    "positive": "bolt.config.timeout = 1",
+    "negative": "myOptions.timeout = 1"
+  },
+  "V2-CONFIG-SELF-REQUESTS-ONLY": {
+    "ext": ".js",
+    "positive": "bolt.config.selfRequestsOnly = 1",
+    "negative": "myOptions.selfRequestsOnly = 1"
+  },
+  "V2-CONFIG-DISABLE-INHERITANCE": {
+    "ext": ".js",
+    "positive": "bolt.config.disableInheritance = 1",
+    "negative": "myOptions.disableInheritance = 1"
+  },
+  "V2-CONFIG-REQUEST-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.config.requestClass = 1",
+    "negative": "myOptions.requestClass = 1"
+  },
+  "V2-CONFIG-INDICATOR-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.config.indicatorClass = 1",
+    "negative": "myOptions.indicatorClass = 1"
+  },
+  "V2-CONFIG-ADDED-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.config.addedClass = 1",
+    "negative": "myOptions.addedClass = 1"
+  },
+  "V2-CONFIG-SETTLING-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.config.settlingClass = 1",
+    "negative": "myOptions.settlingClass = 1"
+  },
+  "V2-CONFIG-SWAPPING-CLASS": {
+    "ext": ".js",
+    "positive": "bolt.config.swappingClass = 1",
+    "negative": "myOptions.swappingClass = 1"
+  },
+  "V2-CONFIG-ALLOW-EVAL": {
+    "ext": ".js",
+    "positive": "bolt.config.allowEval = 1",
+    "negative": "myOptions.allowEval = 1"
+  },
+  "V2-CONFIG-ALLOW-SCRIPT-TAGS": {
+    "ext": ".js",
+    "positive": "bolt.config.allowScriptTags = 1",
+    "negative": "myOptions.allowScriptTags = 1"
+  },
+  "V2-CONFIG-ALLOW-NESTED-OOB-SWAPS": {
+    "ext": ".js",
+    "positive": "bolt.config.allowNestedOobSwaps = 1",
+    "negative": "myOptions.allowNestedOobSwaps = 1"
+  },
+  "V2-CONFIG-ATTRIBUTES-TO-SETTLE": {
+    "ext": ".js",
+    "positive": "bolt.config.attributesToSettle = 1",
+    "negative": "myOptions.attributesToSettle = 1"
+  },
+  "V2-CONFIG-DEFAULT-SWAP-DELAY": {
+    "ext": ".js",
+    "positive": "bolt.config.defaultSwapDelay = 1",
+    "negative": "myOptions.defaultSwapDelay = 1"
+  },
+  "V2-CONFIG-DISABLE-SELECTOR": {
+    "ext": ".js",
+    "positive": "bolt.config.disableSelector = 1",
+    "negative": "myOptions.disableSelector = 1"
+  },
+  "V2-CONFIG-GET-CACHE-BUSTER-PARAM": {
+    "ext": ".js",
+    "positive": "bolt.config.getCacheBusterParam = 1",
+    "negative": "myOptions.getCacheBusterParam = 1"
+  },
+  "V2-CONFIG-HISTORY-CACHE-SIZE": {
+    "ext": ".js",
+    "positive": "bolt.config.historyCacheSize = 1",
+    "negative": "myOptions.historyCacheSize = 1"
+  },
+  "V2-CONFIG-METHODS-THAT-USE-URL-PARAMS": {
+    "ext": ".js",
+    "positive": "bolt.config.methodsThatUseUrlParams = 1",
+    "negative": "myOptions.methodsThatUseUrlParams = 1"
+  },
+  "V2-CONFIG-REFRESH-ON-HISTORY-MISS": {
+    "ext": ".js",
+    "positive": "bolt.config.refreshOnHistoryMiss = 1",
+    "negative": "myOptions.refreshOnHistoryMiss = 1"
+  },
+  "V2-CONFIG-RESPONSE-HANDLING": {
+    "ext": ".js",
+    "positive": "bolt.config.responseHandling = 1",
+    "negative": "myOptions.responseHandling = 1"
+  },
+  "V2-CONFIG-SCROLL-BEHAVIOR": {
+    "ext": ".js",
+    "positive": "bolt.config.scrollBehavior = 1",
+    "negative": "myOptions.scrollBehavior = 1"
+  },
+  "V2-CONFIG-SCROLL-INTO-VIEW-ON-BOOST": {
+    "ext": ".js",
+    "positive": "bolt.config.scrollIntoViewOnBoost = 1",
+    "negative": "myOptions.scrollIntoViewOnBoost = 1"
+  },
+  "V2-CONFIG-TRIGGER-SPECS-CACHE": {
+    "ext": ".js",
+    "positive": "bolt.config.triggerSpecsCache = 1",
+    "negative": "myOptions.triggerSpecsCache = 1"
+  },
+  "V2-CONFIG-WITH-CREDENTIALS": {
+    "ext": ".js",
+    "positive": "bolt.config.withCredentials = 1",
+    "negative": "myOptions.withCredentials = 1"
+  },
+  "V2-CONFIG-WS-BINARY-TYPE": {
+    "ext": ".js",
+    "positive": "bolt.config.wsBinaryType = 1",
+    "negative": "myOptions.wsBinaryType = 1"
+  },
+  "V2-CONFIG-WS-RECONNECT-DELAY": {
+    "ext": ".js",
+    "positive": "bolt.config.wsReconnectDelay = 1",
+    "negative": "myOptions.wsReconnectDelay = 1"
+  },
+  "V2-CONFIG-REPORT-VALIDITY-OF-FORMS": {
+    "ext": ".js",
+    "positive": "bolt.config.reportValidityOfForms = 1",
+    "negative": "myOptions.reportValidityOfForms = 1"
+  },
+  "V2-CONFIG-IGNORE-TITLE": {
+    "ext": ".js",
+    "positive": "bolt.config.ignoreTitle = 1",
+    "negative": "myOptions.ignoreTitle = 1"
+  },
+  "V2-HEADER-TRIGGER-AFTER-SWAP": {
+    "ext": ".go",
+    "positive": "w.Header().Set(\"ACME-Trigger-After-Swap\", \"x\")",
+    "negative": "w.Header().Set(\"ACME-Trigger\", \"x\")"
+  },
+  "V2-HEADER-TRIGGER-AFTER-SETTLE": {
+    "ext": ".py",
+    "positive": "response[\"ACME-Trigger-After-Settle\"] = \"x\"",
+    "negative": "response[\"ACME-Trigger\"] = \"x\""
+  },
+  "V2-HEADER-REQ-TRIGGER": {
+    "ext": ".go",
+    "positive": "id := r.Header.Get(\"ACME-Trigger\")",
+    "negative": "w.Header().Set(\"ACME-Trigger\", `{\"saved\":true}`)"
+  },
+  "V2-HEADER-REQ-TRIGGER-NAME": {
+    "ext": ".go",
+    "positive": "n := r.Header.Get(\"ACME-Trigger-Name\")",
+    "negative": "w.Header().Set(\"ACME-Trigger\", \"x\")"
+  },
+  "V2-HEADER-REQ-TARGET": {
+    "ext": ".go",
+    "positive": "id := r.Header.Get(\"ACME-Target\")",
+    "negative": "<div acme-target=\"#x\"></div>\nw.Header().Set(\"ACME-Retarget\", \"#x\")"
+  },
+  "V2-HEADER-REQ-PROMPT": {
+    "ext": ".go",
+    "positive": "answer := r.Header.Get(\"ACME-Prompt\")",
+    "negative": "<button acme-prompt=\"Sure?\">x</button>"
+  }
+}

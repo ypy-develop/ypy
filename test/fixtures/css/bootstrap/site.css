@@ -1,0 +1,15 @@
+/*
+ * What a Bootstrap site writes to style the states of YPY: the data-ypy-state attribute, with
+ * Bootstrap's own custom properties. No class of the framework is touched.
+ */
+#panel[data-ypy-state~="error"] {
+  border-color: var(--bs-danger) !important;
+}
+
+.offline-banner {
+  display: none;
+}
+
+[data-ypy-state~="offline"] .offline-banner {
+  display: block;
+}

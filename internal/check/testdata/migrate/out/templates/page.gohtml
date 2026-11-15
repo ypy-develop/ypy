@@ -1,0 +1,5 @@
+<div ypy-target="#out" {{ if .Ajax }}ypy-get="{{ .URL }}"{{ end }}>
+    <button ypy-post="{{ .Props.YpyTarget }}" ypy-confirm="{{ .YpyConfirm }}" class="{{ .Class }} ypy-request">Go</button>
+    {{ if eq (.Request.Header.Get "YPY-Request") "true" }}partial{{ end }}
+    {{/* acme-get in a template comment stays */}}
+</div>

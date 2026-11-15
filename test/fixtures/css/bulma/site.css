@@ -1,0 +1,23 @@
+/*
+ * What a Bulma site writes to style the states of YPY: the data-ypy-state attribute, with
+ * Bulma's own custom properties. No class of the framework is touched.
+ */
+#panel[data-ypy-state~="error"] {
+  border: 2px solid var(--bulma-danger);
+}
+
+.offline-banner {
+  display: none;
+}
+
+[data-ypy-state~="offline"] .offline-banner {
+  display: block;
+}
+
+.fx-row {
+  gap: 0.5rem;
+}
+
+.fx-progress {
+  width: 6rem;
+}

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="ypy-config" content='{"defaultSwap": "outerHTML", "transitions": true}'>
+    <script src="/static/ypy.min.js"></script>
+</head>
+<body>
+    <div ypy-target:inherited="#out">
+        <button ypy-get="/items" ypy-vals='{"page": 2}'>Load</button>
+        <button ypy-delete="/items/1" ypy-include="closest form">Remove</button>
+        <form ypy-post="/save" ypy-on::before:request="mark(event)">
+            <input name="q" ypy-on:input="note()">
+            <video preload="none" src="/clip.mp4"></video>
+        </form>
+        <p ypy-ignore>untouched</p>
+        <div ypy-sse:connect="/stream"></div>
+    </div>
+    <script>
+        document.body.addEventListener('ypy:after:swap', event => {
+            element.classList.add('on')
+            console.log(event.detail.ctx.response.status)
+        })
+        ypy.config.defaultTimeout = 5000
+    </script>
+</body>
+</html>

@@ -1,0 +1,2688 @@
+{
+  "meta": {
+    "schema": 1,
+    "version": "2026.11.1",
+    "guide": "https://ypy.dev/docs/guides/upgrade-check",
+    "lines": {
+      "v1": "the oldest generation of the previous markup",
+      "v2": "the middle generation of the previous markup",
+      "v4": "the latest generation of the previous markup (YPY native names differ only by prefix)"
+    },
+    "severities": {
+      "quebra": "stops working after swapping to YPY",
+      "muda": "keeps working but behaves differently from the native YPY; review before going native",
+      "aviso": "works; only the spelling is legacy and a native spelling exists (ypy migrate converts it)"
+    }
+  },
+  "detect": {
+    "attributes": [
+      {
+        "line": "v4",
+        "regex": "^(?:data-)?{A}(?:action|config|method|ignore|morph-skip(?:-children)?|query|oob|status:.+|sse:.+|ws:.+|[a-z-]+:inherited(?::append)?|[a-z-]+:append|on::[a-z]+:[a-z:]+)$"
+      },
+      {
+        "line": "v4",
+        "regex": "^(?:data-)?ypy-"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "id": "ANY-SCRIPT-LIBRARY",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "script",
+      "kind": "script-library",
+      "what": "This script tag loads the library the project used before YPY.",
+      "fix": "Replace this tag with the YPY script tag (level 1 migration: nothing else has to change).",
+      "native": "<script src=\"ypy.min.js\">"
+    },
+    {
+      "id": "V2-SCRIPT-EXTENSION",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "script",
+      "kind": "script-src",
+      "match": {
+        "src": "(?:^|[^A-Za-z0-9])([A-Za-z0-9]+)-ext-(?:sse|ws|head-support|preload|response-targets|class-tools|loading-states|path-params|json-enc|multi-swap|client-side-templates|alpine-morph|idiomorph|include-vals|remove-me|restored|debug|disable-element|event-header|method-override|morphdom-swap|path-deps|rails-method|ajax-header)\\b|/ext/(?:sse|ws|head-support|preload|response-targets|class-tools|loading-states|path-params|json-enc|multi-swap|client-side-templates|alpine-morph|idiomorph|include-vals|remove-me|restored|debug|disable-element|event-header|method-override|morphdom-swap|path-deps|rails-method|ajax-header)(?:\\.min)?\\.js|idiomorph",
+        "idGroup": 1
+      },
+      "what": "This script tag loads an extension written for the previous markup.",
+      "fix": "Remove it when YPY ships the equivalent (sse, ws, head, preload, morph); keep it only for extensions that use the legacy extension API, which YPY does not offer."
+    },
+    {
+      "id": "ANY-ATTR-PREFIX",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "attr",
+      "match": {
+        "nameRegex": "^(?:data-)?{A}"
+      },
+      "aggregate": true,
+      "what": "Attributes use the legacy {A} prefix (ypy migrate converts it).",
+      "fix": "Run `ypy migrate --write` to convert the legacy prefix to ypy- (the data- spelling becomes data-ypy-).",
+      "native": "ypy-*"
+    },
+    {
+      "id": "ANY-META-CONFIG",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "meta-config",
+      "what": "The configuration meta tag uses the legacy name (still read).",
+      "fix": "Rename the meta tag; the legacy name is merged first, so ypy-config wins when both exist.",
+      "native": "<meta name=\"ypy-config\">"
+    },
+    {
+      "id": "ANY-CLASS-PREFIX",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "class",
+      "match": {
+        "suffixes": [
+          "request",
+          "indicator",
+          "swapping",
+          "settling",
+          "added"
+        ]
+      },
+      "aggregate": true,
+      "files": [
+        "markup",
+        "script",
+        "style"
+      ],
+      "what": "Legacy state class (the default configuration applies both the legacy and the ypy- class).",
+      "fix": "Style the ypy- class (or the data-ypy-state attribute) and drop the legacy one.",
+      "native": "ypy-request, ypy-indicator, ypy-swapping, ypy-settling, ypy-added"
+    },
+    {
+      "id": "ANY-API-GLOBAL",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "api-global",
+      "match": {
+        "skip": [
+          "org",
+          "js",
+          "min",
+          "esm",
+          "max"
+        ]
+      },
+      "aggregate": true,
+      "generic": true,
+      "what": "Uses the legacy global name; `ypy` is the native global (the alias stays available).",
+      "fix": "Use `ypy.<method>` (`ypy migrate --write` converts it).",
+      "native": "ypy"
+    },
+    {
+      "id": "ANY-EVENT-PREFIX",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "event-prefix",
+      "match": {
+        "names": [
+          "error",
+          "abort",
+          "confirm"
+        ]
+      },
+      "what": "Event with an unchanged name but the legacy prefix (still dispatched).",
+      "fix": "Listen to the ypy: event with the same name.",
+      "native": "ypy:error, ypy:abort, ypy:confirm"
+    },
+    {
+      "id": "V4-EVENT-PREFIX",
+      "lines": [
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "event-prefix",
+      "match": {
+        "regex": "(?:before|after|finally|config|response):[A-Za-z:]*[A-Za-z]"
+      },
+      "signal": "v4",
+      "what": "Event with the legacy prefix (generation v4 markup).",
+      "fix": "Replace the {P}: prefix with ypy: (same event name); `ypy migrate --write` does it.",
+      "native": "ypy:<same name>"
+    },
+    {
+      "id": "V1-ATTR-SSE",
+      "lines": [
+        "v1"
+      ],
+      "severity": "quebra",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}sse"
+        ]
+      },
+      "signal": "v1",
+      "what": "The {A}sse attribute of the v1 markup is gone.",
+      "fix": "Use the SSE attribute: ypy-sse:connect=\"/url\" (swap targets and events follow the native model).",
+      "native": "ypy-sse:connect=\"/url\""
+    },
+    {
+      "id": "V1-ATTR-WS",
+      "lines": [
+        "v1"
+      ],
+      "severity": "quebra",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}ws"
+        ]
+      },
+      "signal": "v1",
+      "what": "The {A}ws attribute of the v1 markup is gone.",
+      "fix": "Use ypy-ws:connect=\"/url\" and ypy-ws:send.",
+      "native": "ypy-ws:connect=\"/url\""
+    },
+    {
+      "id": "V1-ATTR-ON-LEGACY",
+      "lines": [
+        "v1"
+      ],
+      "severity": "quebra",
+      "group": "attribute",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}on"
+        ],
+        "valueNot": "->"
+      },
+      "signal": "v1",
+      "what": "The \"event: code\" form of the {A}on attribute is not supported.",
+      "fix": "Write one ypy-on:<event> attribute per handler, or the arrow form ypy-on=\"click -> code\".",
+      "native": "ypy-on:click=\"code\""
+    },
+    {
+      "id": "V1-CONFIG-TEMPLATE-FRAGMENTS",
+      "lines": [
+        "v1"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "useTemplateFragments"
+      },
+      "signal": "v1",
+      "what": "useTemplateFragments no longer exists; responses are always parsed through <template>.",
+      "fix": "Remove the setting."
+    },
+    {
+      "id": "V1-DELETE-BODY",
+      "lines": [
+        "v1"
+      ],
+      "severity": "muda",
+      "group": "syntax",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}delete"
+        ]
+      },
+      "what": "DELETE requests carried the form values in the body in v1 markup; later generations send them as URL parameters or not at all.",
+      "fix": "Check the server handler: read DELETE data from the query string, or add ypy-include explicitly."
+    },
+    {
+      "id": "V1-CROSS-ORIGIN",
+      "lines": [
+        "v1"
+      ],
+      "severity": "muda",
+      "group": "syntax",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}get",
+          "{A}post",
+          "{A}put",
+          "{A}patch",
+          "{A}delete"
+        ],
+        "value": "^\\s*(?:https?:)?//"
+      },
+      "what": "Request to an absolute URL: cross-origin requests are blocked by default since v2 markup.",
+      "fix": "If the URL is on another origin, set config.mode to \"cors\" (the old selfRequestsOnly=false).",
+      "native": "ypy.config.mode = \"cors\""
+    },
+    {
+      "id": "V2-ATTR-VARS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}vars"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}vars is removed.",
+      "fix": "Use ypy-vals with the js: prefix: ypy-vals=\"js:{a: 1}\".",
+      "native": "ypy-vals=\"js:...\""
+    },
+    {
+      "id": "V2-ATTR-PARAMS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}params"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}params is removed.",
+      "fix": "Filter the parameters in a ypy:config:request listener (detail.ctx.request.body is a FormData).",
+      "native": "ypy:config:request listener"
+    },
+    {
+      "id": "V2-ATTR-PROMPT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}prompt"
+        ]
+      },
+      "what": "{A}prompt moved to an extension.",
+      "fix": "Load the prompt extension (ypy-prompt.js); the attribute and the YPY-Prompt header stay the same.",
+      "native": "extension ypy-prompt"
+    },
+    {
+      "id": "V2-ATTR-EXT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}ext"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}ext is removed: extensions are active when their script is included.",
+      "fix": "Delete the attribute and keep the extension script; restrict extensions with config.extensions if needed.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-ATTR-DISINHERIT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}disinherit"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}disinherit is removed: inheritance is explicit.",
+      "fix": "Delete it, and add :inherited to the attributes that must reach descendants.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-ATTR-INHERIT",
+      "lines": [
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}inherit"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}inherit is removed: inheritance is explicit.",
+      "fix": "Delete it, and add :inherited to the attributes that must reach descendants.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-ATTR-REQUEST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}request"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}request is replaced by ypy-config.",
+      "fix": "Rename to ypy-config; it accepts the same JSON (timeout, credentials, noHeaders).",
+      "native": "ypy-config"
+    },
+    {
+      "id": "V2-ATTR-HISTORY",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}history"
+        ]
+      },
+      "what": "{A}history=\"false\" is removed: history snapshots are no longer kept in localStorage.",
+      "fix": "Delete it.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-ATTR-DISABLE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}disable"
+        ],
+        "value": "^\\s*$"
+      },
+      "signal": "v2",
+      "what": "{A}disable (without a value) means \"skip processing\" here, but a different thing in the native attribute set.",
+      "fix": "Rename to ypy-ignore. Do this before renaming ypy-disabled-elt to ypy-disable.",
+      "native": "ypy-ignore"
+    },
+    {
+      "id": "V2-ATTR-DISABLED-ELT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}disabled-elt"
+        ]
+      },
+      "signal": "v2",
+      "what": "{A}disabled-elt is renamed.",
+      "fix": "Rename to ypy-disable (after ypy-disable became ypy-ignore).",
+      "native": "ypy-disable"
+    },
+    {
+      "id": "V2-ATTR-ON-DASH",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "attribute",
+      "kind": "attr",
+      "match": {
+        "nameRegex": "^(?:data-)?{A}on-(?:-|[a-z])"
+      },
+      "signal": "v2",
+      "what": "The dash spelling of {A}on ({A}on-click, {A}on--after-swap) works only when config.metaCharacter is \"-\".",
+      "fix": "Use the colon spelling (ypy-on:click, ypy-on::after:swap), or set config.metaCharacter to \"-\" and keep the dashes.",
+      "native": "ypy-on:click"
+    },
+    {
+      "id": "V2-ATTR-OOB",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "syntax",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "{A}swap-oob"
+        ]
+      },
+      "what": "Out-of-band swaps now run after the main swap, and an OOB-only response no longer empties the main target.",
+      "fix": "Review code that depends on the order; to restore the old empty swap use config.allowEmptySwapAfterOOB or swapEmpty:true."
+    },
+    {
+      "id": "V2-EXT-SSE-CONNECT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "sse-connect"
+        ],
+        "prefix": false
+      },
+      "signal": "v2",
+      "what": "sse-connect is renamed.",
+      "fix": "Rename to ypy-sse:connect.",
+      "native": "ypy-sse:connect"
+    },
+    {
+      "id": "V2-EXT-SSE-CLOSE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "sse-close"
+        ],
+        "prefix": false
+      },
+      "signal": "v2",
+      "what": "sse-close is renamed.",
+      "fix": "Rename to ypy-sse:close.",
+      "native": "ypy-sse:close"
+    },
+    {
+      "id": "V2-EXT-SSE-SWAP",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "sse-swap"
+        ],
+        "prefix": false
+      },
+      "signal": "v2",
+      "what": "sse-swap is not supported: unnamed messages are swapped automatically and named events become DOM events.",
+      "fix": "Drop sse-swap and listen to the named events (ypy-on) or send unnamed messages.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EXT-WS-CONNECT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "ws-connect"
+        ],
+        "prefix": false
+      },
+      "signal": "v2",
+      "what": "ws-connect is renamed.",
+      "fix": "Rename to ypy-ws:connect.",
+      "native": "ypy-ws:connect"
+    },
+    {
+      "id": "V2-EXT-WS-SEND",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "ws-send"
+        ],
+        "prefix": false
+      },
+      "signal": "v2",
+      "what": "ws-send is renamed.",
+      "fix": "Rename to ypy-ws:send.",
+      "native": "ypy-ws:send"
+    },
+    {
+      "id": "V2-EXT-PRELOAD",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "names": [
+          "preload"
+        ],
+        "prefix": false,
+        "notTags": [
+          "video",
+          "audio",
+          "link"
+        ]
+      },
+      "signal": "v2",
+      "what": "The preload attribute of the preload extension is renamed.",
+      "fix": "Rename to ypy-preload (values such as mouseover are unchanged).",
+      "native": "ypy-preload"
+    },
+    {
+      "id": "V2-EXT-RESPONSE-TARGETS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr",
+      "match": {
+        "nameRegex": "^(?:data-)?{A}target-(?:\\d{3}|[1-5]\\*|\\*|error)$"
+      },
+      "signal": "v2",
+      "what": "The response-targets extension attributes are replaced by ypy-status.",
+      "fix": "Use ypy-status:404=\"target:#x\" (ypy-status:4xx, ypy-status:5xx for ranges).",
+      "native": "ypy-status:404=\"target:#x\""
+    },
+    {
+      "id": "V2-SWAP-MORPH",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "extension",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}swap"
+        ],
+        "value": "(?:^|\\s)morph(?::(?:inner|outer)HTML)?(?:\\s|$)"
+      },
+      "signal": "v2",
+      "what": "The idiomorph swap style is built in and renamed.",
+      "fix": "Use innerMorph or outerMorph (no extension needed).",
+      "native": "innerMorph, outerMorph"
+    },
+    {
+      "id": "V2-SWAP-SHOW-SYNTAX",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "syntax",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}swap"
+        ],
+        "value": "\\b(?:show|scroll):[^:\\s]+:(?:top|bottom)\\b"
+      },
+      "what": "The show:<selector>:<position> and scroll:<selector>:<position> modifiers use separate keys now.",
+      "fix": "Write show:top showTarget:#sel (or scroll:bottom scrollTarget:#sel).",
+      "native": "show:top showTarget:#sel"
+    },
+    {
+      "id": "V2-TRIGGER-QUEUE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "syntax",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}trigger"
+        ],
+        "value": "\\bqueue:(?:first|last|all|none)\\b"
+      },
+      "what": "The queue: trigger modifier is replaced by ypy-sync.",
+      "fix": "Use ypy-sync=\"this:queue last\" (or queue first, queue all, drop, abort).",
+      "native": "ypy-sync=\"this:queue last\""
+    },
+    {
+      "id": "V2-INCLUDE-INHERIT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "syntax",
+      "kind": "attr-value",
+      "match": {
+        "names": [
+          "{A}include",
+          "{A}indicator"
+        ],
+        "value": "(?:^|[\\s,])inherit(?:$|[\\s,])"
+      },
+      "what": "The inherit keyword of {A}include and {A}indicator is gone.",
+      "fix": "Put the shared value on the parent with the :inherited:append modifier (ypy-include:inherited:append=\"#shared\").",
+      "native": "ypy-include:inherited:append"
+    },
+    {
+      "id": "V2-INHERIT-IMPLICIT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "inheritance",
+      "kind": "structural",
+      "match": {
+        "check": "inheritance"
+      },
+      "signal": "v2",
+      "what": "Attribute inherited implicitly by descendants; inheritance is explicit now.",
+      "fix": "Add :inherited to the attribute on the container, for example ypy-target:inherited=\"#out\". Do not add it blindly: only where a descendant relies on it.",
+      "native": "ypy-target:inherited"
+    },
+    {
+      "id": "V2-DELETE-IN-FORM",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "syntax",
+      "kind": "structural",
+      "match": {
+        "check": "delete-in-form"
+      },
+      "what": "A DELETE request inside a <form> no longer includes the form values.",
+      "fix": "Add ypy-include=\"closest form\" to the element.",
+      "native": "ypy-include=\"closest form\""
+    },
+    {
+      "id": "V2-EVENT-AFTER-ON-LOAD",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "afterOnLoad"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:afterOnLoad is renamed.",
+      "fix": "Listen to ypy:after:request.",
+      "native": "ypy:after:request"
+    },
+    {
+      "id": "V2-EVENT-AFTER-PROCESS-NODE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "afterProcessNode"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:afterProcessNode is renamed.",
+      "fix": "Listen to ypy:after:init.",
+      "native": "ypy:after:init"
+    },
+    {
+      "id": "V2-EVENT-AFTER-REQUEST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "afterRequest"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:afterRequest is renamed.",
+      "fix": "Listen to ypy:after:request (ypy:finally:request fires on failures too, as the old event did).",
+      "native": "ypy:after:request"
+    },
+    {
+      "id": "V2-EVENT-AFTER-SETTLE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "afterSettle"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:afterSettle is renamed.",
+      "fix": "Listen to ypy:after:settle.",
+      "native": "ypy:after:settle"
+    },
+    {
+      "id": "V2-EVENT-AFTER-SWAP",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "afterSwap"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:afterSwap is renamed.",
+      "fix": "Listen to ypy:after:swap.",
+      "native": "ypy:after:swap"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-CLEANUP-ELEMENT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeCleanupElement"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeCleanupElement is renamed.",
+      "fix": "Listen to ypy:before:cleanup.",
+      "native": "ypy:before:cleanup"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-HISTORY-SAVE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeHistorySave"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeHistorySave is renamed.",
+      "fix": "Listen to ypy:before:history:update.",
+      "native": "ypy:before:history:update"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-HISTORY-UPDATE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeHistoryUpdate"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeHistoryUpdate is renamed.",
+      "fix": "Listen to ypy:before:history:update.",
+      "native": "ypy:before:history:update"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-ON-LOAD",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeOnLoad"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeOnLoad is renamed.",
+      "fix": "Listen to ypy:before:response.",
+      "native": "ypy:before:response"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-PROCESS-NODE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeProcessNode"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeProcessNode is renamed.",
+      "fix": "Listen to ypy:before:init.",
+      "native": "ypy:before:init"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-REQUEST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeRequest"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeRequest is renamed.",
+      "fix": "Listen to ypy:before:request.",
+      "native": "ypy:before:request"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-SEND",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeSend"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeSend is renamed.",
+      "fix": "Listen to ypy:before:request.",
+      "native": "ypy:before:request"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-SWAP",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeSwap"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeSwap is renamed.",
+      "fix": "Listen to ypy:before:swap (the swap decision moved to config.noSwap and ypy-status).",
+      "native": "ypy:before:swap"
+    },
+    {
+      "id": "V2-EVENT-BEFORE-TRANSITION",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "beforeTransition"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:beforeTransition is renamed.",
+      "fix": "Listen to ypy:before:viewTransition.",
+      "native": "ypy:before:viewTransition"
+    },
+    {
+      "id": "V2-EVENT-CONFIG-REQUEST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "configRequest"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:configRequest is renamed.",
+      "fix": "Listen to ypy:config:request (detail.ctx.request replaces detail.headers, parameters and path).",
+      "native": "ypy:config:request"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-CACHE-MISS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyCacheMiss"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:historyCacheMiss is renamed.",
+      "fix": "Listen to ypy:before:history:restore.",
+      "native": "ypy:before:history:restore"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-RESTORE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyRestore"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:historyRestore is renamed.",
+      "fix": "Listen to ypy:before:history:restore.",
+      "native": "ypy:before:history:restore"
+    },
+    {
+      "id": "V2-EVENT-LOAD",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "load"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:load is renamed.",
+      "fix": "Listen to ypy:after:process.",
+      "native": "ypy:after:process"
+    },
+    {
+      "id": "V2-EVENT-OOB-AFTER-SWAP",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "oobAfterSwap"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:oobAfterSwap is renamed.",
+      "fix": "Listen to ypy:after:swap.",
+      "native": "ypy:after:swap"
+    },
+    {
+      "id": "V2-EVENT-OOB-BEFORE-SWAP",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "oobBeforeSwap"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:oobBeforeSwap is renamed.",
+      "fix": "Listen to ypy:before:swap.",
+      "native": "ypy:before:swap"
+    },
+    {
+      "id": "V2-EVENT-PUSHED-INTO-HISTORY",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "pushedIntoHistory"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:pushedIntoHistory is renamed.",
+      "fix": "Listen to ypy:after:history:push.",
+      "native": "ypy:after:history:push"
+    },
+    {
+      "id": "V2-EVENT-REPLACED-IN-HISTORY",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "replacedInHistory"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:replacedInHistory is renamed.",
+      "fix": "Listen to ypy:after:history:replace.",
+      "native": "ypy:after:history:replace"
+    },
+    {
+      "id": "V2-EVENT-RESPONSE-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "responseError"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:responseError is renamed.",
+      "fix": "Listen to ypy:response:error.",
+      "native": "ypy:response:error"
+    },
+    {
+      "id": "V2-EVENT-SEND-ABORT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sendAbort"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sendAbort is renamed.",
+      "fix": "Listen to ypy:error.",
+      "native": "ypy:error"
+    },
+    {
+      "id": "V2-EVENT-SEND-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sendError"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sendError is renamed.",
+      "fix": "Listen to ypy:error.",
+      "native": "ypy:error"
+    },
+    {
+      "id": "V2-EVENT-SWAP-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "swapError"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:swapError is renamed.",
+      "fix": "Listen to ypy:error.",
+      "native": "ypy:error"
+    },
+    {
+      "id": "V2-EVENT-TARGET-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "targetError"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:targetError is renamed.",
+      "fix": "Listen to ypy:error.",
+      "native": "ypy:error"
+    },
+    {
+      "id": "V2-EVENT-TIMEOUT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "timeout"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:timeout is renamed.",
+      "fix": "Listen to ypy:error.",
+      "native": "ypy:error"
+    },
+    {
+      "id": "V2-EVENT-PROMPT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "prompt"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:prompt is renamed.",
+      "fix": "Listen to ypy:prompt (prompt extension).",
+      "native": "ypy:prompt (prompt extension)"
+    },
+    {
+      "id": "V2-EVENT-SSE-OPEN",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sseOpen"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sseOpen is renamed.",
+      "fix": "Listen to ypy:sse:after:connection.",
+      "native": "ypy:sse:after:connection"
+    },
+    {
+      "id": "V2-EVENT-SSE-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sseError"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sseError is renamed.",
+      "fix": "Listen to ypy:sse:error.",
+      "native": "ypy:sse:error"
+    },
+    {
+      "id": "V2-EVENT-SSE-BEFORE-MESSAGE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sseBeforeMessage"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sseBeforeMessage is renamed.",
+      "fix": "Listen to ypy:sse:before:message.",
+      "native": "ypy:sse:before:message"
+    },
+    {
+      "id": "V2-EVENT-SSE-MESSAGE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sseMessage"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sseMessage is renamed.",
+      "fix": "Listen to ypy:sse:after:message.",
+      "native": "ypy:sse:after:message"
+    },
+    {
+      "id": "V2-EVENT-SSE-CLOSE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "sseClose"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:sseClose is renamed.",
+      "fix": "Listen to ypy:sse:close.",
+      "native": "ypy:sse:close"
+    },
+    {
+      "id": "V2-EVENT-WS-OPEN",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsOpen"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsOpen is renamed.",
+      "fix": "Listen to ypy:ws:after:connection.",
+      "native": "ypy:ws:after:connection"
+    },
+    {
+      "id": "V2-EVENT-WS-CLOSE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsClose"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsClose is renamed.",
+      "fix": "Listen to ypy:ws:close.",
+      "native": "ypy:ws:close"
+    },
+    {
+      "id": "V2-EVENT-WS-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsError"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsError is renamed.",
+      "fix": "Listen to ypy:ws:error.",
+      "native": "ypy:ws:error"
+    },
+    {
+      "id": "V2-EVENT-WS-CONFIG-SEND",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsConfigSend"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsConfigSend is renamed.",
+      "fix": "Listen to ypy:ws:before:message:outgoing.",
+      "native": "ypy:ws:before:message:outgoing"
+    },
+    {
+      "id": "V2-EVENT-WS-BEFORE-SEND",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsBeforeSend"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsBeforeSend is renamed.",
+      "fix": "Listen to ypy:ws:before:message:outgoing.",
+      "native": "ypy:ws:before:message:outgoing"
+    },
+    {
+      "id": "V2-EVENT-WS-AFTER-SEND",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsAfterSend"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsAfterSend is renamed.",
+      "fix": "Listen to ypy:ws:after:message:outgoing.",
+      "native": "ypy:ws:after:message:outgoing"
+    },
+    {
+      "id": "V2-EVENT-WS-BEFORE-MESSAGE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsBeforeMessage"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsBeforeMessage is renamed.",
+      "fix": "Listen to ypy:ws:before:message:incoming.",
+      "native": "ypy:ws:before:message:incoming"
+    },
+    {
+      "id": "V2-EVENT-WS-AFTER-MESSAGE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "wsAfterMessage"
+      },
+      "signal": "v2",
+      "what": "Legacy event {P}:wsAfterMessage is renamed.",
+      "fix": "Listen to ypy:ws:after:message:incoming.",
+      "native": "ypy:ws:after:message:incoming"
+    },
+    {
+      "id": "V2-EVENT-VALIDATION-VALIDATE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "validation:validate"
+      },
+      "signal": "v2",
+      "what": "{P}:validation:validate: Validation events are gone: validation uses the browser constraint API.",
+      "fix": "Use native form validation (checkValidity, the invalid event) or validate in a ypy:config:request listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-VALIDATION-FAILED",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "validation:failed"
+      },
+      "signal": "v2",
+      "what": "{P}:validation:failed: Validation events are gone: validation uses the browser constraint API.",
+      "fix": "Use the native invalid event on the field.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-VALIDATION-HALTED",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "validation:halted"
+      },
+      "signal": "v2",
+      "what": "{P}:validation:halted: Validation events are gone: validation uses the browser constraint API.",
+      "fix": "Use the native invalid event on the form.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-XHR-LOADSTART",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "xhr:loadstart"
+      },
+      "signal": "v2",
+      "what": "{P}:xhr:loadstart: XHR events are gone: requests use fetch.",
+      "fix": "Use ypy:before:request.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-XHR-LOADEND",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "xhr:loadend"
+      },
+      "signal": "v2",
+      "what": "{P}:xhr:loadend: XHR events are gone: requests use fetch.",
+      "fix": "Use ypy:finally:request.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-XHR-PROGRESS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "xhr:progress"
+      },
+      "signal": "v2",
+      "what": "{P}:xhr:progress: XHR progress events are gone: requests use fetch.",
+      "fix": "No equivalent for upload progress; use ypy:before:request and a fetch based upload where needed.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-XHR-ABORT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "xhr:abort"
+      },
+      "signal": "v2",
+      "what": "{P}:xhr:abort: XHR events are gone: requests use fetch.",
+      "fix": "Use ypy:abort.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-CACHE-MISS-LOAD",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyCacheMissLoad"
+      },
+      "signal": "v2",
+      "what": "{P}:historyCacheMissLoad: History cache events no longer exist: the history snapshot cache is an optional extension.",
+      "fix": "Load the ypy-history-cache extension or remove the listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-CACHE-MISS-LOAD-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyCacheMissLoadError"
+      },
+      "signal": "v2",
+      "what": "{P}:historyCacheMissLoadError: History cache events no longer exist: the history snapshot cache is an optional extension.",
+      "fix": "Load the ypy-history-cache extension or remove the listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-CACHE-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyCacheError"
+      },
+      "signal": "v2",
+      "what": "{P}:historyCacheError: History cache events no longer exist: the history snapshot cache is an optional extension.",
+      "fix": "Load the ypy-history-cache extension or remove the listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-CACHE-HIT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyCacheHit"
+      },
+      "signal": "v2",
+      "what": "{P}:historyCacheHit: History cache events no longer exist: the history snapshot cache is an optional extension.",
+      "fix": "Load the ypy-history-cache extension or remove the listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-HISTORY-ITEM-CREATED",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "historyItemCreated"
+      },
+      "signal": "v2",
+      "what": "{P}:historyItemCreated: History cache events no longer exist: the history snapshot cache is an optional extension.",
+      "fix": "Remove the listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-VALIDATE-URL",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "validateUrl"
+      },
+      "signal": "v2",
+      "what": "{P}:validateUrl: The egress check event no longer exists: cross-origin requests are controlled by config.mode.",
+      "fix": "Set config.mode to \"cors\" or \"same-origin\"; veto a request in a ypy:config:request listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-PROCESS-TEMPLATE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "processTemplate"
+      },
+      "signal": "v2",
+      "what": "{P}:processTemplate: Partials work differently: <ypy-partial> is handled by the core.",
+      "fix": "Use the partial attributes of the core instead of a custom template handler.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-OOB-ERROR-NO-TARGET",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "oobErrorNoTarget"
+      },
+      "signal": "v2",
+      "what": "{P}:oobErrorNoTarget: This diagnostic event no longer exists.",
+      "fix": "Use ypy:error.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-ON-LOAD-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "onLoadError"
+      },
+      "signal": "v2",
+      "what": "{P}:onLoadError: This diagnostic event no longer exists.",
+      "fix": "Use ypy:error.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-EVENT-EVAL-DISALLOWED-ERROR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "event",
+      "match": {
+        "name": "evalDisallowedError"
+      },
+      "signal": "v2",
+      "what": "{P}:evalDisallowedError: This diagnostic event no longer exists.",
+      "fix": "Use ypy:error.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-DETAIL-SWAP-DECISION",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "pattern",
+      "match": {
+        "regex": "\\.detail\\.(?:shouldSwap|isError|serverResponse|selectOverride|swapOverride|ignoreTitle)\\b"
+      },
+      "signal": "v2",
+      "what": "The swap decision properties of the old beforeSwap detail are gone.",
+      "fix": "Decide per status with config.noSwap or ypy-status:<code>=\"swap:none\"; edit the response in ypy:before:swap (detail.ctx.text).",
+      "native": "detail.ctx.text, ypy-status"
+    },
+    {
+      "id": "V2-DETAIL-REQUEST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "pattern",
+      "match": {
+        "regex": "\\.detail\\.(?:xhr|requestConfig|parameters|unfilteredParameters|unfilteredFormData|pathInfo|useUrlParams|verb|headers|formData)\\b"
+      },
+      "signal": "v2",
+      "what": "The old event detail (xhr, requestConfig, parameters, headers, verb) is replaced by detail.ctx.",
+      "fix": "Read and write detail.ctx.request (headers, body as FormData, action, method) and detail.ctx.response.",
+      "native": "detail.ctx.request, detail.ctx.response"
+    },
+    {
+      "id": "V2-API-ADD-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "addClass"
+      },
+      "signal": "v2",
+      "what": "The addClass() method of the legacy API is removed.",
+      "fix": "Use element.classList.add().",
+      "native": "element.classList.add()"
+    },
+    {
+      "id": "V2-API-REMOVE-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "removeClass"
+      },
+      "signal": "v2",
+      "what": "The removeClass() method of the legacy API is removed.",
+      "fix": "Use element.classList.remove().",
+      "native": "element.classList.remove()"
+    },
+    {
+      "id": "V2-API-TOGGLE-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "toggleClass"
+      },
+      "signal": "v2",
+      "what": "The toggleClass() method of the legacy API is removed.",
+      "fix": "Use element.classList.toggle().",
+      "native": "element.classList.toggle()"
+    },
+    {
+      "id": "V2-API-CLOSEST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "closest"
+      },
+      "signal": "v2",
+      "what": "The closest() method of the legacy API is removed.",
+      "fix": "Use element.closest().",
+      "native": "element.closest()"
+    },
+    {
+      "id": "V2-API-REMOVE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "remove"
+      },
+      "signal": "v2",
+      "what": "The remove() method of the legacy API is removed.",
+      "fix": "Use element.remove().",
+      "native": "element.remove()"
+    },
+    {
+      "id": "V2-API-OFF",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "off"
+      },
+      "signal": "v2",
+      "what": "The off() method of the legacy API is removed.",
+      "fix": "Use removeEventListener() (ypy.on() returns the callback).",
+      "native": "removeEventListener() (ypy.on() returns the callback)"
+    },
+    {
+      "id": "V2-API-LOCATION",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "location"
+      },
+      "signal": "v2",
+      "what": "The location() method of the legacy API is removed.",
+      "fix": "Use ypy.ajax().",
+      "native": "ypy.ajax()"
+    },
+    {
+      "id": "V2-API-TAKE-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "takeClass"
+      },
+      "signal": "v2",
+      "what": "The takeClass() method of the legacy API is removed.",
+      "fix": "Use a few lines with classList, or ypy.live.take() from the live extension.",
+      "native": "a few lines with classList, or ypy.live.take() from the live extension",
+      "anchor": true
+    },
+    {
+      "id": "V2-API-LOG-ALL",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "logAll"
+      },
+      "signal": "v2",
+      "what": "The logAll() method of the legacy API is removed.",
+      "fix": "Use ypy.config.logAll = true.",
+      "native": "ypy.config.logAll = true",
+      "anchor": true
+    },
+    {
+      "id": "V2-API-LOG-NONE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "logNone"
+      },
+      "signal": "v2",
+      "what": "The logNone() method of the legacy API is removed.",
+      "fix": "Use ypy.config.logAll = false.",
+      "native": "ypy.config.logAll = false",
+      "anchor": true
+    },
+    {
+      "id": "V2-API-LOGGER",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "logger"
+      },
+      "signal": "v2",
+      "what": "The logger() method of the legacy API is removed.",
+      "fix": "Use console.* (the library logs there directly).",
+      "native": "console.* (the library logs there directly)"
+    },
+    {
+      "id": "V2-API-VALUES",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "values"
+      },
+      "signal": "v2",
+      "what": "The values() method of the legacy API is removed.",
+      "fix": "Use new FormData(form).",
+      "native": "new FormData(form)"
+    },
+    {
+      "id": "V2-API-DEFINE-EXTENSION",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "api",
+      "kind": "js-api",
+      "match": {
+        "name": "defineExtension"
+      },
+      "signal": "v2",
+      "what": "The defineExtension() method of the legacy API is removed.",
+      "fix": "Use ypy.registerExtension() (the extension API is event based; rewrite the extension).",
+      "native": "ypy.registerExtension() (the extension API is event based; rewrite the extension)",
+      "anchor": true
+    },
+    {
+      "id": "V2-CONFIG-DEFAULT-SWAP-STYLE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "defaultSwapStyle"
+      },
+      "signal": "v2",
+      "what": "Config key defaultSwapStyle is renamed to defaultSwap.",
+      "fix": "Use defaultSwap.",
+      "native": "defaultSwap"
+    },
+    {
+      "id": "V2-CONFIG-GLOBAL-VIEW-TRANSITIONS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "globalViewTransitions"
+      },
+      "signal": "v2",
+      "what": "Config key globalViewTransitions is renamed to transitions.",
+      "fix": "Use transitions.",
+      "native": "transitions"
+    },
+    {
+      "id": "V2-CONFIG-HISTORY-ENABLED",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "historyEnabled"
+      },
+      "signal": "v2",
+      "what": "Config key historyEnabled is renamed to history.",
+      "fix": "Use history.",
+      "native": "history"
+    },
+    {
+      "id": "V2-CONFIG-INCLUDE-INDICATOR-STYLES",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "includeIndicatorStyles"
+      },
+      "signal": "v2",
+      "what": "Config key includeIndicatorStyles is renamed to includeIndicatorCSS.",
+      "fix": "Use includeIndicatorCSS.",
+      "native": "includeIndicatorCSS"
+    },
+    {
+      "id": "V2-CONFIG-TIMEOUT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "timeout"
+      },
+      "signal": "v2",
+      "what": "Config key timeout is renamed to defaultTimeout.",
+      "fix": "Use defaultTimeout: the default is 60000 ms natively (0 meant \"no timeout\").",
+      "native": "defaultTimeout"
+    },
+    {
+      "id": "V2-CONFIG-SELF-REQUESTS-ONLY",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "selfRequestsOnly"
+      },
+      "signal": "v2",
+      "what": "Config key selfRequestsOnly is renamed to mode.",
+      "fix": "Use mode: selfRequestsOnly: true is mode: \"same-origin\", false is mode: \"cors\".",
+      "native": "mode"
+    },
+    {
+      "id": "V2-CONFIG-DISABLE-INHERITANCE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "disableInheritance"
+      },
+      "signal": "v2",
+      "what": "Config key disableInheritance is renamed to implicitInheritance.",
+      "fix": "Use implicitInheritance: the meaning is inverted: disableInheritance: false is implicitInheritance: true.",
+      "native": "implicitInheritance"
+    },
+    {
+      "id": "V2-CONFIG-REQUEST-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "requestClass"
+      },
+      "signal": "v2",
+      "what": "Config key requestClass is renamed to classes.request.",
+      "fix": "Use classes.request.",
+      "native": "classes.request"
+    },
+    {
+      "id": "V2-CONFIG-INDICATOR-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "indicatorClass"
+      },
+      "signal": "v2",
+      "what": "Config key indicatorClass is renamed to classes.indicator.",
+      "fix": "Use classes.indicator.",
+      "native": "classes.indicator"
+    },
+    {
+      "id": "V2-CONFIG-ADDED-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "addedClass"
+      },
+      "signal": "v2",
+      "what": "Config key addedClass is renamed to classes.added.",
+      "fix": "Use classes.added.",
+      "native": "classes.added"
+    },
+    {
+      "id": "V2-CONFIG-SETTLING-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "settlingClass"
+      },
+      "signal": "v2",
+      "what": "Config key settlingClass is renamed to classes.settling.",
+      "fix": "Use classes.settling.",
+      "native": "classes.settling"
+    },
+    {
+      "id": "V2-CONFIG-SWAPPING-CLASS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "swappingClass"
+      },
+      "signal": "v2",
+      "what": "Config key swappingClass is renamed to classes.swapping.",
+      "fix": "Use classes.swapping.",
+      "native": "classes.swapping"
+    },
+    {
+      "id": "V2-CONFIG-ALLOW-EVAL",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "allowEval"
+      },
+      "signal": "v2",
+      "what": "Config key allowEval is removed.",
+      "fix": "Set the Content-Security-Policy instead; evaluation of ypy-vals js: and ypy-on is controlled by the page policy.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-ALLOW-SCRIPT-TAGS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "allowScriptTags"
+      },
+      "signal": "v2",
+      "what": "Config key allowScriptTags is removed.",
+      "fix": "Scripts in swapped content follow the browser rules; sanitize on the server.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-ALLOW-NESTED-OOB-SWAPS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "allowNestedOobSwaps"
+      },
+      "signal": "v2",
+      "what": "Config key allowNestedOobSwaps is removed.",
+      "fix": "Nested OOB swaps are always processed.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-ATTRIBUTES-TO-SETTLE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "attributesToSettle"
+      },
+      "signal": "v2",
+      "what": "Config key attributesToSettle is removed.",
+      "fix": "Settling is automatic.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-DEFAULT-SWAP-DELAY",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "defaultSwapDelay"
+      },
+      "signal": "v2",
+      "what": "Config key defaultSwapDelay is removed.",
+      "fix": "Use the swap: modifier on ypy-swap.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-DISABLE-SELECTOR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "disableSelector"
+      },
+      "signal": "v2",
+      "what": "Config key disableSelector is removed.",
+      "fix": "Use ypy-ignore.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-GET-CACHE-BUSTER-PARAM",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "getCacheBusterParam"
+      },
+      "signal": "v2",
+      "what": "Config key getCacheBusterParam is removed.",
+      "fix": "Add the parameter in a ypy:config:request listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-HISTORY-CACHE-SIZE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "historyCacheSize"
+      },
+      "signal": "v2",
+      "what": "Config key historyCacheSize is removed.",
+      "fix": "Load the ypy-history-cache extension for snapshots.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-METHODS-THAT-USE-URL-PARAMS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "methodsThatUseUrlParams"
+      },
+      "signal": "v2",
+      "what": "Config key methodsThatUseUrlParams is removed.",
+      "fix": "Parameters of GET requests go in the URL; other methods send a body.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-REFRESH-ON-HISTORY-MISS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "refreshOnHistoryMiss"
+      },
+      "signal": "v2",
+      "what": "Config key refreshOnHistoryMiss is removed.",
+      "fix": "History restores are fetched; there is no cache miss setting.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-RESPONSE-HANDLING",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "responseHandling"
+      },
+      "signal": "v2",
+      "what": "Config key responseHandling is removed.",
+      "fix": "Use config.noSwap (a list of status codes) or ypy-status:<code>=\"swap:none\".",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-SCROLL-BEHAVIOR",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "scrollBehavior"
+      },
+      "signal": "v2",
+      "what": "Config key scrollBehavior is removed.",
+      "fix": "Use the scroll behavior of the page CSS (scroll-behavior).",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-SCROLL-INTO-VIEW-ON-BOOST",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "scrollIntoViewOnBoost"
+      },
+      "signal": "v2",
+      "what": "Config key scrollIntoViewOnBoost is removed.",
+      "fix": "Use the show:/scroll: modifiers on ypy-swap.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-TRIGGER-SPECS-CACHE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "triggerSpecsCache"
+      },
+      "signal": "v2",
+      "what": "Config key triggerSpecsCache is removed.",
+      "fix": "No replacement is needed.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-WITH-CREDENTIALS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "withCredentials"
+      },
+      "signal": "v2",
+      "what": "Config key withCredentials is removed.",
+      "fix": "Use ypy-config=\"credentials:include\" or ypy.config.mode.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-WS-BINARY-TYPE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "wsBinaryType"
+      },
+      "signal": "v2",
+      "what": "Config key wsBinaryType is removed.",
+      "fix": "Set it on the connection in a ypy:ws:before:connection listener.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-WS-RECONNECT-DELAY",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "wsReconnectDelay"
+      },
+      "signal": "v2",
+      "what": "Config key wsReconnectDelay is removed.",
+      "fix": "Configure ypy.config.ws reconnect options.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-REPORT-VALIDITY-OF-FORMS",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "reportValidityOfForms"
+      },
+      "signal": "v2",
+      "what": "Config key reportValidityOfForms is removed.",
+      "fix": "Forms are validated through reportValidity; use ypy-validate=\"false\" to skip it.",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-CONFIG-IGNORE-TITLE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "config",
+      "kind": "config",
+      "match": {
+        "key": "ignoreTitle"
+      },
+      "signal": "v2",
+      "what": "Config key ignoreTitle is removed.",
+      "fix": "Use the title handling of the swap (ypy-swap ignoreTitle:true).",
+      "native": "(none)"
+    },
+    {
+      "id": "V2-HEADER-TRIGGER-AFTER-SWAP",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "header",
+      "kind": "header",
+      "match": {
+        "name": "{H}Trigger-After-Swap"
+      },
+      "signal": "v2",
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The {H}Trigger-After-Swap response header is removed.",
+      "fix": "Send YPY-Trigger (events fire after the swap) or dispatch the event from a ypy:after:swap listener.",
+      "native": "YPY-Trigger"
+    },
+    {
+      "id": "V2-HEADER-TRIGGER-AFTER-SETTLE",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "header",
+      "kind": "header",
+      "match": {
+        "name": "{H}Trigger-After-Settle"
+      },
+      "signal": "v2",
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The {H}Trigger-After-Settle response header is removed.",
+      "fix": "Send YPY-Trigger or dispatch the event from a ypy:after:settle listener.",
+      "native": "YPY-Trigger"
+    },
+    {
+      "id": "V2-HEADER-REQ-TRIGGER",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "header",
+      "kind": "header",
+      "match": {
+        "name": "{H}Trigger",
+        "context": "read"
+      },
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The {H}Trigger request header is replaced by YPY-Source, in the tag#id format.",
+      "fix": "Read YPY-Source (for example button#save); the old header carried only the element id.",
+      "native": "YPY-Source"
+    },
+    {
+      "id": "V2-HEADER-REQ-TRIGGER-NAME",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "header",
+      "kind": "header",
+      "match": {
+        "name": "{H}Trigger-Name"
+      },
+      "signal": "v2",
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The {H}Trigger-Name request header is removed.",
+      "fix": "Read YPY-Source, or send the value in the request body.",
+      "native": "YPY-Source"
+    },
+    {
+      "id": "V2-HEADER-REQ-TARGET",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "muda",
+      "group": "header",
+      "kind": "header",
+      "match": {
+        "name": "{H}Target",
+        "context": "read"
+      },
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The {H}Target request header changes from the element id to tag#id.",
+      "fix": "Compare against the tag#id format (for example main#content).",
+      "native": "YPY-Target: tag#id"
+    },
+    {
+      "id": "V2-HEADER-REQ-PROMPT",
+      "lines": [
+        "v1",
+        "v2"
+      ],
+      "severity": "aviso",
+      "group": "header",
+      "kind": "header",
+      "match": {
+        "name": "{H}Prompt",
+        "context": "read"
+      },
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The {H}Prompt request header needs the prompt extension.",
+      "fix": "Load the prompt extension (ypy-prompt.js).",
+      "native": "extension ypy-prompt"
+    }
+  ]
+}

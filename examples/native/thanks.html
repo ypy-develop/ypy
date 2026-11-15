@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Thanks (native)</title>
+    <!--YPY_SCRIPTS-->
+  </head>
+  <body>
+    <h1 id="thanks">Welcome, <span id="who"></span></h1>
+    <p><a href="/native/">Back</a></p>
+    <script>
+      document.getElementById('who').textContent = new URLSearchParams(location.search).get('name') || '';
+    </script>
+  </body>
+</html>

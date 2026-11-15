@@ -1,0 +1,35 @@
+/*
+ * SPDX-License-Identifier: MIT
+ *
+ * YPY variants for Tailwind CSS v4.
+ *
+ *   @import "tailwindcss";
+ *   @import "./ypy-tailwind.css";
+ *
+ * Every variant matches the class YPY puts on the element (see config.classes) or the
+ * data-ypy-state attribute, so it keeps working when a class is renamed to nothing ("") and
+ * only the attribute is left. Rename a class in ypy.config.classes? Copy the line of that
+ * variant and change the class.
+ *
+ *   ypy-request:   a request is in flight (the requesting element, or the ypy-indicator)
+ *   ypy-swapping:  the swap target, between the start of the swap and the swap itself
+ *   ypy-settling:  the swap target, while it settles
+ *   ypy-added:     freshly swapped content, until it settles
+ *   ypy-error:     the target of an error response, until the next request of its source
+ *   ypy-offline:   the page is offline; matches <html> and everything under it
+ *   ypy-dirty:     a signals scope with unsaved client changes
+ *   ypy-busy:      aria-busy="true" on the target of a request (native profile)
+ *
+ * Use them like any variant: ypy-request:opacity-50, ypy-error:border-red-500,
+ * ypy-offline:hidden. To style a child from the state of a parent, mark the parent with
+ * "group" and write group-ypy-request:opacity-100, or use in-ypy-request:opacity-100.
+ */
+
+@custom-variant ypy-request (&:is(.ypy-request, [data-ypy-state~="request"]));
+@custom-variant ypy-swapping (&:is(.ypy-swapping, [data-ypy-state~="swapping"]));
+@custom-variant ypy-settling (&:is(.ypy-settling, [data-ypy-state~="settling"]));
+@custom-variant ypy-added (&:is(.ypy-added, [data-ypy-state~="added"]));
+@custom-variant ypy-error (&:is(.ypy-error, [data-ypy-state~="error"]));
+@custom-variant ypy-dirty (&:is(.ypy-dirty, [data-ypy-state~="dirty"]));
+@custom-variant ypy-busy (&:is([aria-busy="true"]));
+@custom-variant ypy-offline (&:where(.ypy-offline, [data-ypy-state~="offline"], .ypy-offline *, [data-ypy-state~="offline"] *));

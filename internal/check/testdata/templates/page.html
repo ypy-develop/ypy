@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="bolt-config" content='{"defaultSwapStyle": "outerHTML"}'> <!-- expect: V2-CONFIG-DEFAULT-SWAP-STYLE -->
+    <script src="https://unpkg.com/bolt.org@2.0.4"></script>
+    <script src="/static/ext/sse.js"></script> <!-- expect: V2-SCRIPT-EXTENSION -->
+</head>
+<body>
+    <div id="out"></div>
+    <div acme-target="#out" acme-swap="innerHTML show:#top:top"> <!-- expect: V2-INHERIT-IMPLICIT, V2-SWAP-SHOW-SYNTAX -->
+        <button acme-get="/items/1" acme-vars="a:1">Load</button> <!-- expect: V2-ATTR-VARS -->
+        <button acme-get="/items/2" acme-disabled-elt="this">Go</button> <!-- expect: V2-ATTR-DISABLED-ELT -->
+    </div>
+    <form acme-post="/save" acme-on::configRequest="tweak(event)"> <!-- expect: V2-EVENT-CONFIG-REQUEST -->
+        <input name="q" acme-on:bolt:afterSwap="done()"> <!-- expect: V2-EVENT-AFTER-SWAP -->
+    </form>
+    <p acme-disable>Raw <b acme-get="/x">text</b></p> <!-- expect: V2-ATTR-DISABLE -->
+    <div sse-connect="/stream" sse-swap="message"></div> <!-- expect: V2-EXT-SSE-CONNECT, V2-EXT-SSE-SWAP -->
+    <script>
+        document.body.addEventListener('bolt:responseError', fn) // expect: V2-EVENT-RESPONSE-ERROR
+        bolt.addClass(el, 'on') // expect: V2-API-ADD-CLASS
+        el.innerHTML = '<button acme-vars="a:1">x</button>' // expect: V2-ATTR-VARS
+    </script>
+</body>
+</html>

@@ -1,0 +1,1035 @@
+// SPDX-License-Identifier: MIT
+describe('ypy-multipart extension', function() {
+
+    let extBackup;
+    let configExtensions;
+    let partsDescriptor;
+
+    before(async () => {
+        extBackup = backupExtensions();
+        configExtensions = ypy.config.extensions;
+        partsDescriptor = Object.getOwnPropertyDescriptor(Response.prototype, 'parts');
+        clearExtensions();
+
+        ypy.config.extensions = 'ypy-multipart';
+        ypy.__approvedExt = 'ypy-multipart';
+
+        let script = document.createElement('script');
+        script.src = '../src/ext/ypy-multipart.js';
+        await new Promise(resolve => {
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
+
+        if (SOURCE_BUILD && !ypy.__registeredExt.has('ypy-multipart')) {
+            throw new Error('ypy-multipart extension failed to register - check approval');
+        }
+    });
+
+    after(() => {
+        restoreExtensions(extBackup);
+        ypy.config.extensions = configExtensions;
+        if (partsDescriptor) {
+            Object.defineProperty(Response.prototype, 'parts', partsDescriptor);
+        } else {
+            delete Response.prototype.parts;
+        }
+    });
+
+    beforeEach(function() {
+        setupTest();
+    });
+
+    afterEach(function() {
+        cleanupTest();
+    });
+
+    it('installs Response.prototype.parts', function() {
+        assert.equal(typeof Response.prototype.parts, 'function');
+    });
+
+    it('initializes global multipart config', function() {
+        ypy.config.multipart.reconnectDelay = '1s';
+        assert.equal(ypy.config.multipart.reconnectDelay, '1s');
+        delete ypy.config.multipart.reconnectDelay;
+    });
+
+    it('closes Content-Length bodies before the next boundary arrives', async function() {
+        let controller;
+        let response = new Response(new ReadableStream({
+            start(value) {
+                controller = value;
+            }
+        }), {
+            headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+        });
+        let encode = value => new TextEncoder().encode(value);
+
+        controller.enqueue(encode('--updates\r\nContent-Length: 5\r\n\r\nhello'));
+        let iterator = response.parts()[Symbol.asyncIterator]();
+        let {value: part} = await iterator.next();
+        let result = await Promise.race([
+            part.text().then(value => ({value})),
+            ypy.timeout(20).then(() => ({pending: true}))
+        ]);
+
+        controller.enqueue(encode('\r\n--updates--'));
+        controller.close();
+        await iterator.next();
+
+        assert.deepEqual(result, {value: 'hello'});
+    });
+
+    it('appends multipart types to an existing Accept header', async function() {
+        mockResponse('GET', '/test', 'OK');
+        let button = createProcessedHTML('<button ypy-get="/test" ypy-swap="none" ypy-headers=\'"Accept":"text/html, text/event-stream"\'>Go</button>');
+
+        button.click();
+        await forRequest();
+
+        assert.equal(
+            lastFetch().request.headers.Accept,
+            'text/html, text/event-stream, multipart/mixed, multipart/parallel'
+        );
+    });
+
+    async function waitUntil(condition, timeout = 200) {
+        let start = Date.now();
+        while (Date.now() - start < timeout) {
+            if (condition()) return true;
+            await ypy.timeout(5);
+        }
+        return false;
+    }
+
+    function deleteWithSwap(selector) {
+        let target = ypy.find(selector);
+        return ypy.swap({
+            sourceElement: target,
+            request: {},
+            response: {},
+            ypy: {},
+            text: '',
+            target,
+            swap: 'delete',
+            push: false,
+            replace: false,
+            transition: false
+        });
+    }
+
+    it('applies request, envelope, and part swap settings in order', async function() {
+        let content = [
+            '<span class="request-choice">request</span>',
+            '<span class="envelope-choice">envelope</span>',
+            '<span class="part-choice">part</span>',
+            '<span class="re-choice">re</span>'
+        ].join('');
+        let response = (partHeaders = [], envelopeHeaders = {}) => new Response([
+            '--updates\r\n',
+            'Content-Type: text/html\r\n',
+            ...partHeaders.map(header => `${header}\r\n`),
+            '\r\n',
+            content,
+            '\r\n--updates--\r\n'
+        ].join(''), {
+            headers: {
+                'Content-Type': 'multipart/mixed; boundary=updates',
+                ...envelopeHeaders
+            }
+        });
+
+        fetchMock.mockResponse('GET', '/request-defaults', response());
+        fetchMock.mockResponse('GET', '/envelope-defaults', response([], {
+            'YPY-Target': '#envelope-target',
+            'YPY-Swap': 'beforeend',
+            'YPY-Select': '.envelope-choice'
+        }));
+        fetchMock.mockResponse('GET', '/envelope-re', response([], {
+            'YPY-Target': '#request-target',
+            'YPY-Swap': 'innerHTML',
+            'YPY-Select': '.envelope-choice',
+            'YPY-Retarget': '#envelope-re-target',
+            'YPY-Reswap': 'beforeend',
+            'YPY-Reselect': '.re-choice'
+        }));
+        fetchMock.mockResponse('GET', '/part-direct', response([
+            'YPY-Target: #part-target',
+            'YPY-Swap: innerHTML',
+            'YPY-Select: .part-choice'
+        ], {
+            'YPY-Retarget': '#envelope-target',
+            'YPY-Reswap': 'beforeend',
+            'YPY-Reselect': '.envelope-choice'
+        }));
+        fetchMock.mockResponse('GET', '/part-re', response([
+            'YPY-Target: #part-target',
+            'YPY-Swap: innerHTML',
+            'YPY-Select: .part-choice',
+            'YPY-Retarget: #re-target',
+            'YPY-Reswap: beforeend',
+            'YPY-Reselect: .re-choice'
+        ]));
+
+        createProcessedHTML([
+            '<button id="request" ypy-get="/request-defaults" ypy-target="#request-target" ypy-swap="innerHTML" ypy-select=".request-choice">request</button>',
+            '<button id="envelope" ypy-get="/envelope-defaults" ypy-target="#request-target">envelope</button>',
+            '<button id="envelope-re" ypy-get="/envelope-re">envelope re</button>',
+            '<button id="part" ypy-get="/part-direct">part</button>',
+            '<button id="re" ypy-get="/part-re">re</button>',
+            '<div id="request-target">existing</div>',
+            '<div id="envelope-target">existing</div>',
+            '<div id="envelope-re-target">existing</div>',
+            '<div id="part-target">existing</div>',
+            '<div id="re-target">existing</div>'
+        ].join(''));
+
+        find('#request').click();
+        await forRequest();
+        assertTextContentIs('#request-target', 'request');
+
+        find('#envelope').click();
+        await forRequest();
+        assertTextContentIs('#envelope-target', 'existingenvelope');
+
+        find('#envelope-re').click();
+        await forRequest();
+        assertTextContentIs('#envelope-re-target', 'existingre');
+
+        find('#part').click();
+        await forRequest();
+        assertTextContentIs('#part-target', 'part');
+
+        find('#re').click();
+        await forRequest();
+        assertTextContentIs('#re-target', 'existingre');
+    });
+
+    it('connectTimeout triggers reconnect when server hangs on reconnect fetch', async function() {
+        this.timeout(3000);
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/mp-ct-hang', () => {
+            requestCount++;
+            if (requestCount === 1) {
+                // First response: clean EOF, triggers reconnect loop
+                return new Response('--updates--\r\n', {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            if (requestCount === 2) {
+                // Second fetch hangs — simulates a server that accepts TCP but never responds.
+                // connectTimeout should abort this and trigger attempt 2.
+                return new Promise(() => {});
+            }
+            // Third fetch: succeed so the loop can continue
+            return new Response('--updates--\r\n', {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        createProcessedHTML([
+            '<div id="mp-ct-hang-source" ypy-multipart:connect="/mp-ct-hang" ',
+            'ypy-config="multipart.connectTimeout:100ms multipart.reconnectDelay:10ms multipart.reconnectMaxAttempts:3 multipart.reconnectJitter:0"></div>'
+        ].join(''));
+
+        // Wait for the timeout to fire on fetch 2 and fetch 3 to be made
+        assert.isTrue(await waitUntil(() => requestCount >= 3, 2000), `Expected ≥3 fetches, got ${requestCount}`);
+        await deleteWithSwap('#mp-ct-hang-source');
+    });
+
+    it('connectTimeout:0 disables the timeout', async function() {
+        this.timeout(3000);
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/mp-ct-zero', () => {
+            requestCount++;
+            if (requestCount === 1) {
+                return new Response('--updates--\r\n', {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            // Hang forever
+            return new Promise(() => {});
+        });
+
+        createProcessedHTML([
+            '<div id="mp-ct-zero-source" ypy-multipart:connect="/mp-ct-zero" ',
+            'ypy-config="multipart.connectTimeout:0 multipart.reconnectDelay:10ms multipart.reconnectMaxAttempts:3 multipart.reconnectJitter:0"></div>'
+        ].join(''));
+
+        // Wait long enough that a 100ms default timeout would have fired multiple times
+        await new Promise(r => setTimeout(r, 400));
+
+        // With timeout disabled, the hanging reconnect fetch should not have been retried
+        assert.equal(requestCount, 2, 'Should only have the initial fetch plus one hanging reconnect — no further retries');
+        await deleteWithSwap('#mp-ct-zero-source');
+    });
+
+    it('reconnects ypy-multipart:connect after clean EOF and stops on removal', async function() {
+        let requestCount = 0;
+        let closeReason;
+        document.addEventListener(
+            'ypy:multipart:close',
+            event => closeReason = event.detail.reason,
+            {once: true}
+        );
+
+        fetchMock.mockResponse('GET', '/connect', () => {
+            requestCount++;
+            return new Response([
+                '--updates\r\n',
+                'Content-Type: text/html\r\n',
+                'YPY-Target: #connection-target\r\n',
+                'YPY-Swap: innerHTML\r\n',
+                '\r\n',
+                `<span>${requestCount}</span>`,
+                '\r\n--updates--\r\n'
+            ].join(''), {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        createProcessedHTML([
+            '<div id="source" ypy-multipart:connect="/connect" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>',
+            '<div id="connection-target"></div>'
+        ].join(''));
+
+        assert.isTrue(await waitUntil(() => requestCount >= 2, 500));
+        await deleteWithSwap('#source');
+
+        let stoppedAt = requestCount;
+        await ypy.timeout(20);
+
+        assert.equal(requestCount, stoppedAt);
+        assert.equal(closeReason, 'removed');
+    });
+
+    it('includes the connection in reconnect errors', async function() {
+        let requestCount = 0;
+        let connection;
+        let errorDetail;
+        let saveConnection = event => {
+            connection = event.detail.connection;
+        };
+        let saveError = event => {
+            errorDetail = event.detail;
+        };
+        document.addEventListener('ypy:multipart:before:connection', saveConnection);
+        document.addEventListener('ypy:multipart:error', saveError);
+        fetchMock.mockResponse('GET', '/reconnect-error', () => {
+            requestCount++;
+            return new Response(requestCount === 1 ? '--updates--\r\n' : '', {
+                status: requestCount === 1 ? 200 : 500,
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        let source = createProcessedHTML([
+            '<div id="reconnect-error-source" ypy-multipart:connect="/reconnect-error" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxAttempts:1 multipart.reconnectJitter:0"></div>'
+        ].join(''));
+
+        assert.isTrue(await waitUntil(() => errorDetail != null, 500));
+        assert.equal(errorDetail.status, 500);
+        assert.strictEqual(errorDetail.connection, connection);
+        await deleteWithSwap('#reconnect-error-source');
+        document.removeEventListener('ypy:multipart:before:connection', saveConnection);
+        document.removeEventListener('ypy:multipart:error', saveError);
+    });
+
+    it('sends the last completed part ID on reconnect and supports reset', async function() {
+        let requestHeaders = [];
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/resume', () => {
+            requestHeaders.push({...fetchMock.getLastCall().request.headers});
+            requestCount++;
+
+            if (requestCount === 1) {
+                return new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Part-ID: part-1\r\n',
+                    '\r\n',
+                    'First',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            if (requestCount === 2) {
+                return new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Part-ID:\r\n',
+                    '\r\n',
+                    'Reset',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            return new Response(new ReadableStream(), {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        let source = createProcessedHTML([
+            '<div id="resume-source" ypy-multipart:connect="/resume" ypy-trigger="click" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>'
+        ].join(''));
+        source.click();
+
+        assert.isTrue(await waitUntil(() => requestCount >= 3, 500));
+        assert.equal(requestHeaders[1]['YPY-Last-Part-ID'], 'part-1');
+        assert.isUndefined(requestHeaders[2]['YPY-Last-Part-ID']);
+        assert.equal(source._ypy.multipart.lastPartId, '');
+        await deleteWithSwap('#resume-source');
+    });
+
+    it('keeps the previous part ID when a reset part fails', async function() {
+        let requestHeaders = [];
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/failed-reset', () => {
+            requestHeaders.push({...fetchMock.getLastCall().request.headers});
+            requestCount++;
+
+            if (requestCount === 1) {
+                return new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Part-ID: part-1\r\n',
+                    '\r\n',
+                    'First',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            if (requestCount === 2) {
+                return new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Part-ID:\r\n',
+                    '\r\n',
+                    'Reset',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            return new Response(new ReadableStream(), {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        let source = createProcessedHTML([
+            '<div id="failed-reset-source" ypy-multipart:connect="/failed-reset" ypy-trigger="click" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>'
+        ].join(''));
+        source.addEventListener('ypy:multipart:before:part', event => {
+            if (requestCount === 2) event.detail.waitUntil(Promise.reject(new Error('part failed')));
+        });
+        source.click();
+
+        assert.isTrue(await waitUntil(() => requestCount >= 3, 500));
+        assert.equal(requestHeaders[2]['YPY-Last-Part-ID'], 'part-1');
+        assert.equal(source._ypy.multipart.lastPartId, 'part-1');
+        await deleteWithSwap('#failed-reset-source');
+    });
+
+    it('does not record a cancelled part ID', async function() {
+        let requestHeaders = [];
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/cancelled-part', () => {
+            requestHeaders.push({...fetchMock.getLastCall().request.headers});
+            requestCount++;
+
+            if (requestCount === 1) {
+                return new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Part-ID: skipped\r\n',
+                    '\r\n',
+                    'Skipped',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                });
+            }
+            return new Response(new ReadableStream(), {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        let source = createProcessedHTML([
+            '<div id="cancelled-part-source" ypy-multipart:connect="/cancelled-part" ypy-trigger="click" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>'
+        ].join(''));
+        source.addEventListener('ypy:multipart:before:part', event => event.preventDefault());
+        source.click();
+
+        assert.isTrue(await waitUntil(() => requestCount >= 2, 500));
+        assert.isUndefined(requestHeaders[1]['YPY-Last-Part-ID']);
+        assert.isNull(source._ypy.multipart.lastPartId);
+        await deleteWithSwap('#cancelled-part-source');
+    });
+
+    it('records parallel part IDs in wire order', async function() {
+        let requestHeaders = [];
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/parallel-resume', () => {
+            requestHeaders.push({...fetchMock.getLastCall().request.headers});
+            requestCount++;
+
+            if (requestCount === 1) {
+                return new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Target: #parallel-resume-one\r\n',
+                    'YPY-Swap: innerHTML swap:100ms settle:0\r\n',
+                    'YPY-Part-ID: part-1\r\n',
+                    '\r\n',
+                    'First',
+                    '\r\n--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Target: #parallel-resume-two\r\n',
+                    'YPY-Swap: innerHTML settle:0\r\n',
+                    'YPY-Part-ID: part-2\r\n',
+                    '\r\n',
+                    'Second',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/parallel; boundary=updates'}
+                });
+            }
+            return new Response(new ReadableStream(), {
+                headers: {'Content-Type': 'multipart/parallel; boundary=updates'}
+            });
+        });
+
+        let source = createProcessedHTML([
+            '<div id="parallel-resume-source" ypy-multipart:connect="/parallel-resume" ypy-trigger="click" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>',
+            '<div id="parallel-resume-one"></div>',
+            '<div id="parallel-resume-two"></div>'
+        ].join(''));
+        let completed = [];
+        source.addEventListener('ypy:multipart:after:part', event => {
+            completed.push({
+                id: event.detail.part.headers.get('YPY-Part-ID'),
+                lastPartId: source._ypy.multipart.lastPartId
+            });
+        });
+        source.click();
+
+        assert.isTrue(await waitUntil(() => requestCount >= 2, 500));
+        assert.deepEqual(completed, [
+            {id: 'part-2', lastPartId: null},
+            {id: 'part-1', lastPartId: 'part-2'}
+        ]);
+        assert.equal(requestHeaders[1]['YPY-Last-Part-ID'], 'part-2');
+        await deleteWithSwap('#parallel-resume-source');
+    });
+
+    it('reconnects ypy-multipart:connect after a broken stream', async function() {
+        let requestCount = 0;
+        let encoder = new TextEncoder();
+        fetchMock.mockResponse('GET', '/broken', () => {
+            requestCount++;
+            let content = [
+                '--updates\r\n',
+                'Content-Type: text/html\r\n',
+                'YPY-Target: #broken-target\r\n',
+                '\r\n',
+                `<span>${requestCount}</span>`
+            ].join('');
+            let body = requestCount === 1
+                ? content
+                : new ReadableStream({
+                    start(controller) {
+                        controller.enqueue(encoder.encode(`${content}\r\n--updates\r\nContent-Type: text/html\r\n\r\n`));
+                    }
+                });
+            return new Response(body, {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        createProcessedHTML([
+            '<div id="broken-source" ypy-multipart:connect="/broken" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>',
+            '<div id="broken-target"></div>'
+        ].join(''));
+
+        assert.isTrue(await waitUntil(() => requestCount >= 2, 500));
+        assert.isTrue(await waitUntil(() => ypy.find('#broken-target').textContent === '2', 500));
+        await deleteWithSwap('#broken-source');
+    });
+
+    it('keeps ypy-multipart:connect alive after YPY-Location', async function() {
+        let requestCount = 0;
+        let locationCount = 0;
+        fetchMock.mockResponse('GET', '/location-stream', () => {
+            requestCount++;
+            let body = requestCount === 1
+                ? [
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Location: path:"/destination" target:"#location-target" push:false\r\n',
+                    '\r\n',
+                    'ignored',
+                    '\r\n--updates--\r\n'
+                ].join('')
+                : new ReadableStream();
+            return new Response(body, {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+        fetchMock.mockResponse('GET', '/destination', () => {
+            locationCount++;
+            return new Response('done');
+        });
+
+        createProcessedHTML([
+            '<div id="location-source" ypy-multipart:connect="/location-stream" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>',
+            '<div id="location-target"></div>'
+        ].join(''));
+
+        assert.isTrue(await waitUntil(() => locationCount >= 1, 500), `YPY-Location count: ${locationCount}`);
+        assert.isTrue(await waitUntil(() => requestCount >= 2, 500), `stream request count: ${requestCount}`);
+        await deleteWithSwap('#location-source');
+
+        assertTextContentIs('#location-target', 'done');
+    });
+
+    it('closes ypy-multipart:connect when a part triggers ypy-multipart:close', async function() {
+        let requestCount = 0;
+        fetchMock.mockResponse('GET', '/close-stream', () => {
+            requestCount++;
+            return new Response([
+                '--updates\r\n',
+                'Content-Type: text/html\r\n',
+                'YPY-Trigger: done\r\n',
+                '\r\n',
+                'final update',
+                '\r\n--updates--\r\n'
+            ].join(''), {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            });
+        });
+
+        let source = createProcessedHTML([
+            '<div id="close-source" ypy-multipart:connect="/close-stream" ypy-multipart:close="done" ',
+            'ypy-trigger="click" ypy-target="#close-target" ',
+            'ypy-config="multipart.reconnectDelay:1ms multipart.reconnectMaxDelay:1ms multipart.reconnectJitter:0"></div>',
+            '<div id="close-target"></div>'
+        ].join(''));
+        let doneFired = false;
+        let closeReason;
+        source.addEventListener('done', () => doneFired = true);
+        source.addEventListener('ypy:multipart:close', event => closeReason = event.detail.reason);
+
+        source.click();
+        assert.isTrue(await waitUntil(() => closeReason != null, 500));
+        await ypy.timeout(20);
+
+        assert.isTrue(doneFired);
+        assert.equal(closeReason, 'part');
+        assert.equal(requestCount, 1);
+        assertTextContentIs('#close-target', 'final update');
+    });
+
+    it('runs envelope and part actions', async function() {
+        let button = createProcessedHTML('<button ypy-get="/stream">Go</button><div id="one">one</div><div id="two">two</div>');
+        let partTriggered = false;
+        let envelopeTriggered = false;
+        let handledPart;
+        let afterRequestCount = 0;
+        button.addEventListener('partEvent', () => partTriggered = true);
+        button.addEventListener('envelopeEvent', () => envelopeTriggered = true);
+        button.addEventListener('ypy:multipart:before:part', event => {
+            if (event.detail.part.headers.get('YPY-Trigger')) handledPart = event.detail.part;
+        });
+        button.addEventListener('ypy:after:request', () => afterRequestCount++);
+
+        let body = [
+            '--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Retarget: #one\r\n',
+            '\r\n',
+            'First',
+            '\r\n--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Retarget: #two\r\n',
+            'YPY-Trigger: partEvent\r\n',
+            '\r\n',
+            'Second',
+            '\r\n--updates--\r\n'
+        ].join('');
+
+        fetchMock.mockResponse('GET', '/stream', new Response(body, {
+            headers: {
+                'Content-Type': 'multipart/mixed; boundary=updates',
+                'YPY-Trigger': 'envelopeEvent'
+            }
+        }));
+
+        button.click();
+        await forRequest();
+
+        assertTextContentIs('#one', 'First');
+        assertTextContentIs('#two', 'Second');
+        assert.isTrue(partTriggered);
+        assert.isTrue(envelopeTriggered);
+        assert.equal(handledPart.headers.get('YPY-Trigger'), 'partEvent');
+        assert.equal(afterRequestCount, 1);
+        assert.equal(button.textContent, 'Go');
+    });
+
+    it('runs part history actions', async function() {
+        // Seed a tagged entry so the stamp-on-swap replaceState doesn't fire during the test
+        history.replaceState({ypy: true}, '', location.href);
+
+        let originalPushState = history.pushState;
+        let originalReplaceState = history.replaceState;
+        let pushes = 0;
+        let replacements = 0;
+        history.pushState = function(...args) {
+            pushes++;
+            return originalPushState.apply(this, args);
+        };
+        history.replaceState = function(...args) {
+            replacements++;
+            return originalReplaceState.apply(this, args);
+        };
+
+        try {
+            let button = createProcessedHTML('<button ypy-get="/history-stream">Go</button>');
+            fetchMock.mockResponse('GET', '/history-stream', new Response([
+                '--updates\r\n',
+                'Content-Type: text/html\r\n',
+                'YPY-Push-Url: /multipart-pushed\r\n',
+                '\r\n',
+                'First',
+                '\r\n--updates\r\n',
+                'Content-Type: text/html\r\n',
+                'YPY-Replace-Url: /multipart-replaced\r\n',
+                '\r\n',
+                'Second',
+                '\r\n--updates--\r\n'
+            ].join(''), {
+                headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+            }));
+
+            button.click();
+            await forRequest();
+
+            assert.equal(pushes, 1);
+            assert.equal(replacements, 2, 'one to save the scroll position before the push, one for the replace');
+            assert.include(location.href, '/multipart-replaced');
+        } finally {
+            history.pushState = originalPushState;
+            history.replaceState = originalReplaceState;
+        }
+    });
+
+    it('skips a part swap for YPY-Redirect', async function() {
+        // the restore that the hash change starts gets a fragment from the mock: swap it, never reload the runner
+        ypy.config.historyRestore = {fragment: false};
+        let button = createProcessedHTML('<button ypy-get="/redirect-stream">Go</button>');
+        fetchMock.mockResponse('GET', '/redirect-stream', new Response([
+            '--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Redirect: #multipart-redirected\r\n',
+            '\r\n',
+            'Ignored',
+            '\r\n--updates--\r\n'
+        ].join(''), {
+            headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+        }));
+
+        button.click();
+        await forRequest();
+
+        assert.equal(location.hash, '#multipart-redirected');
+        assert.equal(button.textContent, 'Go');
+        // The hash change fires popstate, and the history restore request it starts ends on the browser's
+        // schedule (Firefox is later than Chrome). Let it end here: its ypy:finally:request would otherwise
+        // answer the forRequest() of the next test before that test's own request has run.
+        await ypy.timeout(150);
+        delete ypy.config.historyRestore;
+    });
+
+    it('SEC-05 (fixed): a javascript: or data: YPY-Redirect in a part is dropped and reported', async function() {
+        let blocked = [];
+        let listener = e => blocked.push(e.detail);
+        document.addEventListener('ypy:security:blocked', listener);
+        try {
+            for (let value of ['javascript:window.__pwnMultipart=1', 'data:text/html,x']) {
+                let button = createProcessedHTML('<button ypy-get="/bad-redirect-stream">Go</button>');
+                fetchMock.mockResponse('GET', '/bad-redirect-stream', new Response([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Redirect: ' + value + '\r\n',
+                    '\r\n',
+                    'Ignored',
+                    '\r\n--updates--\r\n'
+                ].join(''), {
+                    headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+                }));
+                button.click();
+                await forRequest();
+            }
+            await ypy.timeout(30);
+            assert.isUndefined(window.__pwnMultipart);
+            assert.deepEqual(blocked.map(d => d.reason), ['redirect', 'redirect']);
+        } finally {
+            document.removeEventListener('ypy:security:blocked', listener);
+        }
+    });
+
+    it('lets listeners take over a part before HTML handling', async function() {
+        let button = createProcessedHTML('<button ypy-get="/mixed-data">Go</button><div id="result"></div>');
+        let json;
+        let handledParts = 0;
+        let connection;
+        let partConnections = [];
+
+        button.addEventListener('ypy:multipart:before:connection', event => {
+            connection = event.detail.connection;
+        });
+        button.addEventListener('ypy:multipart:before:part', event => {
+            partConnections.push(event.detail.connection);
+            if (event.detail.part.headers.get('Content-Type') !== 'application/json') return;
+
+            event.preventDefault();
+            event.detail.waitUntil(event.detail.part.json().then(value => json = value));
+        });
+        button.addEventListener('ypy:multipart:after:part', event => {
+            partConnections.push(event.detail.connection);
+            handledParts++;
+        });
+
+        fetchMock.mockResponse('GET', '/mixed-data', new Response([
+            '--updates\r\n',
+            'Content-Type: application/json\r\n',
+            '\r\n',
+            '{"unread":3}',
+            '\r\n--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Target: #result\r\n',
+            '\r\n',
+            '<p>Done</p>',
+            '\r\n--updates--\r\n'
+        ].join(''), {
+            headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+        }));
+
+        button.click();
+        await forRequest();
+
+        assert.deepEqual(json, {unread: 3});
+        assertTextContentIs('#result', 'Done');
+        assert.equal(button.textContent, 'Go');
+        assert.equal(handledParts, 1);
+        assert.isTrue(partConnections.every(value => value === connection));
+    });
+
+    it('lets another extension take over a part', async function() {
+        let received;
+        let approvedExt = ypy.__approvedExt;
+        ypy.__approvedExt = `${approvedExt},multipart-consumer-test`;
+        ypy.registerExtension('multipart-consumer-test', {
+            ypy_multipart_before_part(element, detail) {
+                if (detail.part.headers.get('Content-Type') !== 'application/x.test') return;
+
+                detail.waitUntil(new Response(detail.part.body).text().then(value => received = value));
+                return false;
+            }
+        });
+        ypy.__approvedExt = approvedExt;
+
+        let button = createProcessedHTML('<button ypy-get="/extension-data">Go</button><div id="result"></div>');
+        fetchMock.mockResponse('GET', '/extension-data', new Response([
+            '--updates\r\n',
+            'Content-Type: application/x.test\r\n',
+            '\r\n',
+            'custom data',
+            '\r\n--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Target: #result\r\n',
+            '\r\n',
+            'Done',
+            '\r\n--updates--\r\n'
+        ].join(''), {
+            headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+        }));
+
+        button.click();
+        await forRequest();
+
+        assert.equal(received, 'custom data');
+        assertTextContentIs('#result', 'Done');
+        assert.equal(button.textContent, 'Go');
+    });
+
+    it('swaps multipart/mixed parts before the response stream closes', async function() {
+        let button = createProcessedHTML('<button ypy-get="/stream">Go</button><div id="one">one</div><div id="two">two</div>');
+        let controller;
+        let encoder = new TextEncoder();
+        let stream = new ReadableStream({
+            start(c) { controller = c; }
+        });
+
+        fetchMock.mockResponse('GET', '/stream', new Response(stream, {
+            headers: {'Content-Type': 'multipart/mixed; boundary=updates'}
+        }));
+
+        button.click();
+        await ypy.timeout(0);
+
+        controller.enqueue(encoder.encode([
+            '--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Retarget: #one\r\n',
+            '\r\n',
+            'First',
+            '\r\n--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Retarget: #two\r\n',
+            '\r\n'
+        ].join('')));
+
+        assert.isTrue(await waitUntil(() => ypy.find('#one').textContent === 'First', 500));
+        assertTextContentIs('#two', 'two');
+
+        let requestFinished = false;
+        let done = forRequest(500).then(() => requestFinished = true);
+        await ypy.timeout(20);
+        assert.isFalse(requestFinished);
+
+        controller.enqueue(encoder.encode('Second\r\n--updates--\r\n'));
+        controller.close();
+        await done;
+
+        assertTextContentIs('#one', 'First');
+        assertTextContentIs('#two', 'Second');
+    });
+
+    it('reads delayed multipart/parallel bodies before handling them', async function() {
+        let button = createProcessedHTML('<button ypy-get="/parallel">Go</button><div id="one"></div><div id="two"></div>');
+        let encoder = new TextEncoder();
+        let stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(encoder.encode([
+                    '--updates\r\n',
+                    'Content-Type: text/html\r\n',
+                    'YPY-Target: #one\r\n',
+                    '\r\n',
+                    'Fir'
+                ].join('')));
+                setTimeout(() => {
+                    controller.enqueue(encoder.encode([
+                        'st',
+                        '\r\n--updates\r\n',
+                        'Content-Type: text/html\r\n',
+                        'YPY-Target: #two\r\n',
+                        '\r\n',
+                        'Second',
+                        '\r\n--updates--\r\n'
+                    ].join('')));
+                    controller.close();
+                }, 20);
+            }
+        });
+
+        fetchMock.mockResponse('GET', '/parallel', new Response(stream, {
+            headers: {'Content-Type': 'multipart/parallel; boundary=updates'}
+        }));
+
+        button.click();
+        let done = await forRequest(500);
+
+        assert.isNotNull(done, 'parallel request did not finish');
+        assertTextContentIs('#one', 'First');
+        assertTextContentIs('#two', 'Second');
+    });
+
+    it('waits for mixed swaps and overlaps parallel swaps', async function() {
+        let response = (type, prefix) => new Response([
+            '--updates\r\n',
+            'Content-Type: text/html\r\n',
+            `YPY-Target: #${prefix}-one\r\n`,
+            'YPY-Swap: innerHTML swap:100ms\r\n',
+            '\r\n',
+            'First',
+            '\r\n--updates\r\n',
+            'Content-Type: text/html\r\n',
+            `YPY-Target: #${prefix}-two\r\n`,
+            '\r\n',
+            'Second',
+            '\r\n--updates--\r\n'
+        ].join(''), {
+            headers: {'Content-Type': `multipart/${type}; boundary=updates`}
+        });
+
+        fetchMock.mockResponse('GET', '/mixed', response('mixed', 'mixed'));
+        fetchMock.mockResponse('GET', '/parallel', response('parallel', 'parallel'));
+        createProcessedHTML([
+            '<button id="mixed" ypy-get="/mixed">Mixed</button>',
+            '<div id="mixed-one">one</div><div id="mixed-two">two</div>',
+            '<button id="parallel" ypy-get="/parallel">Parallel</button>',
+            '<div id="parallel-one">one</div><div id="parallel-two">two</div>'
+        ].join(''));
+
+        let mixedDone = forRequest(500);
+        find('#mixed').click();
+        await ypy.timeout(20);
+        assertTextContentIs('#mixed-one', 'one');
+        assertTextContentIs('#mixed-two', 'two');
+        assert.isNotNull(await mixedDone, 'mixed request did not finish');
+        assertTextContentIs('#mixed-one', 'First');
+        assertTextContentIs('#mixed-two', 'Second');
+
+        let parallelDone = forRequest(500);
+        find('#parallel').click();
+        assert.isTrue(await waitUntil(() => ypy.find('#parallel-two').textContent === 'Second', 500));
+        assertTextContentIs('#parallel-one', 'one');
+        assert.isNotNull(await parallelDone, 'parallel request did not finish');
+        assertTextContentIs('#parallel-one', 'First');
+    });
+
+    it('handles the next parallel part while an earlier part settles', async function() {
+        let button = createProcessedHTML([
+            '<button ypy-get="/parallel">Go</button>',
+            '<div id="one"><span id="state" class="old">one</span></div>',
+            '<div id="two">two</div>'
+        ].join(''));
+        fetchMock.mockResponse('GET', '/parallel', new Response([
+            '--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Target: #one\r\n',
+            'YPY-Swap: innerHTML settle:100ms\r\n',
+            '\r\n',
+            '<span id="state" class="new">First</span>',
+            '\r\n--updates\r\n',
+            'Content-Type: text/html\r\n',
+            'YPY-Target: #two\r\n',
+            '\r\n',
+            'Second',
+            '\r\n--updates--\r\n'
+        ].join(''), {
+            headers: {'Content-Type': 'multipart/parallel; boundary=updates'}
+        }));
+
+        let done = forRequest(500);
+        button.click();
+
+        assert.isTrue(await waitUntil(() => ypy.find('#two').textContent === 'Second', 500));
+        assertTextContentIs('#state', 'First');
+        assert.isTrue(find('#state').classList.contains('old'));
+        assert.isNotNull(await done, 'parallel request did not finish');
+        assert.isTrue(find('#state').classList.contains('new'));
+    });
+});
