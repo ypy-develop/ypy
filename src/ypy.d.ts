@@ -911,6 +911,53 @@ export interface YpyNativeEventMap {
 }
 // #endregion
 
+// #region TASK-076 request generations, ypy-sync latest and parallel, atomic swaps, request trace
+
+/** The milliseconds (`performance.now()`) at which a request reached each phase. A phase that did not happen is absent. */
+export interface YpyRequestTiming {
+  /** The request context was created. */
+  start: number;
+  /** Just before `fetch`, after the queue, the confirmation and `ypy:before:request`. */
+  sent: number;
+  /** The response headers arrived. */
+  response: number;
+  /** Every swap task was inserted. Absent when nothing was swapped. */
+  swapped: number;
+  /** The request ended: the last thing before `ypy:finally:request`. */
+  settled: number;
+}
+
+export interface YpyRequestCtx {
+  /**
+   * The generation of the request: a number that grows with every request context of the page.
+   * A response is only swapped into a target while no response of a newer request overwrote it:
+   * with two queues on one target, the older response that arrives last is discarded.
+   * Swaps that only add content (`beforebegin`, `afterbegin`, `beforeend`, `afterend`) are never discarded.
+   */
+  id: number;
+  /** When each phase happened; the numbers cost nothing when nobody reads them. */
+  timing: YpyRequestTiming;
+  /** The swap tasks of the response: the main swap, out-of-band elements and partials, in the order they ran. Set when the swap starts. */
+  tasks?: YpySwapTask[];
+  /**
+   * Set to `true` on the request that `ypy-sync="latest"` replaced: its response is discarded when
+   * it arrives, with no swap, history update or swap event. The request itself is not aborted.
+   */
+  superseded?: boolean;
+}
+
+export interface YpyResponseHeaders {
+  /**
+   * `YPY-Group`: `atomic` makes the swap all or nothing. When one swap task has no target (an
+   * out-of-band element or partial whose target is missing, or a main swap without one), no task
+   * runs and the history is not updated; the missing target is reported by `ypy:target:missing`.
+   * Without the header the tasks that can run are applied, side by side. A task that throws while
+   * it inserts is not undone.
+   */
+  group?: string;
+}
+// #endregion
+
 // #region TASK-009 error targets, 422 and 303
 
 /** Reserved by TASK-006, filled by 009 (validation, client, server), 010 (network, offline, timeout). */

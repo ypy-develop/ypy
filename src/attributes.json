@@ -220,7 +220,9 @@
         {"name": "replace", "description": "Aborts the request in flight, discards the waiting ones and runs the new one."},
         {"name": "queue first", "description": "The new request waits, unless one is already waiting, then it is refused. The default."},
         {"name": "queue last", "description": "The new request waits and replaces the one that was waiting."},
-        {"name": "queue all", "description": "The new request waits behind all the others."}
+        {"name": "queue all", "description": "The new request waits behind all the others."},
+        {"name": "latest", "description": "The new request runs at once and the older ones are not aborted, but their responses are discarded when they arrive (`ctx.superseded`): the newest request wins, whatever the order of arrival."},
+        {"name": "parallel", "description": "No queue: the request runs at once, waits for none and aborts none. An older response still never overwrites a newer one on the same target."}
       ],
       "inherited": true,
       "doc": "https://ypy.dev/docs/reference/attributes/ypy-sync"
@@ -809,6 +811,12 @@
       "direction": "response",
       "description": "Overrides `ypy-select`: the part of the response that is swapped.",
       "value": "a CSS selector"
+    },
+    {
+      "name": "YPY-Group",
+      "direction": "response",
+      "description": "Makes the swap all or nothing when the value is `atomic`: if one task of the response (main swap, out-of-band element or partial) has no target, none is applied and the history is not updated. The default applies the tasks that can run.",
+      "value": "`atomic`"
     }
   ],
   "config": [

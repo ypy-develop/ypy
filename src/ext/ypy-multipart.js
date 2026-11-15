@@ -291,6 +291,9 @@
                                 for (let key in actions) parsed[key.toLowerCase()] = actions[key];
                                 await ypy.swap({
                                     ...ctx,
+                                    // closing the connection (ypy-multipart:close) aborts its signal, and the part
+                                    // that closed it still has to be swapped: the swap must not see that abort
+                                    request: {...ctx.request, signal: undefined},
                                     text,
                                     target,
                                     swap: swap ?? defaultSwap,

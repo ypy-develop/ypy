@@ -110,6 +110,8 @@ var ypy = (() => {
      * cancellation is silent (ypy:request:queued, ypy:request:dropped, ypy:request:aborted).
      * A request admitted without a ctx (a direct call) is not reported.
      */
+    let SYNC_STRATEGY = /^(drop|abort|replace|queue|latest|parallel)/;
+
     class RequestQueue {
         #current = null
         #queue = []
@@ -124,18 +126,24 @@ var ypy = (() => {
             return this.#queue.length + !!this.#current
         }
 
-        /** Returns "run", "queued", or "dropped" */
+        /**
+         * Returns "run", "queued", or "dropped". `parallel` takes no slot, so nothing waits for it
+         * and it aborts nothing. `latest` takes the slot at once and marks the request that held
+         * it as superseded (ctx.superseded): its response is discarded when it arrives.
+         */
         admit(strategy, runRequest, abortRequest, ctx) {
             let current = this.#current
-            if (!current) {
-                this.#current = {strategy, abort: abortRequest}
+            if (strategy === "parallel") return "run"
+            if (strategy === "latest" && current?.ctx) current.ctx.superseded = true
+            if (!current || strategy === "latest") {
+                this.#current = {strategy, abort: abortRequest, ctx}
                 return "run"
             }
             if (strategy === "replace" || (strategy !== "abort" && current.strategy === "abort")) {
                 let why = strategy === "replace" ? strategy : "abort"
                 this.clear(why)
                 current.abort?.(why)
-                this.#current = {strategy, abort: abortRequest}
+                this.#current = {strategy, abort: abortRequest, ctx}
                 return "run"
             }
             let result = "queued"
@@ -203,6 +211,7 @@ var ypy = (() => {
         #historyInitialized
         #historyPaths = new Set()
         #processingTransition
+        #requestSeq = 0         // ctx.id of the last request context
 
         //============================================================================================
         // SECTION config: construction, configuration and the extension registry
@@ -572,6 +581,8 @@ var ypy = (() => {
             let [fullAction, anchor] = (action || '').split('#');
             let ac = new AbortController();
             let ctx = {
+                id: ++this.#requestSeq,
+                timing: {start: performance.now()},
                 sourceElement,
                 sourceEvent,
                 status: "created",
@@ -872,7 +883,9 @@ var ypy = (() => {
             if (!this.#trigger(elt, "ypy:before:request", {ctx})) return false;
 
             try {
+                ctx.timing.sent = performance.now();
                 let response = await ctx.fetch(ctx.request.action, ctx.request);
+                ctx.timing.response = performance.now();
                 ctx.response = {
                     raw: response,
                     status: response.status,
@@ -918,7 +931,7 @@ var ypy = (() => {
                 return false
             }
 
-            if (ctx.status === "issuing") {
+            if (ctx.status === "issuing" && !ctx.superseded) {   // a superseded response (ypy-sync="latest") is discarded
                 if (ctx.ypy.retarget) ctx.target = ctx.ypy.retarget;   // YPY-Retarget
                 if (ctx.ypy.reswap) ctx.swap = ctx.ypy.reswap;       // YPY-Reswap
                 if (ctx.ypy.reselect) ctx.select = ctx.ypy.reselect; // YPY-Reselect
@@ -963,6 +976,7 @@ var ypy = (() => {
             // An extension that took over the response reports when it has
             // finished delivering. Undefined for a normal request.
             await ctx.extensionPromise?.catch(() => {});
+            ctx.timing.settled = performance.now();
             clearTimeout(ctx.requestTimeout);
             if (ctx.ypy?.trigger) { // YPY-Trigger
                 this.#handleTriggerHeader(ctx.ypy.trigger, ctx.sourceElement);
@@ -1029,10 +1043,8 @@ var ypy = (() => {
         }
 
         #determineSyncStrategy(elt) {
-            let ypySync = this.#attributeValue(elt, "ypy-sync");
-            if (!ypySync) return "queue first";
-            let strategy = ypySync.split(":").pop().trim();
-            return /^(drop|abort|replace|queue)/.test(strategy) ? strategy : "queue first";
+            let strategy = (this.#attributeValue(elt, "ypy-sync") || "").split(":").pop().trim();
+            return SYNC_STRATEGY.test(strategy) ? strategy : "queue first";
         }
 
         /**
@@ -1048,9 +1060,8 @@ var ypy = (() => {
             let ypySync = this.#attributeValue(elt, "ypy-sync")
             let syncElt = elt
             if (ypySync) {
-                let selector = ypySync.includes(":")
-                    ? ypySync.slice(0, ypySync.lastIndexOf(":")).trim()
-                    : (/^(drop|abort|replace|queue)/.test(ypySync) ? null : ypySync);
+                let colon = ypySync.lastIndexOf(":");
+                let selector = colon < 0 ? (SYNC_STRATEGY.test(ypySync) ? null : ypySync) : ypySync.slice(0, colon).trim();
                 if (selector === "target") {
                     syncElt = ctx?.target?.matches ? ctx.target : elt
                 } else if (selector) {
@@ -1846,15 +1857,22 @@ var ypy = (() => {
         async swap(ctx) {
             try {
                 let [tasks, mainSwap] = this.#buildSwapTasks(ctx);
+                ctx.tasks = tasks;
 
-                if(!this.#trigger(ctx.sourceElement, "ypy:before:swap", {ctx, tasks})){
+                if(!this.#trigger(ctx.sourceElement, "ypy:before:swap", {ctx, tasks}) ||
+                    // `YPY-Group: atomic`: all or nothing. A task without a target (already reported by
+                    // ypy:target:missing, also an out-of-band element or partial) stops every task and the history update. A task that throws
+                    // while it inserts is not undone: the guarantee is about targets.
+                    ctx.ypy?.group === 'atomic' && (ctx.missingTargets || tasks.some(task => !this.#resolveSwapTarget(task)))){
                     return
                 }
 
                 ctx.scrollFrom = [scrollX, scrollY];   // the page being left, before the swap moves it
 
                 let errors = await this.#runSwapTasks(ctx, tasks, mainSwap);
-                if (!errors[0]) this.#handleHistoryUpdate(ctx);   // the URL changes only once the page did
+                (ctx.timing ??= {}).swapped = performance.now();   // ctx of ypy.swap() calls has no timing yet
+                // the URL changes only once the page did: not after a failed task or an abort during the swap
+                if (!errors[0] && !ctx.request?.signal?.aborted) this.#handleHistoryUpdate(ctx);
                 this.#finishSwap(ctx, mainSwap);
             } finally {
                 this.#trigger(ctx.sourceElement, "ypy:finally:swap", {ctx});
@@ -1925,6 +1943,7 @@ var ypy = (() => {
             let swapPromises = [];
             let transitionTasks = [];
             for (let task of tasks) {
+                task.ctx ??= ctx;   // #insertContent drops the task of a response that was superseded or aborted
                 if (ctx.busy) this.#markBusy(ctx, task.target);   // only inside a request that marked its target: #endRequest clears them
                 if (task.swapSpec?.transition ?? mainSwap?.transition ?? ctx.transition) {
                     transitionTasks.push(task);
@@ -1934,13 +1953,10 @@ var ypy = (() => {
             }
 
             // submit all transition tasks in the transition queue w/no CSS transitions
-            if (transitionTasks.length > 0) {
-                let tasksWrapper = async ()=> {
-                    for (let task of transitionTasks) {
-                        await insert(task, false)
-                    }
-                }
-                swapPromises.push(this.#submitTransitionTask(tasksWrapper, ctx));
+            if (transitionTasks.length) {
+                swapPromises.push(this.#submitTransitionTask(async () => {
+                    for (let task of transitionTasks) await insert(task, false)
+                }, ctx));
             }
 
             await Promise.all(swapPromises);
@@ -2063,6 +2079,13 @@ var ypy = (() => {
             if (cssTransition && task.swapSpec?.swap) {
                 await this.timeout(task.swapSpec?.swap)
             }
+            // the response must not be applied any more when its request was aborted (also during the
+            // swap) or superseded (ypy-sync="latest"), or when a newer response already overwrote this
+            // target (two queues on one target). Styles that only add content are never stale.
+            let ctx = task.ctx, overwrites = ctx && swapStyle > 'c';  // false for afterbegin, afterend, beforebegin, beforeend
+            if (ctx && (ctx.superseded || ctx.request?.signal?.aborted || overwrites && target._swapId > ctx.id)) {
+                return this.#removeClass(target, "swapping");
+            }
 
             if (swapStyle === 'delete') {
                 if (target.parentNode) {
@@ -2085,6 +2108,7 @@ var ypy = (() => {
             let newContent;
             [target, newContent] = this.#applySwapStyle(target, swapStyle, swapSpec, fragment, parentNode);
             task.target = target;
+            if (overwrites) target._swapId = ctx.id;   // the newest response that overwrote this target
             this.#restorePreservedElements(pantry);
             this.#restoreFocus(focusInfo, swapSpec);
 
@@ -3409,10 +3433,13 @@ var ypy = (() => {
             let { task, resolve, ctx } = this.#transitionQueue.shift();
 
             try {
-                if (document.startViewTransition) {
+                // a skipped transition (hidden tab, another one started) rejects `ready`: handled here
+                if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
                     let detail = {task, ctx};
                     this.#trigger(ctx.sourceElement, "ypy:before:viewTransition", detail)
-                    await document.startViewTransition(detail.task).finished;
+                    let transition = document.startViewTransition(detail.task);
+                    transition.ready.catch(() => {});
+                    await transition.finished;
                     this.#trigger(ctx.sourceElement, "ypy:after:viewTransition", detail)
                 } else {
                     await task();
