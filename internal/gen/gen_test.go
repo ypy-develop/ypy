@@ -335,7 +335,8 @@ func TestScanSources(t *testing.T) {
 		CoreSource: `// ypy-in-a-comment is not code
 /* ypy:also:ignored */
 const a = 'ypy-get', b = "ypy-unknown", c = 'ypy:before:request', d = 'ypy-error-' + name, e = 'ypy:request:' + kind;
-const f = "ypy-status:" + code, g = {h: 'YPY-Request'}, i = "data-ypy-get", j = '[ypy-hidden]';`,
+const f = "ypy-status:" + code, g = {h: 'YPY-Request'}, i = "data-ypy-get", j = '[ypy-hidden]';
+for (let fn of ext.get('ypy_resolve_demo')) fn();`,
 		ExtDir + "/ypy-demo.js":   `x('ypy-demo-attr')`,
 		ExtDir + "/ypy-nofrag.js": `x('ypy-nofrag-a'); x('ypy-nofrag-b');`,
 	})
@@ -348,6 +349,7 @@ const f = "ypy-status:" + code, g = {h: 'YPY-Request'}, i = "data-ypy-get", j = 
 		},
 		Events: []Event{
 			{Named: Named{Name: "ypy:before:request"}}, {Named: Named{Name: "ypy:request:queued"}},
+			{Named: Named{Name: "ypy:resolve:demo"}, ExtensionOnly: true},
 		},
 		Headers:    []Header{{Named: Named{Name: "YPY-Request"}, Direction: "request"}},
 		Internal:   map[string]string{"ypy-hidden": ""},
@@ -366,6 +368,9 @@ const f = "ypy-status:" + code, g = {h: 'YPY-Request'}, i = "data-ypy-get", j = 
 	}
 	if !strings.Contains(w, "lists ypy-never-mentioned but no source mentions it") || strings.Contains(w, "ypy-get but") {
 		t.Errorf("warnings: %v", scan.Warnings)
+	}
+	if strings.Contains(w, "ypy:resolve:demo") {
+		t.Errorf("a hook written with underscores counts as mentioned: %v", scan.Warnings)
 	}
 }
 

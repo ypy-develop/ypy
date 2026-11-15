@@ -92,6 +92,19 @@ func ScanSources(t *Table, root string) (*Scan, error) {
 			}
 		}
 	}
+	// A hook that is delivered only to extensions (extensionOnly) is written with underscores in the
+	// code that handles it: ypy:resolve:target is the ypy_resolve_target of an extension and of the core.
+	for _, e := range t.Events {
+		if !e.ExtensionOnly {
+			continue
+		}
+		hook := strings.NewReplacer(":", "_", "-", "_").Replace(e.Name)
+		for _, code := range sources {
+			if strings.Contains(code, hook) {
+				mentioned[e.Name] = true
+			}
+		}
+	}
 	for _, name := range known.public {
 		if !mentioned[name] && !known.dynamic[name] && !t.builtFromParts(name, sources) {
 			scan.Warnings = append(scan.Warnings, fmt.Sprintf("the table lists %s but no source mentions it", name))
