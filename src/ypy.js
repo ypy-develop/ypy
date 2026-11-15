@@ -3403,10 +3403,13 @@ var ypy = (() => {
             let { task, resolve, ctx } = this.#transitionQueue.shift();
 
             try {
-                if (document.startViewTransition) {
+                // a skipped transition (hidden tab, another one started) rejects `ready`: handled here
+                if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
                     let detail = {task, ctx};
                     this.__trigger(ctx.sourceElement, "ypy:before:viewTransition", detail)
-                    await document.startViewTransition(detail.task).finished;
+                    let transition = document.startViewTransition(detail.task);
+                    transition.ready.catch(() => {});
+                    await transition.finished;
                     this.__trigger(ctx.sourceElement, "ypy:after:viewTransition", detail)
                 } else {
                     await task();

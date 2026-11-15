@@ -246,4 +246,48 @@ describe('Request generations, sync strategies and trace', function() {
             assert.notExists(c.list[0].timing.swapped)
         })
     })
+
+    describe('view transitions', function() {
+        let realStart, realMedia, rejections
+
+        const onRejection = evt => { rejections.push(evt.reason); evt.preventDefault() }
+
+        beforeEach(function() {
+            realStart = document.startViewTransition
+            realMedia = window.matchMedia
+            rejections = []
+            window.addEventListener('unhandledrejection', onRejection)
+        })
+
+        afterEach(function() {
+            window.removeEventListener('unhandledrejection', onRejection)
+            document.startViewTransition = realStart
+            window.matchMedia = realMedia
+        })
+
+        it('a skipped transition does not leave an unhandled rejection', async function() {
+            let skipped = new Error('skipped')
+            document.startViewTransition = update => {
+                let done = Promise.resolve().then(update)
+                return {ready: Promise.reject(skipped), updateCallbackDone: done, finished: done, skipTransition() {}}
+            }
+            mockResponse('GET', '/r', 'swapped')
+            createProcessedHTML('<div><button id="btn" ypy-get="/r" ypy-target="#out" ypy-swap="innerHTML transition:true">go</button><div id="out">start</div></div>')
+            find('#btn').click(); await forRequest()
+            await ypy.timeout(50)   // unhandledrejection fires after the microtask checkpoint
+            assert.equal(find('#out').textContent, 'swapped')
+            assert.deepEqual(rejections, [])
+        })
+
+        it('prefers-reduced-motion swaps without a view transition', async function() {
+            let started = 0
+            document.startViewTransition = update => { started++; return realStart.call(document, update) }
+            window.matchMedia = query => ({matches: /reduce/.test(query)})
+            mockResponse('GET', '/r', 'swapped')
+            createProcessedHTML('<div><button id="btn" ypy-get="/r" ypy-target="#out" ypy-swap="innerHTML transition:true">go</button><div id="out">start</div></div>')
+            find('#btn').click(); await forRequest()
+            assert.equal(find('#out').textContent, 'swapped')
+            assert.equal(started, 0)
+        })
+    })
 })
