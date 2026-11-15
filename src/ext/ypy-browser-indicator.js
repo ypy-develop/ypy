@@ -42,7 +42,7 @@
             cleanupNavigation = () => {
                 hideBrowserIndicator();
                 // restore after resolving (replaceState during a pending intercept aborts the signal early)
-                history.replaceState(savedState, '');
+                try { history.replaceState(savedState, ''); } catch {}   // a browser may refuse the write (Safari: 100 per 10 seconds)
             };
         }, {once: true});
     }

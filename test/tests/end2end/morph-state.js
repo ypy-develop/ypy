@@ -171,6 +171,15 @@ describe('Morph keeps the live state of the page', function() {
             canvas.getContext('2d').fillRect(0, 0, 40, 30);
             let video = find('#v');
             video.srcObject = canvas.captureStream(10);
+            // a canvas stream only carries a frame when the canvas is drawn on after the capture (Safari
+            // sends none for a canvas that stays as it was, so play() never settles): keep drawing while
+            // the video is on the page
+            let ctx = canvas.getContext('2d'), n = 0;
+            let timer = setInterval(() => {
+                if (!video.isConnected) return clearInterval(timer);
+                ctx.fillStyle = n++ % 2 ? '#000' : '#fff';
+                ctx.fillRect(0, 0, 40, 30);
+            }, 50);
             try {
                 await video.play();
             } catch (e) {

@@ -2657,19 +2657,26 @@ var ypy = (() => {
             this.#historyPaths.add(location.pathname + location.search);
         }
 
+        /**
+         * Writes the history. A browser may refuse (Safari allows 100 writes per 10 seconds and
+         * throws a SecurityError past that): the page is already swapped, so a refused write is
+         * dropped and the URL stays as it was.
+         */
+        __writeHistory(method, state, path) {
+            try { history[method](state, '', path); return true } catch {}
+        }
+
         __pushUrlIntoHistory(path, scroll = [scrollX, scrollY]) {
             if (!this.config.history) return;
             // remember where the page being left was scrolled to (read by __restoreHistory); other
             // keys of the entry's state are kept, and an entry that another router owns is left alone
-            if (history.state?.ypy) history.replaceState({...history.state, scroll}, '', location.href);
-            history.pushState({ypy: true}, '', path);
-            this.__trigger(document, "ypy:after:history:push", {path});
+            if (history.state?.ypy) this.__writeHistory('replaceState', {...history.state, scroll}, location.href);
+            this.__writeHistory('pushState', {ypy: true}, path) && this.__trigger(document, "ypy:after:history:push", {path});
         }
 
         __replaceUrlInHistory(path) {
             if (!this.config.history) return;
-            history.replaceState({ypy: true}, '', path);
-            this.__trigger(document, "ypy:after:history:replace", {path});
+            this.__writeHistory('replaceState', {ypy: true}, path) && this.__trigger(document, "ypy:after:history:replace", {path});
         }
 
         /**
@@ -2771,7 +2778,7 @@ var ypy = (() => {
             // Stamp the current entry on the first YPY swap after a fresh page load (or after another
             // script replaced its state), so back traversals to this page are interceptable.
             if (!history.state?.ypy) {
-                history.replaceState({...history.state, ypy: true}, '', location.href);
+                this.__writeHistory('replaceState', {...history.state, ypy: true}, location.href);
                 this.__markHistoryPath();
             }
             let action = this.__resolveHistoryAction(ctx);

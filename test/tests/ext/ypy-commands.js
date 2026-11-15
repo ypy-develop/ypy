@@ -72,6 +72,8 @@ describe('ypy-commands extension', function () {
         let tall = '<div id="tall" style="height:3000px"></div><p id="far">far</p>';
         await run([{type: 'scrollIntoView', target: '#far', block: 'start'}], '<i></i>', tall);
         try {
+            // a scroll may finish a frame or two later (a page whose CSS says scroll-behavior: smooth, or Safari)
+            for (let i = 0; i < 30 && window.scrollY <= 500; i++) await new Promise(r => requestAnimationFrame(r));
             window.scrollY.should.be.above(500);
         } finally {
             window.scrollTo(0, 0);

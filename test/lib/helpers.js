@@ -104,6 +104,38 @@ function cleanupTest() {
 }
 
 //================================================================================
+// History write budget
+//================================================================================
+
+// Safari allows 100 history.pushState/replaceState writes per 10 seconds per page and throws a
+// SecurityError past that (Chrome and Firefox have no such limit). A file whose tests navigate a lot
+// counts its writes with this and waits, before a test, until the window has room. It wraps the two
+// methods, so it only counts and never changes what they do; stop() puts them back.
+//   let writes = trackHistoryWrites();  beforeEach(async () => { await writes.room(20) });  after(() => writes.stop());
+function trackHistoryWrites(limit = 100, windowMs = 10000) {
+    let realPush = history.pushState, realReplace = history.replaceState, times = [];
+    let count = real => function (...args) { times.push(performance.now()); return real.apply(this, args); };
+    let countedPush = history.pushState = count(realPush);
+    let countedReplace = history.replaceState = count(realReplace);
+    return {
+        // resolves when at least `n` more writes fit in the current window (at once outside Safari)
+        async room(n) {
+            if (!/^((?!chrome|chromium|android).)*safari/i.test(navigator.userAgent)) return;
+            for (;;) {
+                let now = performance.now();
+                times = times.filter(t => now - t < windowMs);
+                if (times.length + n <= limit) return;
+                await new Promise(r => setTimeout(r, windowMs - (now - times[0]) + 50));
+            }
+        },
+        stop() {
+            if (history.pushState === countedPush) history.pushState = realPush;
+            if (history.replaceState === countedReplace) history.replaceState = realReplace;
+        }
+    };
+}
+
+//================================================================================
 // Extension backup/restore helpers
 //================================================================================
 
