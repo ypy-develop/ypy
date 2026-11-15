@@ -1783,7 +1783,7 @@ var ypy = (() => {
             let src = ctx.sourceElement, elt,
                 s = ctx.focus ?? (src && this.#attributeValue(src, 'ypy-focus')) ?? 'auto';
             if (s === 'auto') {
-                let main = this.#isBoosted(src) && !document.activeElement.autofocus &&
+                let main = (this.#isBoosted(src) || ctx.request?.headers['YPY-Boosted']) && !document.activeElement.autofocus &&
                     (document.querySelector(this.#prefixSelector('[ypy-main]')) || document.querySelector('main') || box?.focus && box);
                 if (main) elt = main.querySelector('h1') || main;
             } else if (s === 'first-heading' || s === 'first-invalid') {
@@ -3618,7 +3618,7 @@ var ypy = (() => {
                 let target = ctx.target;
                 spec ??= this.#attributeValue(ctx.sourceElement, 'ypy-announce')
                     ?? (target instanceof Element ? this.#attributeValue(target, 'ypy-announce') : null)
-                    ?? (this.#isBoosted(ctx.sourceElement) && ctx.swap !== 'none' && !ctx.focused ? 'title' : m.done);
+                    ?? ((this.#isBoosted(ctx.sourceElement) || ctx.request?.headers['YPY-Boosted']) && ctx.swap !== 'none' && !ctx.focused ? 'title' : m.done);
             }
             if (spec === 'title') spec = ctx.title || document.title;
             if (spec !== 'none') this.#say(ctx, spec, kind ? 'assertive' : 'polite');
@@ -8549,7 +8549,7 @@ ypy.config.historyCache ??= { disable: true };
     const ran = new Set();     // identities of the ypy-once scripts that already run on this page
     const sent = new Map();    // ctx -> the form (or element) that sent a request still in flight
     const waiters = new Set(), dirty = new WeakSet();
-    let active = 0, timer, ftimer, io, last, pointer;
+    let active = 0, timer, ftimer, io, last, pointer, edited;   // edited: the field typed in last
 
     const boostOn = () => cfg().boost && !ypy.config.nonce;
     const key = h => JSON.stringify(Object.entries(h).sort());
@@ -8693,12 +8693,14 @@ ypy.config.historyCache ??= { disable: true };
     const FIELD = 'input,select,textarea,[contenteditable]';
     const pause = ms => new Promise(r => setTimeout(r, ms));
 
-    // Blur the field being edited and wait (a little) for what its form has in flight.
+    // Blur the field being edited and wait (a little) for what its form has in flight. A click on a link
+    // already took the focus away (the browser blurs at mousedown, and the change that runs a save with it),
+    // so the field last typed in counts too.
     async function settle(ctx) {
-        let a = document.activeElement, ms = cfg().settle ?? 1000;
-        if (!ms || !a?.matches?.(FIELD) || a === ctx.sourceElement) return;
-        let form = owner(a), end = Date.now() + ms, busy = () => [...sent].some(([c, o]) => c !== ctx && o === form);
-        a.blur();
+        let a = document.activeElement, ms = cfg().settle ?? 1000, now = a?.matches?.(FIELD) ? a : edited?.isConnected ? edited : null;
+        if (!ms || !now || now === ctx.sourceElement) return;
+        let form = owner(now), end = Date.now() + ms, busy = () => [...sent].some(([c, o]) => c !== ctx && o === form);
+        if (now === a) a.blur();
         await pause(0);
         while (busy() && Date.now() < end) {
             let wake;
@@ -8707,7 +8709,7 @@ ypy.config.historyCache ??= { disable: true };
         }
     }
 
-    document.addEventListener('input', evt => { if (evt.target.matches?.(FIELD)) dirty.add(evt.target) }, true);
+    document.addEventListener('input', evt => { if (evt.target.matches?.(FIELD)) dirty.add(edited = evt.target) }, true);
     document.addEventListener('reset', evt => { for (let c of evt.target.elements || []) dirty.delete(c) }, true);
 
     window.addEventListener('beforeunload', evt => {
