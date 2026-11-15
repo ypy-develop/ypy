@@ -1828,4 +1828,263 @@ describe('ypy-sse SSE extension', function() {
 
         stream.close();
     });
+
+    describe('heartbeat and resume', function() {
+        let realNow = Date.now;
+
+        afterEach(() => { Date.now = realNow; });
+
+        function fetchCount(url) {
+            return fetchMock.getCalls().filter(c => c.url.includes(url)).length;
+        }
+
+        function skewClock(ms) {
+            Date.now = () => realNow() + ms;
+        }
+
+        // an element that reconnects fast, so the test waits milliseconds
+        function connectHTML(url, heartbeat) {
+            let config = 'sse.reconnect:true sse.reconnectDelay:20ms sse.reconnectJitter:0'
+                + (heartbeat ? ` sse.heartbeat:${heartbeat}` : '');
+            createProcessedHTML(`<button ypy-get="${url}" ypy-config="${config}" ypy-swap="innerHTML">Connect</button>`);
+        }
+
+        it('a silent stream is closed and opened again after the heartbeat', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/hb-silent');
+            connectHTML('/hb-silent', '120ms');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            stream.send('one');
+            await waitForEvent('ypy:sse:after:message');
+            assert.equal(fetchCount('/hb-silent'), 1);
+
+            // nothing arrives: no error, no end, the connection just hangs
+            await waitForEvent('ypy:sse:after:connection', 2000);
+            assert.equal(fetchCount('/hb-silent'), 2, 'one new request, not a second connection on top of the first');
+
+            stream.send('two');
+            await waitForEvent('ypy:sse:after:message');
+            assertTextContentIs('button', 'two');
+            stream.close();
+        });
+
+        it('any byte keeps the stream alive, a comment line included', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/hb-alive');
+            connectHTML('/hb-alive', '150ms');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+
+            for (let i = 0; i < 8; i++) {
+                stream.sendRaw(': ping\n\n');
+                await ypy.timeout(50);
+            }
+            assert.equal(fetchCount('/hb-alive'), 1, 'the pings are bytes, the stream is not silent');
+            stream.close();
+        });
+
+        it('without heartbeat a silent stream is left alone', async function() {
+            this.timeout(5000);
+            mockStreamResponse('/hb-off');
+            connectHTML('/hb-off');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            await ypy.timeout(400);
+            assert.equal(fetchCount('/hb-off'), 1);
+        });
+
+        it('heartbeat accepts a number of milliseconds', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/hb-number');
+            createProcessedHTML('<button ypy-get="/hb-number" ypy-config="sse.reconnect:true sse.reconnectDelay:20ms sse.reconnectJitter:0 sse.heartbeat:100" ypy-swap="innerHTML">Connect</button>');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            await waitForEvent('ypy:sse:after:connection', 2000);
+            assert.equal(fetchCount('/hb-number'), 2);
+            stream.close();
+        });
+
+        it('a silent stream that must not reconnect just ends', async function() {
+            this.timeout(5000);
+            mockStreamResponse('/hb-no-reconnect');
+            createProcessedHTML('<button ypy-get="/hb-no-reconnect" ypy-config="sse.reconnect:false sse.heartbeat:100ms" ypy-swap="innerHTML">Connect</button>');
+
+            let reasons = [];
+            find('button').addEventListener('ypy:sse:close', e => reasons.push(e.detail.reason));
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            await ypy.timeout(400);
+            assert.deepEqual(reasons, ['ended'], 'the silent stream is closed');
+            assert.equal(fetchCount('/hb-no-reconnect'), 1);
+        });
+
+        it('removing the element stops the watchdog', async function() {
+            this.timeout(5000);
+            mockStreamResponse('/hb-removed');
+            connectHTML('/hb-removed', '80ms');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            find('button').remove();
+            await ypy.timeout(300);
+            assert.equal(fetchCount('/hb-removed'), 1);
+        });
+
+        it('becoming visible after a long silence reopens the stream at once', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-visible');
+            connectHTML('/resume-visible', '30s');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            stream.send('before sleep');
+            await waitForEvent('ypy:sse:after:message');
+
+            // the phone slept for a minute: the clock jumped, the stream never failed
+            skewClock(60000);
+            document.dispatchEvent(new Event('visibilitychange'));
+
+            await waitForEvent('ypy:sse:after:connection', 1000);
+            assert.equal(fetchCount('/resume-visible'), 2);
+            stream.close();
+        });
+
+        it('becoming visible when the stream spoke lately does nothing', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-fresh');
+            connectHTML('/resume-fresh', '30s');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            stream.send('fresh');
+            await waitForEvent('ypy:sse:after:message');
+
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(200);
+            assert.equal(fetchCount('/resume-fresh'), 1);
+            stream.close();
+        });
+
+        it('becoming visible without a heartbeat does not restart a stream', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-no-hb');
+            connectHTML('/resume-no-hb');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            skewClock(60000);
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(200);
+            assert.equal(fetchCount('/resume-no-hb'), 1);
+            stream.close();
+        });
+
+        it('the hidden state does not wake anything', async function() {
+            this.timeout(5000);
+            mockStreamResponse('/resume-hidden');
+            createProcessedHTML('<button ypy-get="/resume-hidden" ypy-config="sse.reconnect:true sse.pauseOnBackground:true sse.heartbeat:30s" ypy-swap="innerHTML">Connect</button>');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            skewClock(60000);
+            Object.defineProperty(document, 'hidden', {value: true, configurable: true});
+            document.dispatchEvent(new Event('visibilitychange'));
+            window.dispatchEvent(new Event('online'));
+            await ypy.timeout(200);
+            assert.equal(fetchCount('/resume-hidden'), 1, 'a hidden tab stays paused');
+        });
+
+        it('online reopens the stream once, with no second connection', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-online');
+            connectHTML('/resume-online', '30s');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            stream.send('hello');
+            await waitForEvent('ypy:sse:after:message');
+
+            window.dispatchEvent(new Event('online'));
+            window.dispatchEvent(new Event('online'));
+            await waitForEvent('ypy:sse:after:connection', 1000);
+            await ypy.timeout(150);
+            assert.equal(fetchCount('/resume-online'), 2, 'one new request for two events');
+            stream.send('again');
+            await waitForEvent('ypy:sse:after:message');
+            assertTextContentIs('button', 'again');
+            stream.close();
+        });
+
+        it('pageshow from the back/forward cache reopens the stream', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-bfcache');
+            connectHTML('/resume-bfcache');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+
+            let restored = new Event('pageshow');
+            restored.persisted = true;
+            window.dispatchEvent(restored);
+
+            await waitForEvent('ypy:sse:after:connection', 1000);
+            assert.equal(fetchCount('/resume-bfcache'), 2);
+            stream.close();
+        });
+
+        it('a first pageshow of a page, not from the cache, does not reopen anything', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-pageshow');
+            connectHTML('/resume-pageshow');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+
+            let shown = new Event('pageshow');
+            shown.persisted = false;
+            window.dispatchEvent(shown);
+            await ypy.timeout(200);
+            assert.equal(fetchCount('/resume-pageshow'), 1);
+            stream.close();
+        });
+
+        it('a wake-up skips the wait for the next attempt', async function() {
+            this.timeout(5000);
+            const stream = mockStreamResponse('/resume-backoff');
+            createProcessedHTML('<button ypy-get="/resume-backoff" ypy-config="sse.reconnect:true sse.reconnectDelay:10s sse.reconnectJitter:0" ypy-swap="innerHTML">Connect</button>');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            stream.close();
+            await ypy.timeout(100);
+            assert.equal(fetchCount('/resume-backoff'), 1, 'it waits ten seconds');
+
+            window.dispatchEvent(new Event('online'));
+            await waitForEvent('ypy:sse:after:connection', 1000);
+            assert.equal(fetchCount('/resume-backoff'), 2);
+            stream.close();
+        });
+
+        it('a wake-up after the element left the page opens nothing', async function() {
+            this.timeout(5000);
+            mockStreamResponse('/resume-gone');
+            connectHTML('/resume-gone', '30s');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            find('button').remove();
+            await ypy.timeout(50);
+
+            skewClock(60000);
+            window.dispatchEvent(new Event('online'));
+            document.dispatchEvent(new Event('visibilitychange'));
+            await ypy.timeout(200);
+            assert.equal(fetchCount('/resume-gone'), 1);
+        });
+    });
 });

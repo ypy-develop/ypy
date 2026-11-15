@@ -1216,7 +1216,7 @@
       "name": "ypy-on::ws:close",
       "description": {
         "kind": "markdown",
-        "value": "Runs the JavaScript when `ypy:ws:close` fires. Fires when the socket closes. `detail.reason` is `closed` (with the close `code`), `cancelled` or `removed`; `code` is `null` for the last two."
+        "value": "Runs the JavaScript when `ypy:ws:close` fires. Fires when the socket closes. `detail.reason` is `closed` (with the close `code`), `cancelled` or `removed`; `code` is `null` for the last two, and also for a `closed` that YPY did itself because the socket was silent for `ws.heartbeat` or the page came back."
       }
     },
     {
@@ -2529,7 +2529,7 @@
       "name": "ypy-sse:connect",
       "description": {
         "kind": "markdown",
-        "value": "Opens a Server-Sent Events stream with a GET request to the URL. The element connects on its `ypy-trigger` (default `load`). Each unnamed message is swapped into the target like a response; a message with an `event:` field is dispatched on the element as a DOM event with `detail.data` and `detail.id`. The connection reconnects with backoff and pauses while the tab is in the background.\n\nRequires the `ypy-sse` extension."
+        "value": "Opens a Server-Sent Events stream with a GET request to the URL. The element connects on its `ypy-trigger` (default `load`). Each unnamed message is swapped into the target like a response; a message with an `event:` field is dispatched on the element as a DOM event with `detail.data` and `detail.id`. The connection reconnects with backoff and pauses while the tab is in the background. With `sse.heartbeat` a stream that goes silent is closed and opened again, and it is opened again at once when the page comes back (`pageshow`, `online`, a visible tab).\n\nRequires the `ypy-sse` extension."
       }
     },
     {

@@ -2,6 +2,8 @@
 (() => {
     let api;
     let warnedLegacyAttributes = new Set();
+    // Connections that are open now: the resume listeners at the end of the file wake them.
+    const liveConnections = new Set();
 
     // ========================================
     // HELPERS
@@ -19,10 +21,20 @@
             reconnectJitter: 0.3,
             connectTimeout: ypy.config.defaultTimeout,
             pauseOnBackground: hasYpySseConnect,
+            heartbeat: 0,
             releaseOn: hasYpySseConnect ? 'immediate' : 'end',
             ...ypy.config.sse,
             ...ypyConfig
         };
+    }
+
+    // Cancels the reader of a connection. Cancelling one that was released is not an error here.
+    function cancelReader(connection) {
+        try {
+            connection.reader?.cancel()?.catch?.(() => {});
+        } catch (e) {
+            // The reader is already gone
+        }
     }
 
     function clearLastEventIdHeader(headers) {
@@ -35,7 +47,7 @@
     // SSE PARSER
     // ========================================
 
-    async function* parseSSE(connection) {
+    async function* parseSSE(connection, touch) {
         let reader = connection.reader;
         let lastEventId = connection.lastEventId;
         let decoder = new TextDecoder();
@@ -49,6 +61,7 @@
             while (true) {
                 let {done, value} = await reader.read();
                 if (done) break;
+                touch();
 
                 let chunk = decoder.decode(value, {stream: true});
                 // Strip leading BOM (U+FEFF) per SSE spec
@@ -140,21 +153,63 @@
             lastEventId: '',
             delayCanceller: null,
             visibilityHandler: null,
+            heartbeatTimer: null,
+            lastActivity: Date.now(),
+            wake: null,
             attempt: 0,
             cancelled: false,
             status: null
         };
         api.ypyProp(element).sse = connection;
+        liveConnections.add(connection);
 
         let reconnect = () => {
             if (!element.isConnected || reconnectRequested) return;
             reconnectRequested = true;
             if (connection.delayCanceller) connection.delayCanceller();
-            connection.reader?.cancel();
+            cancelReader(connection);
         };
 
         let paused = false;
         let unpauseResolver = null;
+        let reconnectNow = false;
+
+        // Heartbeat: a connection that gets no byte for config.heartbeat is closed and opened again.
+        // A phone that slept leaves a stream that neither fails nor ends, so nothing else would notice.
+        let heartbeatMs = () => ypy.parseInterval(config.heartbeat) || 0;
+        let restart = () => {
+            if (config.reconnect) reconnect();
+            else cancelReader(connection);
+        };
+        let stall = () => {
+            connection.heartbeatTimer = null;
+            if (!element.isConnected || paused || !connection.reader) return;
+            restart();
+        };
+        let touch = () => {
+            connection.lastActivity = Date.now();
+            clearTimeout(connection.heartbeatTimer);
+            connection.heartbeatTimer = null;
+            let ms = heartbeatMs();
+            if (ms > 0) connection.heartbeatTimer = setTimeout(stall, ms);
+        };
+
+        // Called when the page comes back (shown again, visible, online). A wait for the next attempt
+        // is skipped; a stream that has been silent for the heartbeat, or that `force` doubts, is
+        // opened again at once. It never opens a second connection: it restarts this one.
+        connection.wake = force => {
+            if (!element.isConnected) return;
+            if (config.pauseOnBackground && document.hidden) return;
+            if (connection.delayCanceller) {
+                connection.delayCanceller();
+                return;
+            }
+            if (!connection.reader || reconnectRequested || !config.reconnect) return;
+            let ms = heartbeatMs();
+            if (!force && !(ms > 0 && Date.now() - connection.lastActivity >= ms)) return;
+            reconnectNow = true;
+            reconnect();
+        };
 
         if (config.pauseOnBackground) {
             let visibilityHandler = () => {
@@ -204,10 +259,12 @@
                         baseDelay * Math.pow(2, connection.attempt - 1),
                         maxDelay
                     );
-                    if (config.reconnectJitter > 0) {
+                    if (config.reconnectJitter > 0 && !reconnectNow) {
                         let jitterRange = delay * config.reconnectJitter;
                         delay = Math.max(0, delay + (Math.random() * 2 - 1) * jitterRange);
                     }
+                    if (reconnectNow) delay = 0;
+                    reconnectNow = false;
 
                     connection.cancelled = false;
                     if (!api.triggerEvent(element, 'ypy:sse:before:connection', {connection}) || connection.cancelled) break;
@@ -263,8 +320,9 @@
 
                 try {
                     connection.reader = currentResponse.body.getReader();
+                    touch();
 
-                    for await (let msg of parseSSE(connection)) {
+                    for await (let msg of parseSSE(connection, touch)) {
                         if (!element.isConnected || reconnectRequested) break;
 
                         if (msg.hasId) {
@@ -321,6 +379,8 @@
                     }
                 }
 
+                clearTimeout(connection.heartbeatTimer);
+                connection.heartbeatTimer = null;
                 if (!element.isConnected) break;
 
                 connection.attempt++;
@@ -357,6 +417,8 @@
 
         connection.reader?.cancel?.();
         connection.abortController?.abort();
+        clearTimeout(connection.heartbeatTimer);
+        liveConnections.delete(connection);
         if (connection.delayCanceller) connection.delayCanceller();
         if (connection.visibilityHandler) {
             document.removeEventListener('visibilitychange', connection.visibilityHandler);
@@ -380,6 +442,24 @@
             }
             warnedLegacyAttributes.add(attribute);
         }
+    }
+
+    // ========================================
+    // RESUME
+    // ========================================
+
+    // One set of listeners for the page, so a connection is never woken twice. `pageshow` also fires
+    // when the page returns from the back/forward cache, where a stream may have died without a sound.
+    function resume(event) {
+        if (event.type === 'visibilitychange' && document.hidden) return;
+        let force = event.type === 'online' || (event.type === 'pageshow' && event.persisted === true);
+        for (let connection of [...liveConnections]) connection.wake?.(force);
+    }
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('pageshow', resume);
+        window.addEventListener('online', resume);
+        document.addEventListener('visibilitychange', resume);
     }
 
     // ========================================

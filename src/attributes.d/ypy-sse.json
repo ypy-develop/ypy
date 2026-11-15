@@ -3,7 +3,7 @@
   "attributes": [
     {
       "name": "ypy-sse:connect",
-      "description": "Opens a Server-Sent Events stream with a GET request to the URL. The element connects on its `ypy-trigger` (default `load`). Each unnamed message is swapped into the target like a response; a message with an `event:` field is dispatched on the element as a DOM event with `detail.data` and `detail.id`. The connection reconnects with backoff and pauses while the tab is in the background.",
+      "description": "Opens a Server-Sent Events stream with a GET request to the URL. The element connects on its `ypy-trigger` (default `load`). Each unnamed message is swapped into the target like a response; a message with an `event:` field is dispatched on the element as a DOM event with `detail.data` and `detail.id`. The connection reconnects with backoff and pauses while the tab is in the background. With `sse.heartbeat` a stream that goes silent is closed and opened again, and it is opened again at once when the page comes back (`pageshow`, `online`, a visible tab).",
       "valueType": "url",
       "inherited": false,
       "doc": "https://ypy.dev/docs/reference/extensions"
@@ -182,6 +182,18 @@
       "schema": {
         "type": "boolean"
       }
+    },
+    {
+      "name": "sse.heartbeat",
+      "description": "Close the stream and open it again when no byte arrives for this long, in ms or as an interval string such as `45s`. A comment line (`: ping`) counts as a byte, so a server that pings keeps the stream alive. It catches a connection that a sleeping phone left open: it neither fails nor ends, so the retry would never run. Off by default (`0`). It reconnects only when `sse.reconnect` is on; otherwise the silent stream ends. When the page is shown again (`pageshow` from the back/forward cache, `online`, a tab that is visible again) a stream silent for longer than this is opened again at once, and a wait for the next attempt is skipped.",
+      "schema": {
+        "type": [
+          "integer",
+          "string"
+        ],
+        "minimum": 0
+      },
+      "default": 0
     },
     {
       "name": "sse.releaseOn",
