@@ -833,6 +833,19 @@
           }
         },
         {
+          "name": "ypy-list-focus",
+          "description": "Moves the keyboard focus to the first item a `append` or `prepend` swap brought into this list, the same as the `focus` modifier of the swap (`ypy-swap=\"append key:id limit:50 focus\"`, which wins over the attribute). The item gets `tabindex=\"-1\"` when it cannot take focus by itself. The focus never leaves a field the user is typing in, and the page scrolls to the item only when the swap asks for it (`focusScroll:true`, or `config.defaultFocusScroll`). `false` turns it off. Requires the `ypy-list` extension.",
+          "description-sections": {
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-list-focus:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`[true|false]`",
+            "Values": "- `false`: Leaves the focus where it is."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
           "name": "ypy-live",
           "description": "Runs a JavaScript expression when the element is processed and again whenever the DOM, an input or a swap may have changed what it reads. The expression runs with the `ypy-live` scope: `q()`, `take()`, `toggle()`, `trigger()`, `debounce()`, `forEvent()`, `nextFrame()`, `insert()`, `attr`, `data`, `aria`, `local` and `closest`. It needs `config.callbacks` to allow code. Requires the `ypy-live` extension.",
           "value": {
@@ -1164,9 +1177,11 @@
         },
         {
           "name": "ypy-signals-send",
-          "description": "On the element or an ancestor, set to `false` to keep the signals out of the requests it sends. Signals are never sent to another origin. Requires the `ypy-signals` extension.",
+          "description": "Asks for the signals in scope to go with the requests of this element. Signals are sent only when asked: with this attribute on the element, with `ypy-signals-send:inherited` on a container (the nearest value wins), or for the whole page with the config `signals.send`. `false` turns it off again for the element or the container. Signals are never sent to another origin. Requires the `ypy-signals` extension.",
           "description-sections": {
-            "Values": "- `false`: The requests of this element and its descendants do not carry the signals."
+            "Inheritance": "Use the `:inherited` modifier (for example, `ypy-signals-send:inherited`) to apply this attribute to YPY requests in child elements.",
+            "Syntax": "`[true|false]`",
+            "Values": "- `true`: The requests of this element (and of its descendants, when written `:inherited`) carry the signals. An empty value means the same.\n- `false`: The requests of this element and its descendants do not carry the signals, even when the config asks for them."
           },
           "value": {
             "kind": "plain",

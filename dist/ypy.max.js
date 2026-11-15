@@ -7474,7 +7474,9 @@ ypy.config.historyCache ??= { disable: true };
 // signals in reach carries the signals (computed ones and every key starting with "_" left out, at
 // any depth) as one JSON object in the form field "ypy-signals": the core puts the fields of a GET
 // or DELETE in the query string and those of the other verbs in the urlencoded or multipart body.
-// ypy-signals-send="false" on the element or an ancestor keeps them out of its requests. A response of type application/json is a JSON Merge Patch (RFC 7396) applied to the signals; it
+// Opt-in: nothing is sent unless asked. ypy-signals-send on the element, or ypy-signals-send:inherited on an
+// ancestor (the nearest value wins; "false" turns it off again), or ypy.config.signals.send = true for the
+// whole page. A response of type application/json is a JSON Merge Patch (RFC 7396) applied to the signals; it
 // is not swapped. Only the public API and the extension API are used.
 //==========================================================
 (() => {
@@ -8031,10 +8033,10 @@ ypy.config.historyCache ??= { disable: true };
             if (rec) { off(rec); recs.delete(elt) }
         },
 
-        // The signals go with every same-origin request
+        // The signals go with a same-origin request only when asked: ypy-signals-send (nearest wins) or config signals.send
         ypy_config_request(elt, {ctx}) {
-            let r = ctx.request;
-            if (elt.closest('[ypy-signals-send=false],[data-ypy-signals-send=false]')) return;
+            let r = ctx.request, v = api.attributeValue(elt, 'ypy-signals-send') ?? ypy.config.signals?.send;
+            if (v == null || v === false || v == 'false') return;
             try { if (new URL(r.action, document.baseURI).origin != origin) return } catch { return }
             [...pending].forEach(commit => commit());
             let o = {};
@@ -8522,6 +8524,20 @@ ypy.config.historyCache ??= { disable: true };
 // ypy-once when it has one, else its src, else its text. A script that came with the page
 // counts as already run.
 //
+// Edits are not lost on the way out. Before a navigation (a boosted request, or one that pushes a
+// history entry) the field the user is typing in loses focus, so its change event runs, and the
+// navigation waits for the requests that form still has in flight (a validation, a change that posts)
+// for at most nav.settle ms. mousedown is never cancelled, so the browser's own blur still happens.
+// With nav.confirmLeave on, the browser's own "leave this page?" dialog (beforeunload) shows when a
+// form has changes no request has saved yet. A control counts as changed from its first input event
+// until a request from it, or from its form or a button of it, ends with a 2xx (not a GET), or the form is reset. A
+// navigation that only swaps the page does not unload it, so the browser shows nothing then.
+//
+// A page from outside the app. A boosted response that is a whole page (it has a doctype, html or
+// body) is not swapped when it ended on another origin (a redirect), or when it lacks the root of the
+// app: nav.root, a selector, else the element with ypy-history-elt of the current page. The final URL
+// is then loaded as a plain page (a GET, or the target of a redirect; never a POST answered with 2xx).
+//
 // Configuration (ypy.config.nav, or the ypy-config meta tag):
 //   boost            false  turn global boost on
 //   prefetch         false  "hover", "visible" or "hover visible" (true means "hover")
@@ -8530,6 +8546,9 @@ ypy.config.historyCache ??= { disable: true };
 //   prefetchMax      10     entries alive at once
 //   prefetchParallel 2      requests in flight for the visibility mode
 //   current          true   mark the link to the current page (aria-current, ypy-current)
+//   settle           1000   ms a navigation waits for the requests of the form being edited (0: no wait)
+//   confirmLeave     false  ask the browser to confirm leaving a page whose forms have unsaved changes
+//   root             ""     selector the root of a boosted whole page must have, else it loads in full
 //
 // With config.nonce set, global boost is off: it works without attributes, and the nonce gate
 // is about attributes. Only the public API and the extension API are used.
@@ -8542,6 +8561,8 @@ ypy.config.historyCache ??= { disable: true };
     const cache = new Map();   // action -> {p: response promise, ac, k: headers key, t: expiry timer, hover, done}
     const waiting = [];        // links the visibility mode wants to prefetch
     const ran = new Set();     // identities of the ypy-once scripts that already run on this page
+    const sent = new Map();    // ctx -> the form (or element) that sent a request still in flight
+    const waiters = new Set(), dirty = new WeakSet();
     let active = 0, timer, ftimer, io, last, pointer;
 
     const boostOn = () => cfg().boost && !ypy.config.nonce;
@@ -8679,6 +8700,38 @@ ypy.config.historyCache ??= { disable: true };
     });
 
     //------------------------------------------------------
+    // edits survive a navigation
+    //------------------------------------------------------
+
+    const owner = e => e.form || e.closest?.('form') || e;
+    const FIELD = 'input,select,textarea,[contenteditable]';
+    const pause = ms => new Promise(r => setTimeout(r, ms));
+
+    // Blur the field being edited and wait (a little) for what its form has in flight.
+    async function settle(ctx) {
+        let a = document.activeElement, ms = cfg().settle ?? 1000;
+        if (!ms || !a?.matches?.(FIELD) || a === ctx.sourceElement) return;
+        let form = owner(a), end = Date.now() + ms, busy = () => [...sent].some(([c, o]) => c !== ctx && o === form);
+        a.blur();
+        await pause(0);
+        while (busy() && Date.now() < end) {
+            let wake;
+            await Promise.race([new Promise(r => waiters.add(wake = r)), pause(end - Date.now())]);
+            waiters.delete(wake);
+        }
+    }
+
+    document.addEventListener('input', evt => { if (evt.target.matches?.(FIELD)) dirty.add(evt.target) }, true);
+    document.addEventListener('reset', evt => { for (let c of evt.target.elements || []) dirty.delete(c) }, true);
+
+    window.addEventListener('beforeunload', evt => {
+        if (cfg().confirmLeave && [...document.querySelectorAll(FIELD)].some(c => dirty.has(c))) {
+            evt.preventDefault();
+            evt.returnValue = '';
+        }
+    });
+
+    //------------------------------------------------------
     // the current link
     //------------------------------------------------------
 
@@ -8743,14 +8796,44 @@ ypy.config.historyCache ??= { disable: true };
             }
         },
 
-        // the click uses the response of the prefetch when it is the same request
+        // the click uses the response of the prefetch when it is the same request; a navigation first
+        // lets the field being edited settle
         ypy_before_request: (elt, {ctx}) => {
             let r = ctx.request, e = r.method === 'GET' && !r.body && cache.get(r.action);
+            sent.set(ctx, owner(elt));
             if (e && e.k === key(r.headers)) {
                 cache.delete(r.action);
                 clearTimeout(e.t);
                 let real = ctx.fetch;
                 ctx.fetch = (...args) => e.p.catch(() => real(...args));
+            }
+            if (r.headers['YPY-Boosted'] || ctx.push && ctx.push !== 'false') {
+                let real = ctx.fetch;
+                ctx.fetch = async (...args) => { await settle(ctx); return real(...args) };
+            }
+        },
+
+        ypy_finally_request: (elt, {ctx}) => {
+            sent.delete(ctx);
+            waiters.forEach(w => w());
+            let res = ctx.response;
+            if (res && res.status >= 200 && res.status < 300 && ctx.request.method !== 'GET') {
+                let o = elt.matches?.(FIELD) ? elt : owner(elt);
+                for (let c of o.elements || [o]) dirty.delete(c);
+            }
+        },
+
+        // a whole page from outside the app is loaded as a page, not swapped in
+        ypy_after_request: (elt, {ctx}) => {
+            let r = ctx.request, res = ctx.response, url;
+            if (!r.headers['YPY-Boosted'] || r.headers['YPY-History-Restore-Request'] || res.status >= 400) return;
+            try { url = new URL(res.raw.url || r.action, document.baseURI) } catch { return }
+            let root = cfg().root || (document.querySelector(sel('[ypy-history-elt]')) ? sel('[ypy-history-elt]') : ''), t = ctx.text,
+                out = url.origin !== location.origin || /<(!doc|html|body)/i.test(t) && root && (r.method === 'GET' || ctx.redirected) &&
+                    !new DOMParser().parseFromString(api.ttPolicy().createHTML(t), 'text/html').querySelector(root);
+            if (out) {
+                (ypy._loc || location).href = url.href;
+                return false;
             }
         },
 
@@ -10066,7 +10149,13 @@ ypy.config.historyCache ??= { disable: true };
 //                (the first ones for append, the last ones for prepend)
 //
 // Usage:
-//   <ul ypy-get="/events" ypy-trigger="every 2s" ypy-swap="append key:data-id limit:50">...</ul>
+//   <ul ypy-get="/events" ypy-trigger="every 2s" ypy-swap="append key:data-id limit:50 focus">...</ul>
+//
+//   focus        after the swap the focus moves to the first item the response brought, which gets
+//                tabindex="-1" when it cannot take focus by itself. The same with ypy-list-focus on the
+//                list (or :inherited on an ancestor); ypy-list-focus="false" turns it off. The focus
+//                never leaves a field the user is typing in, and the page scrolls to the item only
+//                when the swap asks for it (focusScroll, or config.defaultFocusScroll), as the core does.
 //
 // ypy:list:pruned fires on the list with the items that were removed to keep the limit.
 // The list is the element the swap goes into; every element child counts as an item.
@@ -10097,12 +10186,26 @@ ypy.config.historyCache ??= { disable: true };
         el.remove();
     }
 
+    const STYLES = {append: 'beforeend', prepend: 'afterbegin'};
+    const EDITING = 'input:not([type=button],[type=submit],[type=checkbox],[type=radio],[type=reset]),textarea,select,[contenteditable]';
+    const FOCUSABLE = 'a[href],button,input:not([type=hidden]),select,textarea,summary,[tabindex],[contenteditable]';
+
     ypy.registerExtension('ypy-list', {
         init(internalAPI) { api = internalAPI },
 
+        // The settle is over: the first new item takes the focus, unless the user is typing somewhere.
+        ypy_after_settle(list, {task, newContent}) {
+            let s = spec(task), style = STYLES[s.style] || s.style, on = s.focus ?? api.attributeValue(list, 'ypy-list-focus');
+            if (style !== 'beforeend' && style !== 'afterbegin' || on == null || on === false || on === 'false') return;
+            let item = newContent.find(el => el.nodeType === 1 && el.parentNode === list);
+            if (!item || document.activeElement?.matches?.(EDITING)) return;
+            if (!item.matches(FOCUSABLE)) item.tabIndex = -1;
+            item.focus({preventScroll: !(s.focusScroll ?? ypy.config.defaultFocusScroll)});
+        },
+
         // After the swap, before the settle: the list never shows a duplicate or an item over the limit.
         ypy_before_settle(list, {task, newContent}) {
-            let s = spec(task), style = {append: 'beforeend', prepend: 'afterbegin'}[s.style] || s.style;
+            let s = spec(task), style = STYLES[s.style] || s.style;
             if (style !== 'beforeend' && style !== 'afterbegin') return;
             let key = s.key === true ? 'id' : s.key, limit = Math.floor(s.limit);
             let gone = new Set();

@@ -118,10 +118,13 @@
     },
     {
       "name": "ypy-signals-send",
-      "description": "On the element or an ancestor, set to `false` to keep the signals out of the requests it sends. Signals are never sent to another origin.",
+      "description": "Asks for the signals in scope to go with the requests of this element. Signals are sent only when asked: with this attribute on the element, with `ypy-signals-send:inherited` on a container (the nearest value wins), or for the whole page with the config `signals.send`. `false` turns it off again for the element or the container. Signals are never sent to another origin.",
       "valueType": "boolean",
+      "syntax": "`[true|false]`",
+      "inherited": true,
       "values": [
-        { "name": "false", "description": "The requests of this element and its descendants do not carry the signals." }
+        { "name": "true", "description": "The requests of this element (and of its descendants, when written `:inherited`) carry the signals. An empty value means the same." },
+        { "name": "false", "description": "The requests of this element and its descendants do not carry the signals, even when the config asks for them." }
       ],
       "doc": "https://ypy.dev/docs/reference/signals"
     }
@@ -150,6 +153,17 @@
     }
   ],
   "config": [
+    {
+      "name": "signals",
+      "description": "Settings of the signals extension.",
+      "schema": { "type": "object" }
+    },
+    {
+      "name": "signals.send",
+      "description": "Send the signals in scope with every same-origin request, with no attribute. `ypy-signals-send=\"false\"` turns it off for an element or a container (`:inherited`).",
+      "schema": { "type": "boolean" },
+      "default": false
+    },
     {
       "name": "classes.dirty",
       "description": "Class added to a signals scope element while it holds unsaved changes. Set it to a space separated list to replace the default.",

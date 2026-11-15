@@ -782,7 +782,7 @@ describe('ypy-stream extension', function () {
 
         it('the signals sent are the current ones at every attempt', async function () {
             await load('../src/ext/ypy-signals.js');
-            let [srv, c] = await openRoom(`<div ypy-signals="n:1"><div id="room" ypy-stream="/sig"></div></div>`, '/sig');
+            let [srv, c] = await openRoom(`<div ypy-signals="n:1"><div id="room" ypy-stream="/sig" ypy-signals-send></div></div>`, '/sig');
             assert.include(decodeURIComponent(srv.calls()[0].url), '"n":1');
             c.send('retry: 10\n\n');
             c.event('ypy-patch-signals', 'signals {"n":2,"fresh":true}');

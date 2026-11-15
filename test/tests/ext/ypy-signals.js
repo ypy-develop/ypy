@@ -129,7 +129,7 @@ describe('ypy-signals extension', function () {
 
         it('a computed is read-only and is not sent to the server', async function () {
             mockResponse('POST', '/c', 'ok');
-            createProcessedHTML(`<div ypy-signals="p:2" ypy-computed:t="$p * 2"><button ypy-post="/c" ypy-on:click="$t = 5">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="p:2" ypy-computed:t="$p * 2"><button ypy-signals-send ypy-post="/c" ypy-on:click="$t = 5">go</button></div>`);
             find('button').click();
             await forRequest();
             JSON.parse(lastFetch().request.body.get('ypy-signals')).should.deep.equal({p: 2});
@@ -263,7 +263,7 @@ describe('ypy-signals extension', function () {
 
         it('a pending value is committed before a request, so the server sees what the user typed', async function () {
             mockResponse('POST', '/s', 'ok');
-            createProcessedHTML(`<div ypy-signals="name:''"><input id="i" ypy-bind.debounce.5s="name"><button ypy-post="/s">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="name:''"><input id="i" ypy-bind.debounce.5s="name"><button ypy-signals-send ypy-post="/s">go</button></div>`);
             find('#i').value = 'typed';
             fire(find('#i'), 'input');
             find('button').click();
@@ -416,7 +416,7 @@ describe('ypy-signals extension', function () {
 
         it('the handler runs before the request of the same element, so the request sees the new value', async function () {
             mockResponse('POST', '/s', 'ok');
-            createProcessedHTML(`<div ypy-signals="status:'draft'"><button ypy-post="/s" ypy-on:click="$status = 'sent'">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="status:'draft'"><button ypy-signals-send ypy-post="/s" ypy-on:click="$status = 'sent'">go</button></div>`);
             find('button').click();
             await forRequest();
             JSON.parse(lastFetch().request.body.get('ypy-signals')).status.should.equal('sent');
@@ -453,7 +453,7 @@ describe('ypy-signals extension', function () {
 
         it('POST carries the signals in the form field ypy-signals; the form fields stay', async function () {
             mockResponse('POST', '/p', 'ok');
-            createProcessedHTML(`<form ypy-signals="a:1,b:'x'" ypy-post="/p"><input name="f" value="v"><button>go</button></form>`);
+            createProcessedHTML(`<form ypy-signals-send ypy-signals="a:1,b:'x'" ypy-post="/p"><input name="f" value="v"><button>go</button></form>`);
             find('button').click();
             await forRequest();
             sent().should.deep.equal({a: 1, b: 'x'});
@@ -462,7 +462,7 @@ describe('ypy-signals extension', function () {
 
         it('GET carries them in the query parameter ypy-signals', async function () {
             mockResponse('GET', '/g', 'ok');
-            createProcessedHTML(`<div ypy-signals="a:1,q:'x'"><button ypy-get="/g">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="a:1,q:'x'"><button ypy-signals-send ypy-get="/g">go</button></div>`);
             find('button').click();
             await forRequest();
             JSON.parse(query()).should.deep.equal({a: 1, q: 'x'});
@@ -471,7 +471,7 @@ describe('ypy-signals extension', function () {
 
         it('DELETE is sent like GET', async function () {
             mockResponse('DELETE', '/d', 'ok');
-            createProcessedHTML(`<div ypy-signals="a:1"><button ypy-delete="/d">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="a:1"><button ypy-signals-send ypy-delete="/d">go</button></div>`);
             find('button').click();
             await forRequest();
             JSON.parse(query()).should.deep.equal({a: 1});
@@ -479,7 +479,7 @@ describe('ypy-signals extension', function () {
 
         it('non-ASCII text travels URL-encoded and reads back the same', async function () {
             mockResponse('GET', '/g', 'ok');
-            createProcessedHTML(`<div ypy-signals="n:'José 日本 😀'"><button ypy-get="/g">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="n:'José 日本 😀'"><button ypy-signals-send ypy-get="/g">go</button></div>`);
             find('button').click();
             await forRequest();
             JSON.parse(query()).n.should.equal('José 日本 😀');
@@ -487,7 +487,7 @@ describe('ypy-signals extension', function () {
 
         it('signals that start with _ are local: never sent, at any depth', async function () {
             mockResponse('POST', '/p', 'ok');
-            createProcessedHTML(`<div ypy-signals="a:1,_open:true,o:{k:1,_hidden:2}"><button ypy-post="/p">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="a:1,_open:true,o:{k:1,_hidden:2}"><button ypy-signals-send ypy-post="/p">go</button></div>`);
             find('button').click();
             await forRequest();
             sent().should.deep.equal({a: 1, o: {k: 1}});
@@ -495,7 +495,7 @@ describe('ypy-signals extension', function () {
 
         it('sends the signals of every scope around the element, the inner one winning', async function () {
             mockResponse('POST', '/p', 'ok');
-            createProcessedHTML(`<div ypy-signals="a:'outer',b:1"><div ypy-signals="a:'inner',c:2"><button ypy-post="/p">go</button></div></div>`);
+            createProcessedHTML(`<div ypy-signals="a:'outer',b:1"><div ypy-signals="a:'inner',c:2"><button ypy-signals-send ypy-post="/p">go</button></div></div>`);
             find('button').click();
             await forRequest();
             sent().should.deep.equal({a: 'inner', b: 1, c: 2});
@@ -503,7 +503,7 @@ describe('ypy-signals extension', function () {
 
         it('an element outside every scope speaks for the top-level scopes', async function () {
             mockResponse('POST', '/p', 'ok');
-            createProcessedHTML(`<div><div ypy-signals="a:1"><div ypy-signals="inner:1"></div></div><button ypy-post="/p">go</button></div>`);
+            createProcessedHTML(`<div><div ypy-signals="a:1"><div ypy-signals="inner:1"></div></div><button ypy-signals-send ypy-post="/p">go</button></div>`);
             find('button').click();
             await forRequest();
             sent().should.deep.equal({a: 1});
@@ -533,10 +533,10 @@ describe('ypy-signals extension', function () {
             assert.isNull(query());
         });
 
-        it('ypy-signals-send="false" keeps them out, for the element and what is inside it', async function () {
+        it('sends nothing by default, even inside a scope with signals', async function () {
             mockResponse('POST', '/p', 'ok');
             mockResponse('GET', '/g', 'ok');
-            createProcessedHTML(`<div ypy-signals="a:1"><button id="p" ypy-post="/p" ypy-signals-send="false">p</button><div ypy-signals-send="false"><button id="g" ypy-get="/g">g</button></div></div>`);
+            createProcessedHTML(`<div ypy-signals="a:1"><button id="p" ypy-post="/p">p</button><button id="g" ypy-get="/g">g</button></div>`);
             find('#p').click();
             await forRequest();
             assert.isNull(lastFetch().request.body.get('ypy-signals'));
@@ -545,9 +545,66 @@ describe('ypy-signals extension', function () {
             assert.isNull(query());
         });
 
+        it('ypy-signals-send on the element asks for them; a bare ancestor attribute does not reach the children', async function () {
+            mockResponse('POST', '/p', 'ok');
+            createProcessedHTML(`<div ypy-signals="a:1" ypy-signals-send><button id="own" ypy-signals-send ypy-post="/p">p</button><button id="child" ypy-post="/p">c</button></div>`);
+            find('#own').click();
+            await forRequest();
+            sent().should.deep.equal({a: 1});
+            find('#child').click();
+            await forRequest();
+            assert.isNull(lastFetch().request.body.get('ypy-signals'));
+        });
+
+        it('ypy-signals-send:inherited on a container covers what is inside it, and the nearest value wins', async function () {
+            mockResponse('POST', '/p', 'ok');
+            mockResponse('GET', '/g', 'ok');
+            createProcessedHTML(`<div ypy-signals="a:1" ypy-signals-send:inherited="true"><button id="p" ypy-post="/p">p</button><div ypy-signals-send:inherited="false"><button id="g" ypy-get="/g">g</button></div></div>`);
+            find('#p').click();
+            await forRequest();
+            sent().should.deep.equal({a: 1});
+            find('#g').click();
+            await forRequest();
+            assert.isNull(query());
+        });
+
+        it('ypy-signals-send="false" on the element keeps them out even when the page asks for them', async function () {
+            mockResponse('POST', '/p', 'ok');
+            mockResponse('POST', '/q', 'ok');
+            ypy.config.signals = {send: true};
+            try {
+                createProcessedHTML(`<div ypy-signals="a:1"><button id="p" ypy-post="/p" ypy-signals-send="false">p</button><button id="q" ypy-post="/q">q</button></div>`);
+                find('#p').click();
+                await forRequest();
+                assert.isNull(lastFetch().request.body.get('ypy-signals'));
+                find('#q').click();
+                await forRequest();
+                sent().should.deep.equal({a: 1});
+            } finally { delete ypy.config.signals }
+        });
+
+        it('signals.send in the config sends them on every same-origin request, and false is the default', async function () {
+            mockResponse('POST', '/p', 'ok');
+            mockResponse('POST', 'other.test', 'ok');
+            ypy.config.signals = {send: false};
+            try {
+                createProcessedHTML(`<div ypy-signals="a:1"><button id="p" ypy-post="/p">p</button><button id="o" ypy-post="http://other.test/p">o</button></div>`);
+                find('#p').click();
+                await forRequest();
+                assert.isNull(lastFetch().request.body.get('ypy-signals'));
+                ypy.config.signals.send = true;
+                find('#p').click();
+                await forRequest();
+                sent().should.deep.equal({a: 1});
+                find('#o').click();
+                await forRequest();
+                assert.isNull(lastFetch().request.body.get('ypy-signals'));
+            } finally { delete ypy.config.signals }
+        });
+
         it('a POST of the same size goes out', async function () {
             mockResponse('POST', '/p', 'ok');
-            createProcessedHTML(`<div ypy-signals="big:'${'x'.repeat(8000)}'"><button ypy-post="/p">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals="big:'${'x'.repeat(8000)}'"><button ypy-signals-send ypy-post="/p">go</button></div>`);
             find('button').click();
             await forRequest();
             sent().big.length.should.equal(8000);
@@ -555,7 +612,7 @@ describe('ypy-signals extension', function () {
 
         it('multipart bodies carry the field too', async function () {
             mockResponse('POST', '/m', 'ok');
-            createProcessedHTML(`<form ypy-signals="a:1" ypy-post="/m" enctype="multipart/form-data"><button>go</button></form>`);
+            createProcessedHTML(`<form ypy-signals-send ypy-signals="a:1" ypy-post="/m" enctype="multipart/form-data"><button>go</button></form>`);
             find('button').click();
             await forRequest();
             JSON.parse(lastFetch().request.body.get('ypy-signals')).should.deep.equal({a: 1});
@@ -693,7 +750,7 @@ describe('ypy-signals extension', function () {
 
         it('are sent back like the others, so the server can check its signature', async function () {
             mockResponse('POST', '/p', 'ok');
-            createProcessedHTML(`<div ypy-signals.server="plan:'free', planSig:'abc'" ypy-signals="note:''"><button ypy-post="/p">go</button></div>`);
+            createProcessedHTML(`<div ypy-signals.server="plan:'free', planSig:'abc'" ypy-signals="note:''"><button ypy-signals-send ypy-post="/p">go</button></div>`);
             find('button').click();
             await forRequest();
             JSON.parse(lastFetch().request.body.get('ypy-signals')).should.deep.equal({plan: 'free', planSig: 'abc', note: ''});

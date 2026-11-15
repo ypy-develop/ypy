@@ -25,7 +25,9 @@
 // signals in reach carries the signals (computed ones and every key starting with "_" left out, at
 // any depth) as one JSON object in the form field "ypy-signals": the core puts the fields of a GET
 // or DELETE in the query string and those of the other verbs in the urlencoded or multipart body.
-// ypy-signals-send="false" on the element or an ancestor keeps them out of its requests. A response of type application/json is a JSON Merge Patch (RFC 7396) applied to the signals; it
+// Opt-in: nothing is sent unless asked. ypy-signals-send on the element, or ypy-signals-send:inherited on an
+// ancestor (the nearest value wins; "false" turns it off again), or ypy.config.signals.send = true for the
+// whole page. A response of type application/json is a JSON Merge Patch (RFC 7396) applied to the signals; it
 // is not swapped. Only the public API and the extension API are used.
 //==========================================================
 (() => {
@@ -582,10 +584,10 @@
             if (rec) { off(rec); recs.delete(elt) }
         },
 
-        // The signals go with every same-origin request
+        // The signals go with a same-origin request only when asked: ypy-signals-send (nearest wins) or config signals.send
         ypy_config_request(elt, {ctx}) {
-            let r = ctx.request;
-            if (elt.closest('[ypy-signals-send=false],[data-ypy-signals-send=false]')) return;
+            let r = ctx.request, v = api.attributeValue(elt, 'ypy-signals-send') ?? ypy.config.signals?.send;
+            if (v == null || v === false || v == 'false') return;
             try { if (new URL(r.action, document.baseURI).origin != origin) return } catch { return }
             [...pending].forEach(commit => commit());
             let o = {};
