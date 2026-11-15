@@ -305,7 +305,7 @@
           "description-sections": {
             "Inheritance": "Use the `:inherited` modifier (for example, `ypy-sync:inherited`) to apply this attribute to YPY requests in child elements.",
             "Syntax": "`[<selector>:]<strategy>`",
-            "Values": "- `drop`: Refuses the new request.\n- `abort`: Refuses the new request. A request started with `abort` is itself aborted by any other kind of request.\n- `replace`: Aborts the request in flight, discards the waiting ones and runs the new one.\n- `queue first`: The new request waits, unless one is already waiting, then it is refused. The default.\n- `queue last`: The new request waits and replaces the one that was waiting.\n- `queue all`: The new request waits behind all the others."
+            "Values": "- `drop`: Refuses the new request.\n- `abort`: Refuses the new request. A request started with `abort` is itself aborted by any other kind of request.\n- `replace`: Aborts the request in flight, discards the waiting ones and runs the new one.\n- `queue first`: The new request waits, unless one is already waiting, then it is refused. The default.\n- `queue last`: The new request waits and replaces the one that was waiting.\n- `queue all`: The new request waits behind all the others.\n- `latest`: The new request runs at once and the older ones are not aborted, but their responses are discarded when they arrive (`ctx.superseded`): the newest request wins, whatever the order of arrival.\n- `parallel`: No queue: the request runs at once, waits for none and aborts none. An older response still never overwrites a newer one on the same target."
           },
           "value": {
             "kind": "plain",
