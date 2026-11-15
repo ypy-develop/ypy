@@ -80,12 +80,27 @@ describe('ypy-focus', function () {
             assert.equal(active().textContent, 'In the marked region');
         });
 
-        it('does not move the focus when the page has no main', async function () {
+        it('focuses the swap target when the page has no main', async function () {
             mockResponse('GET', '/next', '<p>no main here</p>');
             createProcessedHTML('<div id="box"><p>old</p></div>' +
                 '<a id="a" href="/next" ypy-boost="true" ypy-target="#box" ypy-push-url="false">Go</a>');
             await go();
-            assert.equal(active(), document.body);
+            assert.equal(active().id, 'box');
+            assert.equal(active().getAttribute('tabindex'), '-1');
+            active().blur();
+            assert.isFalse(find('#box').hasAttribute('tabindex'));
+        });
+
+        itSource('does not touch a focus that is already on the heading', async function () {
+            mockResponse('GET', '/next', '<main><h1 id="same">Next page</h1></main>');
+            page();
+            await go();
+            let h1 = active();
+            assert.equal(h1.tagName, 'H1');
+            let ctx = {sourceElement: find('#a')};
+            ypy.__applyFocus(ctx, find('#box'));
+            assert.equal(active(), h1);
+            assert.isUndefined(ctx.focused, 'nothing moved, so nothing replaces the announcement');
         });
 
         it('a swap that is not a navigation leaves the focus alone', async function () {
@@ -111,12 +126,38 @@ describe('ypy-focus', function () {
             assert.equal(active(), document.body);
         });
 
-        it('does not take the focus from an [autofocus] field of the new content', async function () {
-            mockResponse('GET', '/next', '<main><h1>Sign in</h1><input id="user" autofocus></main>');
+        it('does not take the focus from an [autofocus] field that asks for it with ypy-focus', async function () {
+            mockResponse('GET', '/next', '<main><h1>Sign in</h1><input id="user" autofocus ypy-focus></main>');
             page();
             await go();
             assert.equal(active().id, 'user');
             assert.isFalse(active().hasAttribute('tabindex'));
+        });
+
+        it('does not focus an [autofocus] field of the new content by itself: the heading gets the focus', async function () {
+            mockResponse('GET', '/next', '<main><h1>Sign in</h1><input id="user" autofocus></main>');
+            page();
+            await go();
+            assert.equal(active().tagName, 'H1');
+        });
+
+        it('config.autofocus focuses the [autofocus] field', async function () {
+            ypy.config.autofocus = true;
+            try {
+                mockResponse('GET', '/next', '<main><h1>Sign in</h1><input id="user" autofocus></main>');
+                page();
+                await go();
+                assert.equal(active().id, 'user');
+            } finally {
+                delete ypy.config.autofocus;
+            }
+        });
+
+        it('ypy-focus="none" on an [autofocus] field leaves it alone', async function () {
+            mockResponse('GET', '/part', '<input id="user" autofocus ypy-focus="none">');
+            createProcessedHTML('<div id="t"></div><button id="b" ypy-get="/part" ypy-target="#t">Go</button>');
+            await go('#b');
+            assert.notEqual(active().id, 'user');
         });
 
         it('a selector focuses that element on any swap, with a temporary tabindex', async function () {
