@@ -84,7 +84,7 @@ describe('form conventions: 422 and 303', function () {
             let seen = 'unset'
             find('#f').addEventListener('ypy:before:request', () => seen = find('#f').dataset.ypyState, {once: true})
             await submit(find('#f'))
-            assert.isUndefined(seen)
+            assert.equal(seen, 'request')   // the error is gone, the request state is on
             assert.equal(find('#page').innerHTML, '<p>ok</p>')
         })
 

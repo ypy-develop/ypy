@@ -201,6 +201,7 @@ var ypy = (() => {
         #transitionQueue
         #historyAbort
         #historyInitialized
+        #historyPaths = new Set()
         #processingTransition
 
         //============================================================================================
@@ -505,10 +506,14 @@ var ypy = (() => {
                     }
                 }
             }
+            // the submit button of the form that sent the event decides, as it does for the browser,
+            // boosted or not (a formmethod of "dialog" makes the method DIALOG: no request is made)
+            method = evt.submitter?.getAttribute?.("formmethod") || method;
+            action = evt.submitter?.getAttribute?.("formaction") || action;
             if (this.__isBoosted(elt)) {
-                action ||= evt.submitter?.getAttribute?.("formAction") || elt.getAttribute(elt.matches("a") ? "href" : "action");
+                action ||= elt.getAttribute(elt.matches("a") ? "href" : "action");
             }
-            method ||= evt.submitter?.getAttribute?.("formmethod") || elt.getAttribute("method") || "GET";
+            method ||= elt.getAttribute("method") || "GET";
             return {action, method: method.toUpperCase()};
         }
 
@@ -1827,8 +1832,9 @@ var ypy = (() => {
          * Swaps the response of a request (ctx.text) into the page. Only orders the phases:
          *
          *   __buildSwapTasks  parses ctx.text into tasks: out-of-band, partials, main
-         *   ypy:before:swap   cancelable; the history entry is updated right after it
+         *   ypy:before:swap   cancelable
          *   __runSwapTasks    inserts every task, in a view transition when asked
+         *   __handleHistoryUpdate  URL, history entry (not when a task failed)
          *   __finishSwap      ypy:after:swap, document title, anchor, focus and scroll policy
          *
          * ypy:finally:swap always fires, also when a phase throws. Used by ypy.ajax() and by
@@ -1845,9 +1851,10 @@ var ypy = (() => {
                     return
                 }
 
-                this.__handleHistoryUpdate(ctx);
+                ctx.scrollFrom = [scrollX, scrollY];   // the page being left, before the swap moves it
 
-                await this.__runSwapTasks(ctx, tasks, mainSwap);
+                let errors = await this.__runSwapTasks(ctx, tasks, mainSwap);
+                if (!errors[0]) this.__handleHistoryUpdate(ctx);   // the URL changes only once the page did
                 this.__finishSwap(ctx, mainSwap);
             } finally {
                 this.__trigger(ctx.sourceElement, "ypy:finally:swap", {ctx});
@@ -1908,7 +1915,7 @@ var ypy = (() => {
          * @param {YpyRequestCtx} ctx
          * @param {YpySwapTask[]} tasks
          * @param {YpySwapTask} [mainSwap] the main task, when there is one
-         * @returns {Promise<void>}
+         * @returns {Promise<Array<[YpySwapTask, any]>>} the failures, [task, error] each; empty when all went well
          */
         async __runSwapTasks(ctx, tasks, mainSwap) {
             let errors = [];
@@ -1940,6 +1947,7 @@ var ypy = (() => {
 
             for (let [task, error] of errors) this.__triggerNative(ctx.sourceElement, 'ypy:swap:error', {ctx, task, error});
             if (errors[0]) this.__trigger(ctx.sourceElement, 'ypy:error', {ctx, error: errors[0][1]});
+            return errors;
         }
 
         /**
@@ -2563,11 +2571,19 @@ var ypy = (() => {
             }
         }
 
-        __pushUrlIntoHistory(path) {
+        /**
+         * Remembers the path of the current entry as one of ours: an entry whose state another
+         * script replaced is still restored (see __restoreHistory).
+         */
+        __markHistoryPath() {
+            this.#historyPaths.add(location.pathname + location.search);
+        }
+
+        __pushUrlIntoHistory(path, scroll = [scrollX, scrollY]) {
             if (!this.config.history) return;
             // remember where the page being left was scrolled to (read by __restoreHistory); other
             // keys of the entry's state are kept, and an entry that another router owns is left alone
-            if (history.state?.ypy) history.replaceState({...history.state, scroll: [scrollX, scrollY]}, '', location.href);
+            if (history.state?.ypy) history.replaceState({...history.state, scroll}, '', location.href);
             history.pushState({ypy: true}, '', path);
             this.__trigger(document, "ypy:after:history:push", {path});
         }
@@ -2601,9 +2617,10 @@ var ypy = (() => {
         async __restoreHistory(state, path) {
             await this.timeout(1);
             state ??= history.state;
-            if (!state?.ypy) return;
-            this.#historyAbort?.abort();
             path = path || location.pathname + location.search;
+            // an entry whose state another script replaced is ours while its path is one we wrote
+            if (!state?.ypy && !this.#historyPaths.has(path)) return;
+            this.#historyAbort?.abort();
             let historyElt = document.querySelector(this.__prefixSelector('[ypy-history-elt]')) || document.body;
             if (this.__trigger(document, "ypy:before:history:restore", {path, cacheMiss: true})) {
                 if (this.config.history === "reload") {
@@ -2626,7 +2643,7 @@ var ypy = (() => {
                         target: historyElt,
                         swap: 'outerSync',
                         select: historyElt !== document.body ? this.__prefixSelector('[ypy-history-elt]') : undefined,
-                        ...(state.scroll && {scroll: 'restore', scrollPosition: state.scroll}),
+                        ...(state?.scroll && {scroll: 'restore', scrollPosition: state.scroll}),
                         request: {
                             headers: {'YPY-History-Restore-Request': 'true', 'YPY-Request': null},
                             signal: abort.signal,
@@ -2647,8 +2664,9 @@ var ypy = (() => {
                 replace = ypy.replaceurl;
             }
 
-            // if this is a boosted element, default to pushing
-            if (push == null && replace == null && this.__isBoosted(sourceElement)) {
+            // a boosted element pushes by default, a GET or a redirect to the page it ends on; the
+            // answer of a POST, PUT, PATCH or DELETE is not a page that can be loaded again
+            if (push == null && replace == null && this.__isBoosted(sourceElement) && (ctx.request.method == 'GET' || ctx.redirected)) {
                 push = 'true';
             }
             
@@ -2672,9 +2690,12 @@ var ypy = (() => {
 
         __handleHistoryUpdate(ctx) {
             if (!this.config.history) return;
-            // Stamp the current entry on the first YPY swap after a fresh page load,
-            // so back traversals to this page are interceptable.
-            if (!history.state?.ypy) history.replaceState({ypy: true}, '', location.href);
+            // Stamp the current entry on the first YPY swap after a fresh page load (or after another
+            // script replaced its state), so back traversals to this page are interceptable.
+            if (!history.state?.ypy) {
+                history.replaceState({...history.state, ypy: true}, '', location.href);
+                this.__markHistoryPath();
+            }
             let action = this.__resolveHistoryAction(ctx);
             if (!action) return;
 
@@ -2685,10 +2706,11 @@ var ypy = (() => {
             };
             if (!this.__trigger(document, "ypy:before:history:update", historyDetail)) return;
             if (action.type === 'push') {
-                this.__pushUrlIntoHistory(action.path);
+                this.__pushUrlIntoHistory(action.path, ctx.scrollFrom);
             } else {
                 this.__replaceUrlInHistory(action.path);
             }
+            this.__markHistoryPath();
             this.__trigger(document, "ypy:after:history:update", historyDetail);
         }
 
@@ -2750,7 +2772,7 @@ var ypy = (() => {
                 ctx.indicators.push(indicator);
                 let s = this.__ypyState(indicator);
                 s.rc = (s.rc || 0) + 1;
-                this.__addClass(indicator, 'request');
+                this.__setState(indicator, 'request', true);
             }
         }
 
@@ -2758,29 +2780,37 @@ var ypy = (() => {
             for (let indicator of indicatorElements) {
                 let s = this.__ypyState(indicator);
                 if (s.rc && --s.rc <= 0) {
-                    this.__removeClass(indicator, 'request');
+                    this.__setState(indicator, 'request', false);
                     delete s.rc;
                 }
             }
         }
 
+        /**
+         * Holds back the elements named by ypy-disable (disabled) and, when ypy-inert (or
+         * config.inert, off by default) is "true", the target of the request (inert). Both go in
+         * ctx.disabledElements, released together by __enableElements.
+         */
         __disableElements(ctx) {
             let elt = ctx.sourceElement;
-            let ypyDisable = this.__attributeValue(elt, "ypy-disable");
-            if (!ypyDisable) return;
-            for (let el of this.__findAllExt(elt, ypyDisable, "ypy-disable")) {
+            let hold = (list, property) => {
+                for (let el of list) {
                     ctx.disabledElements.push(el);
                     let s = this.__ypyState(el);
                     s.dc = (s.dc || 0) + 1;
-                    el.disabled = true;
-            }
+                    el[property] = true;
+                }
+            };
+            let ypyDisable = this.__attributeValue(elt, "ypy-disable");
+            if (ypyDisable) hold(this.__findAllExt(elt, ypyDisable, "ypy-disable"), 'disabled');
+            if (/true/.test(this.__attributeValue(elt, "ypy-inert", this.config.inert)) && ctx.target?.nodeType) hold([ctx.target], 'inert');
         }
 
         __enableElements(disabledElements) {
             for (const indicator of disabledElements) {
                 let s = this.__ypyState(indicator);
                 if (s.dc && --s.dc <= 0) {
-                    indicator.disabled = false
+                    indicator.disabled = indicator.inert = false
                     delete s.dc;
                 }
             }
@@ -2789,19 +2819,18 @@ var ypy = (() => {
         __collectFormData(elt, form, submitter, validate, isGet) {
             if (validate && form && !form.reportValidity()) return
 
-            // treat a named submit button that owns ypy-post as its own submitter
+            // treat a submit button that owns ypy-post as its own submitter; FormData adds its
+            // name and value (nothing when it has no name), and throws for a button of another form
             submitter ??= (form && elt.type === 'submit') ? elt : null;
+            if (submitter?.form !== form) submitter = null;
 
-            let formData = form ? new FormData(form) : new FormData()
+            let formData = form ? new FormData(form, submitter) : new FormData()
             let included = form ? new Set(form.elements) : new Set()
             if (!form) {
                 if (validate && elt.reportValidity && !elt.reportValidity()) return
                 this.__addInputValues(elt, included, formData, isGet);
             }
-            if (submitter?.name) {
-                formData.append(submitter.name, submitter.value)
-                included.add(submitter);
-            }
+            if (submitter) included.add(submitter);
             let ypyInclude = this.__attributeValue(elt, "ypy-include");
             if (ypyInclude) {
                 for (let node of this.__findAllExt(elt, ypyInclude)) {

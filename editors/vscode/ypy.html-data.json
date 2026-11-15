@@ -1393,6 +1393,29 @@
       }
     },
     {
+      "name": "ypy-inert",
+      "description": {
+        "kind": "markdown",
+        "value": "Makes the target of the request `inert` while the request runs. `true` turns it on, `false` turns it off when `config.inert` is on. Off by default.\n\n**Values**\n\n- `true`: The target takes no click, focus or typing until the response arrives.\n- `false`: The target stays active.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-inert:inherited`) to apply this attribute to YPY requests in child elements."
+      },
+      "values": [
+        {
+          "name": "true",
+          "description": {
+            "kind": "markdown",
+            "value": "The target takes no click, focus or typing until the response arrives."
+          }
+        },
+        {
+          "name": "false",
+          "description": {
+            "kind": "markdown",
+            "value": "The target stays active."
+          }
+        }
+      ]
+    },
+    {
       "name": "ypy-ignore",
       "description": {
         "kind": "markdown",
@@ -1403,7 +1426,7 @@
       "name": "ypy-push-url",
       "description": {
         "kind": "markdown",
-        "value": "Pushes a URL into the browser history after the swap. `true` uses the request URL, `false` suppresses the push of a boosted request.\n\n**Values**\n\n- `true`: Pushes the URL of the request.\n- `false`: Pushes nothing.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-push-url:inherited`) to apply this attribute to YPY requests in child elements."
+        "value": "Pushes a URL into the browser history once the swap was applied; a swap that failed pushes nothing. `true` uses the request URL, `false` suppresses the push of a boosted request. A boosted request pushes by default only when it is a GET or was redirected to a page: a POST, PUT, PATCH or DELETE answered with a page needs this attribute.\n\n**Values**\n\n- `true`: Pushes the URL of the request.\n- `false`: Pushes nothing.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-push-url:inherited`) to apply this attribute to YPY requests in child elements."
       },
       "values": [
         {
