@@ -1609,14 +1609,14 @@
       "name": "ypy-focus",
       "description": {
         "kind": "markdown",
-        "value": "Says where the keyboard focus goes when a swap ends. After a boosted navigation it moves to the heading of the new page.\n\n**Values**\n\n- `auto`: After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`). Any other request moves nothing.\n- `none`: Leaves the focus where the swap left it.\n- `first-heading`: The first heading of the swap target.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-focus:inherited`) to apply this attribute to YPY requests in child elements."
+        "value": "Says where the keyboard focus goes when a swap ends. After a boosted navigation it moves to the heading of the new page. On an `[autofocus]` element of swapped content, any value makes the swap focus it (the core does not otherwise).\n\n**Values**\n\n- `auto`: After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`, else the swap target), with a temporary `tabindex=\"-1\"`. The title is not announced a second time. Any other request moves nothing.\n- `none`: Leaves the focus where the swap left it.\n- `first-heading`: The first heading of the swap target.\n\n**Inheritance**\n\nUse the `:inherited` modifier (for example, `ypy-focus:inherited`) to apply this attribute to YPY requests in child elements."
       },
       "values": [
         {
           "name": "auto",
           "description": {
             "kind": "markdown",
-            "value": "After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`). Any other request moves nothing."
+            "value": "After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`, else the swap target), with a temporary `tabindex=\"-1\"`. The title is not announced a second time. Any other request moves nothing."
           }
         },
         {
@@ -1707,7 +1707,7 @@
       "name": "ypy-preserve",
       "description": {
         "kind": "markdown",
-        "value": "Says how much of an element a swap or morph leaves alone. No value keeps the node by `id`; `all`, `attrs`, `children` and `false` refine it. Never inherited.\n\n**Values**\n\n- `true`: Keeps the same DOM node, matched by `id`.\n- `all`: Keeps the node, its attributes and its children.\n- `attrs`: The morph does not set, change or remove any attribute. Children merge as usual.\n- `children`: Attributes follow the response, children are not touched.\n- `false`: Switches off the default for third-party elements on this element."
+        "value": "Says how much of an element a swap or morph leaves alone. No value keeps the node by `id`; `all`, `attrs`, `children` and `false` refine it. Never inherited.\n\n**Values**\n\n- `true`: Keeps the same DOM node, matched by `id`.\n- `all`: Keeps the node, its attributes and its children.\n- `attrs`: The morph does not set, change or remove any attribute. Children merge as usual.\n- `children`: Attributes follow the response, children are not touched.\n- `false`: Switches off the default for third-party elements on this element.\n- `value`: Extension `ypy-preserve`: keeps what the visitor typed or chose in the field and its descendants with an `id`. Words combine with a space: `value selection`.\n- `selection`: Extension `ypy-preserve`: keeps the caret or the selected text of the field.\n- `focus`: Extension `ypy-preserve`: gives the focus back to the element if it had it before the swap.\n- `scroll`: Extension `ypy-preserve`: keeps the scroll position of the element."
       },
       "values": [
         {
@@ -1744,6 +1744,34 @@
             "kind": "markdown",
             "value": "Switches off the default for third-party elements on this element."
           }
+        },
+        {
+          "name": "value",
+          "description": {
+            "kind": "markdown",
+            "value": "Extension `ypy-preserve`: keeps what the visitor typed or chose in the field and its descendants with an `id`. Words combine with a space: `value selection`."
+          }
+        },
+        {
+          "name": "selection",
+          "description": {
+            "kind": "markdown",
+            "value": "Extension `ypy-preserve`: keeps the caret or the selected text of the field."
+          }
+        },
+        {
+          "name": "focus",
+          "description": {
+            "kind": "markdown",
+            "value": "Extension `ypy-preserve`: gives the focus back to the element if it had it before the swap."
+          }
+        },
+        {
+          "name": "scroll",
+          "description": {
+            "kind": "markdown",
+            "value": "Extension `ypy-preserve`: keeps the scroll position of the element."
+          }
         }
       ]
     },
@@ -1772,7 +1800,7 @@
       "name": "ypy-morph-force",
       "description": {
         "kind": "markdown",
-        "value": "Set in the response: lets the response win over what the user did to the element in a morph, such as the `open` state of `<details>` or the value of a field that has the focus."
+        "value": "Set in the response: lets the response win over what the user did to the element in a morph, such as the `open` state of `<details>`, the value of a field that has the focus, the children of a custom element or a mode of `ypy-preserve`."
       }
     },
     {
