@@ -169,9 +169,7 @@ var streamScenarios = []Scenario{
 	}},
 	{Name: "sse-lab/reconnect-after-clean-end", Run: func(e *Env) { sseReconnect(e, "end") }},
 	{Name: "sse-lab/reconnect-after-cut", Run: func(e *Env) { sseReconnect(e, "cut") }},
-	{Name: "sse-lab/heartbeat-stalled", Skip: map[string]string{
-		"firefox": "the reader.cancel of a connection with no data in flight does not end the request, and the request that follows never reaches the server (open finding, ypy-sse heartbeat)",
-	}, Run: func(e *Env) {
+	{Name: "sse-lab/heartbeat-stalled", Run: func(e *Env) {
 		p := e.Page
 		labBegin(e)
 		labMount(e, `<ul id="log"></ul><div id="conn" ypy-sse:connect="/native/lab/api/sse/silent" ypy-target="#log" ypy-swap="beforeend" ypy-config='{"sse":{"heartbeat":600}}'></div>`)
