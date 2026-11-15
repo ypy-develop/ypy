@@ -52,7 +52,7 @@ func TestMigrateByFileType(t *testing.T) {
 	cases := []struct{ name, file, in, want string }{
 		{"html attributes", "a.html",
 			`<button acme-get="/x" acme-target="#out" data-acme-swap="none" acme-on::after-swap="f()">x</button>`,
-			`<button ypy-get="/x" ypy-target="#out" data-ypy-swap="none" ypy-on::after-swap="f()">x</button>`},
+			`<button ypy-get="/x" ypy-target="#out" data-ypy-swap="none" ypy-on::after:swap="f()">x</button>`},
 		{"go template", "a.gohtml",
 			`<div acme-get="{{ .URL }}" {{ if .X }}acme-swap="none"{{ end }}>{{ .AcmeTarget }}{{ .Request.Header.Get "ACME-Request" }}</div>`,
 			`<div ypy-get="{{ .URL }}" {{ if .X }}ypy-swap="none"{{ end }}>{{ .YpyTarget }}{{ .Request.Header.Get "YPY-Request" }}</div>`},
@@ -121,10 +121,10 @@ func TestMigrateByRule(t *testing.T) {
 			`<div ypy-target:inherited="#o" ypy-on:click="f()" ypy-sse:connect="/s"></div>`},
 		{"partial tag", "a.html", `<acme-partial id="a">x</acme-partial><template acme-partial></template>`,
 			`<ypy-partial id="a">x</ypy-partial><template ypy-partial></template>`},
-		{"event camel case is kept", "a.js", `el.addEventListener('bolt:afterSwap', f); el.addEventListener("bolt:after:swap", g)`,
-			`el.addEventListener('ypy:afterSwap', f); el.addEventListener("ypy:after:swap", g)`},
+		{"event names become the native ones", "a.js", `el.addEventListener('bolt:afterSwap', f); el.addEventListener("bolt:after:swap", g)`,
+			`el.addEventListener('ypy:after:swap', f); el.addEventListener("ypy:after:swap", g)`},
 		{"event in an attribute", "a.html", `<div acme-get="/x" acme-trigger="bolt:load from:body" acme-on:bolt:afterSwap="f()" acme-on-bolt-after-request="g()"></div>`,
-			`<div ypy-get="/x" ypy-trigger="ypy:load from:body" ypy-on:ypy:afterSwap="f()" ypy-on-ypy-after-request="g()"></div>`},
+			`<div ypy-get="/x" ypy-trigger="ypy:after:process from:body" ypy-on:ypy:after:swap="f()" ypy-on::finally:request="g()"></div>`},
 		{"global object", "a.js", "bolt.process(el);\nwindow.bolt.config.timeout = 1;\nif (typeof bolt !== 'undefined') {}\n",
 			"ypy.process(el);\nwindow.ypy.config.timeout = 1;\nif (typeof ypy !== 'undefined') {}\n"},
 		{"state classes", "a.html", `<div class="a bolt-request bolt-indicator bolt-swapping"></div><style>.bolt-settling{}</style>`,
@@ -198,16 +198,16 @@ func TestMigrateCommentsOnRequest(t *testing.T) {
 	if got := convertOne(t, "a.js", in); got != in {
 		t.Errorf("comments are left alone by default: %s", got)
 	}
-	want := "// ypy-get, YPY-Request and ypy:afterSwap\nvar x = 1\n"
+	want := "// ypy-get, YPY-Request and ypy:after:swap\nvar x = 1\n"
 	if got := convertOne(t, "a.js", in, "--comments"); got != want {
 		t.Errorf("--comments: %s", got)
 	}
 }
 
 func TestMigrateIdentifiersCanBeLeftAlone(t *testing.T) {
-	in := "package p\n\nvar _ = P{AcmeGet: \"acme-get\"}\n"
+	in := "package p\n\nvar _ = P{AcmeGet: h.Attr(\"acme-get\")}\n"
 	got := convertOne(t, "a.go", in, "--no-identifiers")
-	if want := "package p\n\nvar _ = P{AcmeGet: \"ypy-get\"}\n"; got != want {
+	if want := "package p\n\nvar _ = P{AcmeGet: h.Attr(\"ypy-get\")}\n"; got != want {
 		t.Errorf("got %s", got)
 	}
 }

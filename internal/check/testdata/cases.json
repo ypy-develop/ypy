@@ -748,5 +748,25 @@
     "ext": ".go",
     "positive": "answer := r.Header.Get(\"ACME-Prompt\")",
     "negative": "<button acme-prompt=\"Sure?\">x</button>"
+  },
+  "ANY-EVENT-NOT-EMITTED": {
+    "ext": ".js",
+    "positive": "document.addEventListener('ypy:afterSettle', f);",
+    "negative": "document.addEventListener('ypy:after:settle', f);\nel.addEventListener('ypy:request:queued', g);\n// the family ypy:process:*"
+  },
+  "ANY-IDENT-PREFIX": {
+    "ext": ".go",
+    "positive": "package p\n\ntype Props struct{ AcmeTarget string }",
+    "negative": "package p\n\ntype Props struct{ YpyTarget string }"
+  },
+  "V2-DETAIL-ELT": {
+    "ext": ".js",
+    "positive": "document.addEventListener('ypy:after:swap', (e) => go(e.detail.elt));",
+    "negative": "document.addEventListener('ypy:after:swap', (e) => go(e.target));"
+  },
+  "ANY-HEADER-TARGET-PLAIN-ID": {
+    "ext": ".go",
+    "positive": "package p\n\nfunc f(r *R) { r.Header.Set(\"YPY-Target\", \"content\") }",
+    "negative": "package p\n\nfunc f(r *R) { r.Header.Set(\"YPY-Target\", \"main#content\"); r.Header.Set(\"YPY-Target\", \"body\") }"
   }
 }

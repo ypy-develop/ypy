@@ -33,7 +33,7 @@ Options:
   --min-evidence N         distinct names that make a prefix learned from the code (default 2)
   --ignore RULE            skip a rule id (repeatable, comma separated)
   --only RULE              keep only these rule ids (repeatable, comma separated)
-  --ext .a,.b              scan more file extensions as templates (repeatable)
+  --ext .a,.b              scan more file extensions as templates (repeatable); .md and .json are read by default
   --list-rules             print the rule table and exit (honors --line and --json)
   --gen-guide              rewrite the rule tables of the guide page (needs --guide)
   --guide FILE             the guide page to rewrite: the page of the website repository (content/ypy/guides/upgrade-check.md)

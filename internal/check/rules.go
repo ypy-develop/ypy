@@ -115,6 +115,8 @@ type patternEntry struct {
 	rule *Rule
 	re   *regexp.Regexp
 	grp  int
+	// skip lists the lower case texts of the group that are not a finding.
+	skip map[string]bool
 }
 
 type signatureEntry struct {
@@ -142,6 +144,8 @@ type RuleSet struct {
 	scriptSrc     []scriptSrcEntry
 	structural    map[string]*Rule
 	classRules    []*Rule
+	ypyEvent      *Rule // an event of the ypy: namespace that YPY does not emit
+	identRules    []*Rule
 	apiGlobal     []*Rule
 	metaConfig    []*Rule
 	scriptLib     []*Rule
@@ -390,7 +394,11 @@ func (rs *RuleSet) compile(r *Rule) error {
 		if err != nil {
 			return err
 		}
-		rs.patterns = append(rs.patterns, patternEntry{rule: r, re: re, grp: m.Group})
+		pe := patternEntry{rule: r, re: re, grp: m.Group}
+		if len(m.Skip) > 0 {
+			pe.skip = set(m.Skip, true)
+		}
+		rs.patterns = append(rs.patterns, pe)
 	case "script-src":
 		re, err := regexp.Compile("(?i)" + m.Src)
 		if err != nil {
@@ -401,6 +409,10 @@ func (rs *RuleSet) compile(r *Rule) error {
 		rs.structural[m.Check] = r
 	case "class":
 		rs.classRules = append(rs.classRules, r)
+	case "ypy-event":
+		rs.ypyEvent = r
+	case "identifier":
+		rs.identRules = append(rs.identRules, r)
 	case "api-global":
 		rs.apiGlobal = append(rs.apiGlobal, r)
 	case "meta-config":

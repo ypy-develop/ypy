@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "tool": "ypy-check",
-  "rulesVersion": "2026.11.1",
+  "rulesVersion": "2026.11.2",
   "line": {
     "requested": "v2",
     "used": "v2",

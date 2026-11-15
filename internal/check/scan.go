@@ -20,7 +20,9 @@ const (
 // DefaultExtensions maps each class to the extensions read as that class.
 var DefaultExtensions = map[string][]string{
 	clsMarkup: {".kyse.go", ".html", ".htm", ".xhtml", ".gohtml", ".tmpl", ".tpl", ".templ", ".jinja", ".jinja2", ".j2", ".njk", ".twig",
-		".erb", ".rhtml", ".php", ".phtml", ".hbs", ".handlebars", ".mustache", ".ejs", ".liquid", ".pug"},
+		".erb", ".rhtml", ".php", ".phtml", ".hbs", ".handlebars", ".mustache", ".ejs", ".liquid", ".pug",
+		// documents that quote the markup (a guide, a fixture, a configuration)
+		".md", ".markdown", ".json"},
 	clsScript: {".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".vue", ".svelte", ".astro"},
 	clsStyle:  {".css", ".scss", ".sass", ".less"},
 	clsServer: {".go", ".py", ".rb", ".java", ".kt", ".cs", ".ex", ".exs", ".rs"},
@@ -369,6 +371,11 @@ func (e *env) scanFile(text, file, ext string, classes []string) scanResult {
 							add(en.rule, a.offset, a.offset+len(a.name), a.name, "", "", ConfHigh)
 						}
 					}
+					if r := rs.ypyEvent; r != nil && applies(r) {
+						if ev, ok := ypyOnShorthand(a.name); ok {
+							e.checkYpyEvent(text, "ypy:"+ev, a.offset, a.offset+len(a.name), true, add)
+						}
+					}
 					if id, ev, ok := eventOfOnAttribute(e.attrP, a.name); ok {
 						if en, found := eventRule(ev); found && applies(en.rule) && !isYPY(id) {
 							conf := ConfHigh
@@ -413,7 +420,11 @@ func (e *env) scanFile(text, file, ext string, classes []string) scanResult {
 	if isCode {
 		eventTokens(text, func(prefix, name string, start, end int) bool {
 			if isYPY(prefix) {
-				return true // the rest of the run is a native event
+				// the rest of the run is meant to be a native event: is it one YPY emits?
+				if r := rs.ypyEvent; r != nil && applies(r) {
+					e.checkYpyEvent(text, "ypy:"+name, start, end, false, add)
+				}
+				return true
 			}
 			en, ok := eventRule(name)
 			if !ok {
@@ -426,6 +437,11 @@ func (e *env) scanFile(text, file, ext string, classes []string) scanResult {
 			}
 			return true
 		})
+	}
+
+	// ---- identifiers spelled with the legacy prefix (props, fields, variables) --------
+	if len(rs.identRules) > 0 {
+		e.scanIdentifiers(text, ext, applies, add)
 	}
 
 	// ---- the identifier of the legacy markup: global, config, classes -----------
@@ -473,7 +489,7 @@ func (e *env) scanFile(text, file, ext string, classes []string) scanResult {
 			if p.grp > 0 && m[2*p.grp] >= 0 {
 				s, en = m[2*p.grp], m[2*p.grp+1]
 			}
-			if en > s {
+			if en > s && !p.skip[strings.ToLower(text[s:en])] {
 				add(p.rule, s, en, text[s:en], "", "", ConfHigh)
 			}
 		}
@@ -809,4 +825,77 @@ func checkDeleteInForm(prefixes []string, root *node, add func(start, end int, m
 		}
 		add(a.offset, a.offset+len(a.name), a.name, a.name+" inside a <form> relies on the form values being sent")
 	})
+}
+
+// ypyOnShorthand reads the event of a ypy-on::<event> attribute (the shorthand for ypy:<event>).
+func ypyOnShorthand(attrName string) (string, bool) {
+	n := strings.ToLower(strings.TrimPrefix(strings.ToLower(attrName), "data-"))
+	ev, ok := strings.CutPrefix(n, "ypy-on::")
+	if !ok || ev == "" || !isLetter(ev[0]) {
+		return "", false
+	}
+	return ev, true
+}
+
+// checkYpyEvent reports a "ypy:" event that YPY does not emit. text[start:end] is where it is
+// written; modifiers allows a suffix after the name (an on attribute).
+func (e *env) checkYpyEvent(text, name string, start, end int, modifiers bool, add func(r *Rule, start, end int, match, detail, id, conf string)) {
+	if end < len(text) && (text[end] == '*' || text[end] == ':' || text[end] == '<') {
+		return // a pattern or a family written in prose: ypy:before:*, ypy:request:<name>
+	}
+	ok := isEmitted(name)
+	if modifiers {
+		ok = isEmittedWithModifiers(name)
+	}
+	if ok {
+		return
+	}
+	detail, conf := "", ConfMedium
+	if native := e.rs.nativeOfLegacy(strings.TrimPrefix(name, "ypy:")); native != "" {
+		detail, conf = "use "+native, ConfHigh
+	}
+	add(e.rs.ypyEvent, start, end, text[start:end], detail, "ypy", conf)
+}
+
+// scanIdentifiers finds the identifiers that spell a legacy prefix in front of a name of the
+// vocabulary (<P>Target, <p>_request) and, in Go, a predicate named after the prefix (Is<P>).
+func (e *env) scanIdentifiers(text, ext string, applies func(*Rule) bool, add func(r *Rule, start, end int, match, detail, id, conf string)) {
+	var prefixes []string
+	seen := map[string]bool{}
+	for _, p := range append(append([]string(nil), e.attrP...), e.hdrP...) {
+		if len(p) >= 2 && !seen[p] {
+			seen[p] = true
+			prefixes = append(prefixes, p)
+		}
+	}
+	if len(prefixes) == 0 {
+		return
+	}
+	goFile := ext == ".go" || ext == ".kyse.go"
+	for i := 0; i < len(text); {
+		ch := text[i]
+		if !(isLetter(ch) || ch == '_' || ch == '$') {
+			i++
+			continue
+		}
+		j := i
+		for j < len(text) && (isWordByte(text[j]) || text[j] == '$') {
+			j++
+		}
+		var hits []word
+		if !strings.HasPrefix(text[i:j], "HTTP_") { // the CGI spelling of a header is the header rules' business
+			hits = identPrefixHits(text[i:j], prefixes)
+		}
+		if goFile && len(hits) == 0 {
+			hits = identTailHits(text[i:j], prefixes)
+		}
+		if len(hits) > 0 {
+			for _, r := range e.rs.identRules {
+				if applies(r) {
+					add(r, i, j, text[i:j], "", strings.ToLower(hits[0].text), ConfHigh)
+				}
+			}
+		}
+		i = j
+	}
 }
