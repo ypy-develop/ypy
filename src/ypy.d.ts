@@ -2023,6 +2023,11 @@ export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
 // #endregion
 
 // #region TASK-078 cache expire and evict, nav focus prefetch and current link, validate batch, ypy-switch
+export interface YpyNavConfig {
+  /** Mark the link to the current page with `aria-current="page"` and the class `ypy-current`, and renew the mark on every navigation. @default true */
+  current?: boolean;
+}
+
 export interface YpyNativeEventMap {
   /** Copies were deleted (`YPY-Cache-Evict`, `ypy.cache.evict()`, `ypy.cache.clear()`, or a successful non-GET request). Fired on `document`. */
   'ypy:cache:evict': { patterns: string[]; removed: number };

@@ -629,6 +629,12 @@
           "markdownDescription": "Navigate every link and form of the page with a request and a swap, with no attribute. Off when `nonce` is set. A region turns it off with `ypy-boost=\"false\"`. Requires the `ypy-nav` extension.",
           "type": "boolean"
         },
+        "current": {
+          "default": true,
+          "description": "Mark the link to the current page with `aria-current=\"page\"` and the class `ypy-current`, and renew the mark on every navigation. Set to `false` to turn it off. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Mark the link to the current page with `aria-current=\"page\"` and the class `ypy-current`, and renew the mark on every navigation. Set to `false` to turn it off. Requires the `ypy-nav` extension.",
+          "type": "boolean"
+        },
         "prefetch": {
           "default": false,
           "description": "When a link the page navigates is requested ahead of the click. Requires the `ypy-nav` extension.",
@@ -644,8 +650,8 @@
         },
         "prefetchDelay": {
           "default": 65,
-          "description": "Milliseconds of hover before the prefetch starts. Requires the `ypy-nav` extension.",
-          "markdownDescription": "Milliseconds of hover before the prefetch starts. Requires the `ypy-nav` extension.",
+          "description": "Milliseconds of hover, or of keyboard focus, before the prefetch starts. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Milliseconds of hover, or of keyboard focus, before the prefetch starts. Requires the `ypy-nav` extension.",
           "minimum": 0,
           "type": "integer"
         },

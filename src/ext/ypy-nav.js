@@ -2,7 +2,7 @@
 //==========================================================
 // ypy-nav.js
 //
-// Application navigation for ypy: global boost and link prefetch.
+// Application navigation for ypy: global boost, link prefetch, the current link and ypy-once.
 //
 // Global boost. With ypy.config.nav.boost on, every link and form of the page is navigated with
 // a request and a swap, with no attribute on any of them. The extension listens once on the
@@ -30,7 +30,21 @@
 // request is the same: same URL and same headers; otherwise the click goes to the server as
 // usual. Budget: nav.prefetchMax entries alive, nav.prefetchParallel requests in flight for
 // the visibility mode, nav.prefetchTtl ms of life; a hover that ends before the request is
-// done cancels it, and nothing is prefetched when the browser asks to save data.
+// done cancels it, and nothing is prefetched when the browser asks to save data. The "hover"
+// mode also covers the keyboard: a link that gets focus (Tab) is requested after the same
+// delay, and leaving it before the request is done cancels it. A focus that comes from the
+// pointer is left to the hover and the touch.
+//
+// The current link. A link to the URL of the page (same path and query, no fragment) gets
+// aria-current="page" and the class ypy-current; the mark is renewed on every navigation: after
+// each history push or replace, on back and forward, and on content that arrives. The extension
+// owns aria-current="page" on links, so a server-rendered one is moved too. nav.current: false
+// turns it off.
+//
+// ypy-once. A <script ypy-once> in swapped content runs only once per page: when a response
+// brings it again, it is taken out before the swap. The script's identity is the value of
+// ypy-once when it has one, else its src, else its text. A script that came with the page
+// counts as already run.
 //
 // Configuration (ypy.config.nav, or the ypy-config meta tag):
 //   boost            false  turn global boost on
@@ -39,6 +53,7 @@
 //   prefetchTtl      10000  ms an unused response is kept
 //   prefetchMax      10     entries alive at once
 //   prefetchParallel 2      requests in flight for the visibility mode
+//   current          true   mark the link to the current page (aria-current, ypy-current)
 //
 // With config.nonce set, global boost is off: it works without attributes, and the nonce gate
 // is about attributes. Only the public API and the extension API are used.
@@ -50,7 +65,8 @@
     const sel = s => api.prefixSelector(s);
     const cache = new Map();   // action -> {p: response promise, ac, k: headers key, t: expiry timer, hover, done}
     const waiting = [];        // links the visibility mode wants to prefetch
-    let active = 0, timer, io, last;
+    const ran = new Set();     // identities of the ypy-once scripts that already run on this page
+    let active = 0, timer, ftimer, io, last, pointer;
 
     const boostOn = () => cfg().boost && !ypy.config.nonce;
     const key = h => JSON.stringify(Object.entries(h).sort());
@@ -157,7 +173,7 @@
         let a = evt.target.closest?.('a[href]');
         if (a && !a.contains(evt.relatedTarget)) {
             clearTimeout(timer);
-            if (last?.a === a && last.e.hover && !last.e.done) drop(last.action);   // the hover ended first
+            if (last?.a === a && last.e.hover === true && !last.e.done) drop(last.action);   // the hover ended first
         }
     });
 
@@ -166,18 +182,87 @@
         if (a && /hover/.test(mode(a))) start(a, true);
     }, {passive: true});
 
+    // the keyboard: a link that gets focus is prefetched like a hovered one, unless the pointer put it there
+    document.addEventListener('pointerdown', () => { pointer = true }, true);
+    document.addEventListener('keydown', () => { pointer = false }, true);
+
+    document.addEventListener('focusin', evt => {
+        let a = evt.target.closest?.('a[href]');
+        if (a && !pointer && /hover/.test(mode(a))) {
+            clearTimeout(ftimer);
+            ftimer = setTimeout(start, cfg().prefetchDelay ?? 65, a, 'focus');
+        }
+    });
+
+    document.addEventListener('focusout', evt => {
+        let a = evt.target.closest?.('a[href]');
+        if (a) {
+            clearTimeout(ftimer);
+            if (last?.a === a && last.e.hover === 'focus' && !last.e.done) drop(last.action);
+        }
+    });
+
+    //------------------------------------------------------
+    // the current link
+    //------------------------------------------------------
+
+    // Marks the links of a subtree that point to the page being shown, and clears the others.
+    function current(root = document) {
+        if (cfg().current === false) return;
+        let here = location.origin + location.pathname + location.search;
+        for (let a of [...root.querySelectorAll?.('a[href]') ?? [], ...root.matches?.('a[href]') ? [root] : []]) {
+            let on = !a.hash && !a.hasAttribute('download') && (!a.target || a.target === '_self') && a.origin + a.pathname + a.search === here;
+            if (on) {
+                a.classList.add('ypy-current');
+                a.setAttribute('aria-current', 'page');
+            } else if (a.classList.contains('ypy-current') || a.getAttribute('aria-current') === 'page') {
+                a.classList.remove('ypy-current');
+                a.removeAttribute('aria-current');
+            }
+        }
+    }
+
+    window.addEventListener('popstate', () => current());
+
+    //------------------------------------------------------
+    // ypy-once
+    //------------------------------------------------------
+
+    // links that ask to be prefetched when they become visible
+    function watch(root) {
+        if (typeof IntersectionObserver != 'function') return;
+        for (let a of [...root.querySelectorAll?.('a[href]') ?? [], ...root.matches?.('a[href]') ? [root] : []]) {
+            if (/visible/.test(mode(a))) {
+                io ||= new IntersectionObserver(entries => entries.forEach(x => {
+                    if (x.isIntersecting) { io.unobserve(x.target); waiting.push(x.target); pump() }
+                }));
+                io.observe(a);
+            }
+        }
+    }
+
+    // The scripts of a subtree that ask to run once, with their identity.
+    const onceScripts = root => [...root.querySelectorAll?.(sel('script[ypy-once]')) ?? []].map(s =>
+        [s, api.attr(s, 'ypy-once') || s.getAttribute('src') || s.textContent]);
+
     ypy.registerExtension('ypy-nav', {
         init: a => { api = a },
 
-        // links that ask to be prefetched when they become visible
+        // a new page, or new content: the current link, and the scripts that came with it
         ypy_after_process: root => {
-            if (typeof IntersectionObserver != 'function') return;
-            for (let a of [...root.querySelectorAll?.('a[href]') ?? [], ...root.matches?.('a[href]') ? [root] : []]) {
-                if (/visible/.test(mode(a))) {
-                    io ||= new IntersectionObserver(entries => entries.forEach(x => {
-                        if (x.isIntersecting) { io.unobserve(x.target); waiting.push(x.target); pump() }
-                    }));
-                    io.observe(a);
+            current(root);
+            watch(root);
+            for (let [, id] of onceScripts(root)) ran.add(id);
+        },
+
+        ypy_after_history_update: () => current(),
+
+        // a script that already ran does not come in again
+        ypy_before_swap: (elt, {tasks}) => {
+            for (let {fragment} of tasks) {
+                for (let [script, id] of fragment ? onceScripts(fragment) : []) {
+                    if (ran.has(id)) script.remove();
+                    else ran.add(id);
                 }
             }
         },
