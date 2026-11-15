@@ -2409,4 +2409,9 @@ export interface YpyNavConfig {
    */
   root?: string;
 }
+
+export interface YpySwapSpec {
+  /** `focus` modifier of `append` and `prepend` (`ypy-list`): move the focus to the first item the swap brought. */
+  focus?: boolean;
+}
 // #endregion

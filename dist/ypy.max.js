@@ -10149,7 +10149,13 @@ ypy.config.historyCache ??= { disable: true };
 //                (the first ones for append, the last ones for prepend)
 //
 // Usage:
-//   <ul ypy-get="/events" ypy-trigger="every 2s" ypy-swap="append key:data-id limit:50">...</ul>
+//   <ul ypy-get="/events" ypy-trigger="every 2s" ypy-swap="append key:data-id limit:50 focus">...</ul>
+//
+//   focus        after the swap the focus moves to the first item the response brought, which gets
+//                tabindex="-1" when it cannot take focus by itself. The same with ypy-list-focus on the
+//                list (or :inherited on an ancestor); ypy-list-focus="false" turns it off. The focus
+//                never leaves a field the user is typing in, and the page scrolls to the item only
+//                when the swap asks for it (focusScroll, or config.defaultFocusScroll), as the core does.
 //
 // ypy:list:pruned fires on the list with the items that were removed to keep the limit.
 // The list is the element the swap goes into; every element child counts as an item.
@@ -10180,12 +10186,26 @@ ypy.config.historyCache ??= { disable: true };
         el.remove();
     }
 
+    const STYLES = {append: 'beforeend', prepend: 'afterbegin'};
+    const EDITING = 'input:not([type=button],[type=submit],[type=checkbox],[type=radio],[type=reset]),textarea,select,[contenteditable]';
+    const FOCUSABLE = 'a[href],button,input:not([type=hidden]),select,textarea,summary,[tabindex],[contenteditable]';
+
     ypy.registerExtension('ypy-list', {
         init(internalAPI) { api = internalAPI },
 
+        // The settle is over: the first new item takes the focus, unless the user is typing somewhere.
+        ypy_after_settle(list, {task, newContent}) {
+            let s = spec(task), style = STYLES[s.style] || s.style, on = s.focus ?? api.attributeValue(list, 'ypy-list-focus');
+            if (style !== 'beforeend' && style !== 'afterbegin' || on == null || on === false || on === 'false') return;
+            let item = newContent.find(el => el.nodeType === 1 && el.parentNode === list);
+            if (!item || document.activeElement?.matches?.(EDITING)) return;
+            if (!item.matches(FOCUSABLE)) item.tabIndex = -1;
+            item.focus({preventScroll: !(s.focusScroll ?? ypy.config.defaultFocusScroll)});
+        },
+
         // After the swap, before the settle: the list never shows a duplicate or an item over the limit.
         ypy_before_settle(list, {task, newContent}) {
-            let s = spec(task), style = {append: 'beforeend', prepend: 'afterbegin'}[s.style] || s.style;
+            let s = spec(task), style = STYLES[s.style] || s.style;
             if (style !== 'beforeend' && style !== 'afterbegin') return;
             let key = s.key === true ? 'id' : s.key, limit = Math.floor(s.limit);
             let gone = new Set();
