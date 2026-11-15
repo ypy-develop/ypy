@@ -11,9 +11,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/chromedp/chromedp"
-	"github.com/chromedp/chromedp/kb"
 )
 
 // failure is the panic value of a scenario that failed; the runner recovers it.
@@ -25,9 +22,11 @@ func (f failure) Error() string { return f.msg }
 
 func fail(format string, args ...any) { panic(failure{fmt.Sprintf(format, args...)}) }
 
-// Page is a Chrome tab with the few operations the scenarios use.
+// Page is a browser page with the few operations the scenarios use. It is
+// built on a Driver, so the same scenario runs in Chrome, Firefox and Safari.
 type Page struct {
 	ctx context.Context
+	drv Driver
 	// accept decides what a dialog gets: true accepts it. The default accepts.
 	accept atomic.Pointer[func(message string) bool]
 }
@@ -58,13 +57,19 @@ func (p *Page) dialog(message string) bool {
 }
 
 // Goto loads a URL and waits for the load event.
-func (p *Page) Goto(url string) { p.must(chromedp.Do(p.ctx, chromedp.Navigate(url))) }
+func (p *Page) Goto(url string) { p.must(p.drv.Goto(p.ctx, url)) }
+
+// Back goes one entry back in the history and waits for the page to settle.
+func (p *Page) Back() { p.must(p.drv.Back(p.ctx)) }
+
+// Forward goes one entry forward in the history.
+func (p *Page) Forward() { p.must(p.drv.Forward(p.ctx)) }
 
 // Eval evaluates a JavaScript expression (a promise is awaited) and decodes its
 // JSON value into out, when out is not nil.
 func (p *Page) Eval(expr string, out any) {
 	wrapped := "(async()=>{const r=await (" + expr + ");return JSON.stringify(r===undefined?null:r)})()"
-	s, err := chromedp.Run(p.ctx, chromedp.Evaluate[string](wrapped, chromedp.EvalAwaitPromise))
+	s, err := p.drv.Eval(p.ctx, wrapped)
 	p.must(err)
 	if out != nil {
 		if err := json.Unmarshal([]byte(s), out); err != nil {
@@ -124,13 +129,31 @@ func (p *Page) Sleep(d time.Duration) {
 	}
 }
 
+// poll calls f until it is true or the timeout passes. A step of f that fails
+// (a page in the middle of a navigation cannot run script) is tried again.
 func (p *Page) poll(what string, timeout time.Duration, f func() bool) {
 	end := time.Now().Add(timeout)
+	var last string
 	for {
-		if f() {
+		ok := func() (ok bool) {
+			defer func() {
+				if r := recover(); r != nil {
+					if fl, is := r.(failure); is {
+						last = fl.msg
+						return
+					}
+					panic(r)
+				}
+			}()
+			return f()
+		}()
+		if ok {
 			return
 		}
 		if time.Now().After(end) {
+			if last != "" {
+				fail("timeout waiting for %s (%s)", what, trimLines(last, 1))
+			}
 			fail("timeout waiting for %s", what)
 		}
 		p.Sleep(30 * time.Millisecond)
@@ -169,14 +192,14 @@ func (p *Page) Fill(sel, value string) {
 
 // Click scrolls the element into view and clicks its center with the mouse.
 func (p *Page) Click(sel string) {
-	p.must(chromedp.Do(p.ctx, chromedp.Click(chromedp.CSS(sel))))
+	p.must(p.drv.Click(p.ctx, sel))
 }
 
 // PressSequentially types text key by key into the field, pausing between keys.
 func (p *Page) PressSequentially(sel, text string, delay time.Duration) {
 	p.Focus(sel)
 	for _, r := range text {
-		p.must(chromedp.Do(p.ctx, chromedp.KeyEvent(string(r))))
+		p.must(p.drv.Type(p.ctx, string(r)))
 		p.Sleep(delay)
 	}
 }
@@ -184,7 +207,7 @@ func (p *Page) PressSequentially(sel, text string, delay time.Duration) {
 // PressEnter focuses the element and presses Enter.
 func (p *Page) PressEnter(sel string) {
 	p.Focus(sel)
-	p.must(chromedp.Do(p.ctx, chromedp.KeyEvent(kb.Enter)))
+	p.must(p.drv.PressEnter(p.ctx))
 }
 
 func trimLines(s string, n int) string {

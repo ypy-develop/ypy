@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
 // Package e2e runs the end to end scenarios of the example app
-// (examples/native), driven in Chrome against the Go example server
-// (examples/server). It is what "ypy test --suite e2e" runs.
+// (examples/native), driven in Chrome, Firefox and Safari against the Go
+// example server (examples/server). It is what "ypy test --suite e2e" runs.
+// Chrome is driven through the DevTools protocol, Firefox and Safari through
+// WebDriver; see Driver.
 package e2e
 
 import (
@@ -19,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/ypy-develop/ypy/internal/browsers"
 )
 
@@ -43,10 +44,13 @@ type Options struct {
 // Result is the outcome of one scenario.
 type Result struct {
 	Scenario string
-	Pass     bool
-	Error    string
-	Duration time.Duration
-	Console  []string
+	Pass     bool // false for a scenario that failed; a skipped one is Pass and Skipped
+	Skipped  bool
+	// SkipReason is why the scenario was left out in this browser (see Scenario.Skip).
+	SkipReason string
+	Error      string
+	Duration   time.Duration
+	Console    []string
 }
 
 // Outcome is every result of one app in one browser.
@@ -78,17 +82,9 @@ func Run(ctx context.Context, o Options) int {
 			apps = append(apps, a)
 		}
 	}
-	var runBrowsers []string
-	for _, b := range o.Browsers {
-		if b == browsers.Chrome {
-			runBrowsers = append(runBrowsers, b)
-		} else {
-			fmt.Fprintf(o.Out, "%s: skipped (the e2e suite drives Chrome through the DevTools protocol)\n", b)
-		}
-	}
+	runBrowsers := o.Browsers
 	if len(runBrowsers) == 0 {
-		fmt.Fprintln(o.Err, "ypy test: the e2e suite needs --browsers chrome")
-		return 2
+		runBrowsers = []string{browsers.Chrome}
 	}
 
 	tmp, err := os.MkdirTemp("", "ypy-e2e-")
@@ -118,7 +114,7 @@ func Run(ctx context.Context, o Options) int {
 
 	var outcomes []Outcome
 	for _, name := range runBrowsers {
-		b, err := browsers.Open(ctx, name, browsers.Options{ChromePath: o.ChromePath, Headed: o.Headed, Logs: o.Logs, Env: o.Env})
+		b, err := browsers.Open(ctx, name, browsers.Options{ChromePath: o.ChromePath, Headed: o.Headed, Logs: o.Logs, KeepDialogs: true, Env: o.Env})
 		if err != nil {
 			var u *browsers.Unavailable
 			if errors.As(err, &u) {
@@ -133,11 +129,13 @@ func Run(ctx context.Context, o Options) int {
 			oc := runApp(ctx, o, b, base, name, app)
 			for _, r := range oc.Results {
 				mark := "ok  "
-				if !r.Pass {
-					mark = "FAIL"
-				}
 				extra := ""
-				if r.Error != "" {
+				switch {
+				case r.Skipped:
+					mark = "skip"
+					extra = " :: " + r.SkipReason
+				case !r.Pass:
+					mark = "FAIL"
 					extra = " :: " + r.Error
 				}
 				fmt.Fprintf(o.Out, "%s %s %s %s%s\n", mark, name, app, r.Scenario, extra)
@@ -242,23 +240,29 @@ func runApp(ctx context.Context, o Options, b browsers.Browser, base, browserNam
 func runScenario(ctx context.Context, o Options, b browsers.Browser, base, appName string, sc Scenario) (res Result, version string) {
 	start := time.Now()
 	res = Result{Scenario: sc.Name}
+	if reason, ok := sc.Skip[b.Name()]; ok {
+		res.Pass, res.Skipped, res.SkipReason = true, true, reason
+		return
+	}
 	page := &Page{}
-	tab, crashed, stop, logs, err := browsers.OpenTab(ctx, b, page.dialog)
+	sess, err := openDriver(ctx, b, page.dialog)
 	if err != nil {
 		res.Error = err.Error()
 		return
 	}
-	defer stop()
-	sctx, cancel := context.WithTimeout(tab, o.ScenarioTimeout)
+	defer sess.Close()
+	sctx, cancel := context.WithTimeout(sess.Base, o.ScenarioTimeout)
 	defer cancel()
-	go func() {
-		select {
-		case <-crashed:
-			cancel()
-		case <-sctx.Done():
-		}
-	}()
-	page.ctx = sctx
+	if sess.Crashed != nil {
+		go func() {
+			select {
+			case <-sess.Crashed:
+				cancel()
+			case <-sctx.Done():
+			}
+		}()
+	}
+	page.ctx, page.drv = sctx, sess.Driver
 	env := &Env{Page: page, Base: base, App: appName}
 
 	func() {
@@ -285,13 +289,13 @@ func runScenario(ctx context.Context, o Options, b browsers.Browser, base, appNa
 	res.Pass = res.Error == ""
 
 	// the library version, read from the page the scenario used (best effort)
-	vctx, vcancel := context.WithTimeout(tab, 2*time.Second)
+	vctx, vcancel := context.WithTimeout(sess.Base, 2*time.Second)
 	defer vcancel()
-	if v, err := chromedp.Run(vctx, chromedp.Evaluate[string](`String(window.ypy?.version ?? '')`)); err == nil {
+	if v, err := sess.Eval(vctx, `(async()=>String(window.ypy?.version ?? ''))()`); err == nil {
 		version = v
 	}
 	if !res.Pass {
-		for _, l := range logs() {
+		for _, l := range sess.Logs() {
 			if strings.HasPrefix(l, "error:") || strings.HasPrefix(l, "warning:") || strings.HasPrefix(l, "uncaught:") {
 				res.Console = append(res.Console, l)
 			}
