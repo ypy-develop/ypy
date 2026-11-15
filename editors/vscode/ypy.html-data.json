@@ -1101,6 +1101,27 @@
       }
     },
     {
+      "name": "ypy-on::stream:refresh",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:stream:refresh` fires. A `ypy-refresh` event is about to make its request, after its debounce and jitter. `detail.selector` is the selector of the event, empty for the page. Cancel it to skip that refresh."
+      }
+    },
+    {
+      "name": "ypy-on::stream:pause",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:stream:pause` fires. The tab went to the background and the stream, which has `pauseOnBackground`, closed its connection. It opens another one when the tab is visible again."
+      }
+    },
+    {
+      "name": "ypy-on::stream:resume",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:stream:resume` fires. The tab is visible again and the stream that was paused opens its connection now, with `Last-Event-ID`."
+      }
+    },
+    {
       "name": "ypy-on::upload:progress",
       "description": {
         "kind": "markdown",

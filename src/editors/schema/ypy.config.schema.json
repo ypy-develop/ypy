@@ -940,6 +940,20 @@
       },
       "type": "object"
     },
+    "stream": {
+      "additionalProperties": false,
+      "description": "Defaults of the ypy-stream extension. A single element overrides them with `ypy-config='{\"stream\":{...}}'`. Requires the `ypy-stream` extension.",
+      "markdownDescription": "Defaults of the ypy-stream extension. A single element overrides them with `ypy-config='{\"stream\":{...}}'`. Requires the `ypy-stream` extension.",
+      "properties": {
+        "pauseOnBackground": {
+          "default": false,
+          "description": "Close the connection while the tab is in the background and open it again, at once and with `Last-Event-ID`, when it is visible. Off by default. Requires the `ypy-stream` extension.",
+          "markdownDescription": "Close the connection while the tab is in the background and open it again, at once and with `Last-Event-ID`, when it is visible. Off by default. Requires the `ypy-stream` extension.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "targetFallback": {
       "description": "What happens when a target selector matches nothing: `true` falls back to the main target for a whole page or a response with a main, `\"always\"` also for a fragment, `false` never. Unset means on.",
       "enum": [

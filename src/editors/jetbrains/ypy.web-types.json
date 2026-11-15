@@ -1728,6 +1728,18 @@
           "description": "A signals patch arrived and the signals extension is not loaded, so the page can apply it itself. Requires the `ypy-stream` extension."
         },
         {
+          "name": "stream:refresh",
+          "description": "A `ypy-refresh` event is about to make its request, after its debounce and jitter. `detail.selector` is the selector of the event, empty for the page. Cancel it to skip that refresh. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:pause",
+          "description": "The tab went to the background and the stream, which has `pauseOnBackground`, closed its connection. It opens another one when the tab is visible again. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:resume",
+          "description": "The tab is visible again and the stream that was paused opens its connection now, with `Last-Event-ID`. Requires the `ypy-stream` extension."
+        },
+        {
           "name": "upload:progress",
           "description": "Fires on the source element while a file is sent. `percent` is a whole number from 0 to 100; `total` is 0 when the browser does not know the size of the body. Requires the `ypy-upload` extension."
         },
