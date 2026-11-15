@@ -74,7 +74,10 @@ of `dist/` disagree. To release a version, in this order: edit `VERSION` and the
 `this.version` line of `src/ypy.js`, run `go run ./cmd/ypy gen` and
 `go run ./cmd/ypy build`, commit `dist/`, and only then does the orchestrator
 tag. Never tag before `dist/` was rebuilt: a tag must publish a build that
-reports its own version.
+reports its own version. Right before the tag, run
+`YPY_RELEASE_TAG=vX.Y.Z go test -run 'TestReleaseTag|TestVersion' .`: it fails
+when the tag is not `v` + VERSION or VERSION has a suffix such as `-dev`. The
+same test runs in CI on every pushed `v*` tag and on a HEAD that carries one.
 
 ## The budgets
 

@@ -14,6 +14,7 @@ name: ci
 on:
   push:
     branches: [develop]
+    tags: ["v*"]
     paths-ignore:
       - "*.md"
       - "spec/**"

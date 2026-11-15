@@ -5,12 +5,45 @@ package ypy_test
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/ypy-develop/ypy"
 )
+
+// releaseTag is the tag being released: YPY_RELEASE_TAG when set (run it before
+// creating the tag), the tag that triggered the CI run, or a v* tag on HEAD.
+func releaseTag() string {
+	if tag := os.Getenv("YPY_RELEASE_TAG"); tag != "" {
+		return tag
+	}
+	if os.Getenv("GITHUB_REF_TYPE") == "tag" {
+		return os.Getenv("GITHUB_REF_NAME")
+	}
+	out, err := exec.Command("git", "tag", "--points-at", "HEAD", "--list", "v*").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(strings.SplitN(string(out), "\n", 2)[0])
+}
+
+// A release is never a development build: the tag must be v + VERSION, and
+// VERSION must have no pre-release suffix such as -dev.
+func TestReleaseTagMatchesVersion(t *testing.T) {
+	tag := releaseTag()
+	if tag == "" {
+		t.Skip("not a release: set YPY_RELEASE_TAG=vX.Y.Z before tagging")
+	}
+	v := ypy.Version()
+	if strings.Contains(v, "-") {
+		t.Fatalf("tag %s would publish the pre-release build %q; set VERSION to the release number", tag, v)
+	}
+	if tag != "v"+v {
+		t.Fatalf("tag %s does not match VERSION %s", tag, v)
+	}
+}
 
 func read(t *testing.T, name string) string {
 	t.Helper()
