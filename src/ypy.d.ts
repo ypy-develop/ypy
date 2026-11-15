@@ -2084,3 +2084,31 @@ export interface YpyEventMap {
   'ypy:telemetry:error': YpyTelemetryError;
 }
 // #endregion
+
+// #region TASK-080 stream protocol: lists, refresh and the pause of a stream in a background tab
+/** The options of the `ypy-stream` extension. An element overrides them with `ypy-config='{"stream":{...}}'`. */
+export interface YpyStreamConfig {
+  /**
+   * Close the connection while the tab is in the background and open it again, at once and with
+   * `Last-Event-ID`, when the tab is visible. @default false
+   */
+  pauseOnBackground: boolean;
+}
+
+export interface YpyConfig {
+  /** `ypy-stream` defaults. An element overrides them with `ypy-config='{"stream":{...}}'`. */
+  stream?: Partial<YpyStreamConfig>;
+}
+
+export interface YpyNativeEventMap {
+  /**
+   * A `ypy-refresh` event is about to make its request, after its debounce and jitter. `selector` is the
+   * selector of the event, empty for the page. Cancel it to skip that refresh.
+   */
+  'ypy:stream:refresh': { stream: object; selector: string };
+  /** The tab went to the background and the stream closed its connection (`pauseOnBackground`). */
+  'ypy:stream:pause': { stream: object };
+  /** The tab is visible again and the paused stream opens its connection. */
+  'ypy:stream:resume': { stream: object };
+}
+// #endregion

@@ -3714,13 +3714,16 @@ ypy.config.historyCache ??= { disable: true };
 //   <div id="room" ypy-stream="/room/events"></div>           open on load
 //   <div ypy-stream.post="/jobs/7/run" ypy-trigger="click">   other verbs: .post .put .patch .delete
 //
-// Events: ypy-patch-elements, ypy-patch-signals, ypy-redirect, ypy-event.
+// Events: ypy-patch-elements (with key and limit for append and prepend lists), ypy-patch-signals,
+// ypy-redirect, ypy-event, ypy-refresh (fetch the page, or the elements of a selector, again).
 // Reconnects with backoff and jitter; the server answers with the full state (the fat morph).
+// pauseOnBackground (ypy.config.stream, or ypy-config='{"stream":{"pauseOnBackground":true}}') closes the
+// connection while the tab is hidden and opens it again, with Last-Event-ID, when it is visible.
 // Uses only the public API and the extension API. Load it before ypy-sse: an element with
 // ypy-sse:connect stays with that extension.
 //==========================================================
 (() => {
-    let api, sel, mo;
+    let api, sel, mo, vl;
     const open = new Set();
     const E = m => Error('ypy: stream: ' + m);
     const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
@@ -3777,9 +3780,51 @@ ypy.config.historyCache ??= { disable: true };
         return [...(tag ? t.content.firstChild : t.content).children];
     }
 
+    // the same swap, morph, focus and security as a response; svg and math are parsed inside their own
+    // element, which ctx.select then unwraps
+    const put = (st, k, target, style, html) => {
+        let tag = TAG[k.namespace || 'html'];
+        if (tag == null) throw E('unknown namespace ' + k.namespace);
+        return ypy.swap({
+            sourceElement: st.elt, target, status: 'stream', focus: 'none',
+            swap: style + ' swapEmpty:true',
+            text: style == 'delete' ? '' : tag ? `<${tag} data-ypy-ns>${html}</${tag}>` : html,
+            select: tag ? '[data-ypy-ns]>*' : undefined,
+            transition: k.useViewTransition == 'true',
+            request: {method: 'GET', action: st.url, headers: {}}, ypy: {}
+        });
+    };
+
+    // An append or prepend list (key and limit, the rules of ypy-list): an item whose key attribute has
+    // the value of one in the list replaces it where it stands, the same key twice in a patch keeps the
+    // last, and afterwards the list keeps at most limit items, the oldest going.
+    async function fillList(st, k, target, html) {
+        let append = k.mode == 'append', key = k.key == null ? '' : k.key || 'id', limit = k.limit;
+        let val = e => key ? e.getAttribute(key) : null, items = top(html, k.namespace || 'html'), old = new Map(), last = new Map();
+        for (let e of items) val(e) != null && last.set(val(e), e);
+        for (let c of key ? target.children : []) val(c) != null && !old.has(val(c)) && old.set(val(c), c);
+        let rest = [];
+        for (let e of items) {
+            if (val(e) != null && last.get(val(e)) !== e) continue;
+            let was = val(e) != null && old.get(val(e));
+            was ? await put(st, k, was, 'outerHTML', e.outerHTML) : rest.push(e);
+        }
+        if (rest.length) await put(st, k, target, STYLE[k.mode], rest.map(e => e.outerHTML).join(''));
+        let kids = [...target.children], extra = limit ? kids.length - limit : 0;
+        if (extra > 0) for (let c of append ? kids.slice(0, extra) : kids.slice(-extra)) await put(st, k, c, 'delete');
+    }
+
     async function patchElements(st, k) {
         let mode = k.mode || 'outer', ns = k.namespace || 'html', style = STYLE[mode], jobs = [], html = k.elements ?? '';
         if (!style) throw E('unknown mode ' + mode);
+        if (TAG[ns] == null) throw E('unknown namespace ' + ns);
+        // key and limit mean something for append and prepend only, and are ignored in the other modes
+        let list = /^(?:append|prepend)$/.test(mode) && (k.key != null || k.limit != null);
+        if (list) {
+            if (k.key && !/^[A-Za-z_][\w.-]*$/.test(k.key)) throw E('invalid key attribute ' + k.key);
+            if (k.limit != null && !/^[1-9]\d*$/.test(k.limit)) throw E('limit must be a whole number of 1 or more');
+            k = {...k, mode, limit: k.limit && +k.limit};
+        }
         if (k.selector) {
             let found = ypy.findAll(st.elt, k.selector);
             if (!found.length) return missing(st, k.selector);
@@ -3793,20 +3838,7 @@ ypy.config.historyCache ??= { disable: true };
                 else missing(st, e.id ? '#' + CSS.escape(e.id) : '');
             }
         }
-        let tag = TAG[ns];
-        if (tag == null) throw E('unknown namespace ' + ns);
-        for (let [target, h] of jobs) {
-            // the same swap, morph, focus and security as a response; svg and math are parsed inside their
-            // own element, which ctx.select then unwraps
-            await ypy.swap({
-                sourceElement: st.elt, target, status: 'stream', focus: 'none',
-                swap: style + ' swapEmpty:true',
-                text: mode == 'remove' ? '' : tag ? `<${tag} data-ypy-ns>${h}</${tag}>` : h,
-                select: tag ? '[data-ypy-ns]>*' : undefined,
-                transition: k.useViewTransition == 'true',
-                request: {method: 'GET', action: st.url, headers: {}}, ypy: {}
-            });
-        }
+        for (let [target, h] of jobs) await (list ? fillList(st, k, target, h) : put(st, k, target, style, mode == 'remove' ? '' : h));
     }
 
     function patchSignals(st, k) {
@@ -3834,7 +3866,40 @@ ypy.config.historyCache ??= { disable: true };
         ypy.trigger(target, k.name, k.detail ? JSON.parse(k.detail) : undefined);
     }
 
-    const EVENTS = {'ypy-patch-elements': patchElements, 'ypy-patch-signals': patchSignals, 'ypy-redirect': redirect, 'ypy-event': fire};
+    // ypy-refresh: the server says "something changed", this client fetches its own copy. Events with the
+    // same selector (the page is one) that come within debounce ms of the first make one request, after
+    // that window and up to jitter ms more; the next event after the request starts a new window.
+    const delay = (v, def) => /^\d+$/.test(v ?? '') ? Math.min(60000, +v) : def;
+
+    function refresh(st, k) {
+        let sel = k.selector || '', rf = st.rf ??= new Map();
+        if (rf.has(sel)) return;
+        rf.set(sel, setTimeout(() => { rf.delete(sel); fetchAgain(st, sel) }, delay(k.debounce, 250) + Math.random() * delay(k.jitter, 0)));
+    }
+
+    async function fetchAgain(st, sel) {
+        if (st.stop || !api.triggerEvent(st.elt, 'ypy:stream:refresh', {stream: st, selector: sel})) return;
+        try {
+            if (!sel) {
+                // the page: the element that holds it for the history, or the body, like a history restore
+                let page = document.querySelector(api.prefixSelector('[ypy-history-elt]')) || document.body;
+                await ypy.ajax('GET', location.pathname + location.search, {
+                    source: st.elt, target: page, swap: 'outerMorph',
+                    select: page != document.body ? api.prefixSelector('[ypy-history-elt]') : undefined
+                });
+                return;
+            }
+            let found = ypy.findAll(st.elt, sel);
+            if (!found.length) return missing(st, sel);
+            for (let elt of found) {
+                let url = api.attr(elt, 'ypy-get');
+                if (url) await ypy.ajax('GET', url, {source: elt, target: elt, swap: 'innerMorph'});
+                else fail(st, E(`refresh: '${sel}' has no ypy-get`));
+            }
+        } catch (e) { fail(st, e) }
+    }
+
+    const EVENTS = {'ypy-patch-elements': patchElements, 'ypy-patch-signals': patchSignals, 'ypy-redirect': redirect, 'ypy-event': fire, 'ypy-refresh': refresh};
 
     // data lines are "key value"; a repeated key joins its values with a line feed. An unknown event is ignored.
     async function handle(st, f) {
@@ -3852,11 +3917,23 @@ ypy.config.historyCache ??= { disable: true };
     // Connections
     //============================================================================================
     function make(elt, m, url) {
-        let st = {elt, m, url, id: '', retry: 1000, att: 0, ac: new AbortController()};
+        let cfg = {...ypy.config.stream, ...api.HCON.parse(api.attributeValue(elt, 'ypy-config')).stream};
+        let st = {elt, m, url, id: '', retry: 1000, att: 0, ac: new AbortController(), pause: !!cfg.pauseOnBackground};
         api.ypyProp(elt).stream = st;
         open.add(st);
         (mo ??= new MutationObserver(() => open.forEach(s => s.elt.isConnected || close(s, 'removed')))).observe(document, {childList: true, subtree: true});
+        if (st.pause && !vl) document.addEventListener('visibilitychange', vl = () => open.forEach(s => s.pause && (document.hidden ? hide(s) : s.paused && s.wake?.())));
         return st;
+    }
+
+    // The tab went to the background: close the connection, without counting it as a failure. again() waits
+    // for the tab, and opens the next one at once
+    function hide(st) {
+        if (!st.rd || st.paused) return;
+        st.paused = true;
+        api.triggerEvent(st.elt, 'ypy:stream:pause', {stream: st});
+        st.ac.abort();
+        st.rd.cancel().catch(() => {});
     }
 
     function close(st, reason) {
@@ -3864,6 +3941,8 @@ ypy.config.historyCache ??= { disable: true };
         st.stop = true;
         open.delete(st);
         if (!open.size) mo?.disconnect();
+        if (vl && ![...open].some(s => s.pause)) document.removeEventListener('visibilitychange', vl), vl = null;
+        st.rf?.forEach(clearTimeout);
         if (st.elt._ypy?.stream === st) delete st.elt._ypy.stream;
         st.ac.abort();
         st.rd?.cancel().catch(() => {});
@@ -3883,6 +3962,7 @@ ypy.config.historyCache ??= { disable: true };
     async function run(st, res) {
         let rd = st.rd = res.body.getReader(), dec = new TextDecoder(), feed = decoder(st);
         if (st.stop) return rd.cancel();   // closed while the answer was on its way
+        if (st.pause && document.hidden) { st.rd = null; rd.cancel().catch(() => {}); return again(st) }   // hidden while it was on its way
         api.triggerEvent(st.elt, 'ypy:stream:open', {stream: st});
         try {
             for (let r; !st.stop && !(r = await rd.read()).done;) {
@@ -3905,6 +3985,7 @@ ypy.config.historyCache ??= { disable: true };
     // true: the answer was a stream, or something else that ends the stream; false: no answer, try again
     async function connect(st) {
         st.res = null; st.claimed = false; st.att++;
+        if (st.ac.signal.aborted && !st.stop) st.ac = new AbortController();   // the last one ended with a pause
         try {
             await ypy.ajax(st.m, st.url, {
                 source: st.elt, stream: st, request: {signal: st.ac.signal},
@@ -3919,11 +4000,21 @@ ypy.config.historyCache ??= { disable: true };
     async function again(st) {
         while (!st.stop) {
             if (!st.elt.isConnected) return close(st, 'removed');
-            if (navigator.onLine) {
+            if (st.pause && document.hidden) {
+                // wait for the tab; hide() has already said so when it closed a connection
+                if (!st.paused) { st.paused = true; api.triggerEvent(st.elt, 'ypy:stream:pause', {stream: st}) }
+                await new Promise(resolve => st.wake = () => { st.wake = null; resolve() });
+                continue;
+            }
+            if (st.paused) {   // the tab is back: no wait, no backoff
+                st.paused = false; st.att = 0;
+                api.triggerEvent(st.elt, 'ypy:stream:resume', {stream: st});
+            } else if (navigator.onLine) {
                 let delay = Math.min(30000, Math.max(10, st.retry) * 2 ** Math.max(0, st.att - 1)) * (1 - Math.random() * .25);
                 api.triggerEvent(st.elt, 'ypy:stream:reconnect', {stream: st, delay});
                 await sleep(st, delay);
             } else await sleep(st);
+            if (st.pause && document.hidden) continue;
             if (st.stop || await connect(st)) return;
         }
     }

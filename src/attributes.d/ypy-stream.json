@@ -86,6 +86,51 @@
       },
       "cancelable": false,
       "target": "element"
+    },
+    {
+      "name": "ypy:stream:refresh",
+      "description": "A `ypy-refresh` event is about to make its request, after its debounce and jitter. `detail.selector` is the selector of the event, empty for the page. Cancel it to skip that refresh.",
+      "detail": {
+        "stream": "object",
+        "selector": "string"
+      },
+      "cancelable": true,
+      "target": "element"
+    },
+    {
+      "name": "ypy:stream:pause",
+      "description": "The tab went to the background and the stream, which has `pauseOnBackground`, closed its connection. It opens another one when the tab is visible again.",
+      "detail": {
+        "stream": "object"
+      },
+      "cancelable": false,
+      "target": "element"
+    },
+    {
+      "name": "ypy:stream:resume",
+      "description": "The tab is visible again and the stream that was paused opens its connection now, with `Last-Event-ID`.",
+      "detail": {
+        "stream": "object"
+      },
+      "cancelable": false,
+      "target": "element"
+    }
+  ],
+  "config": [
+    {
+      "name": "stream",
+      "description": "Defaults of the ypy-stream extension. A single element overrides them with `ypy-config='{\"stream\":{...}}'`.",
+      "schema": {
+        "type": "object"
+      }
+    },
+    {
+      "name": "stream.pauseOnBackground",
+      "description": "Close the connection while the tab is in the background and open it again, at once and with `Last-Event-ID`, when it is visible. Off by default.",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": false
     }
   ],
   "internalNames": [
@@ -94,6 +139,7 @@
     "ypy-redirect",
     "ypy-event",
     "ypy-ns",
-    "ypy-sse"
+    "ypy-sse",
+    "ypy-refresh"
   ]
 }

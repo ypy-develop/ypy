@@ -1,0 +1,18 @@
+=== about
+Without a selector each top-level element morphs the page element with its id; multi-line HTML travels in one elements line per line; the last patch removes an element.
+=== page
+<ul id="messages"><li>old</li></ul><p id="typing">...</p>
+=== input
+event: ypy-patch-elements
+data: elements <ul id="messages">
+data: elements   <li>héllo</li>
+data: elements </ul>
+
+event: ypy-patch-elements
+data: mode remove
+data: selector #typing
+
+=== dom
+<ul id="messages">
+  <li>héllo</li>
+</ul>

@@ -1,0 +1,16 @@
+=== about
+ypy-event: on the document with a detail, and on an element with none.
+=== page
+<b id="badge">0</b>
+=== input
+event: ypy-event
+data: name message:new
+data: detail {"id":42}
+
+event: ypy-event
+data: name badge:seen
+data: selector #badge
+
+=== events
+message:new {"id":42}
+badge:seen

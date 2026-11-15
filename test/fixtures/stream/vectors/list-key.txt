@@ -1,0 +1,19 @@
+=== about
+append with key: an item with a known key replaces it where it stands, a new one is added; the same key twice in one patch keeps the last.
+=== page
+<ul id="users"><li data-id="1">Ana</li><li data-id="2">Bia</li></ul>
+=== input
+event: ypy-patch-elements
+data: mode append
+data: selector #users
+data: key data-id
+data: elements <li data-id="2">Bia!</li><li data-id="3">Caio</li>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #users
+data: key data-id
+data: elements <li data-id="4">Duda</li><li data-id="4">Duda 2</li>
+
+=== dom
+<ul id="users"><li data-id="1">Ana</li><li data-id="2">Bia!</li><li data-id="3">Caio</li><li data-id="4">Duda 2</li></ul>

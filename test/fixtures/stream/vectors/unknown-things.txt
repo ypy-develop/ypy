@@ -1,0 +1,22 @@
+=== about
+A client ignores an unknown event, an unknown key and a field it does not use, and an event id does not change the result.
+=== page
+<p id="x">0</p>
+=== input
+event: ypy-from-the-future
+data: x 1
+
+event: ypy-patch-elements
+data: colour red
+data: selector #x
+data: mode inner
+data: elements ok
+
+event: ypy-patch-elements
+id: 7
+data: mode inner
+data: selector #nowhere
+data: elements <b>no</b>
+
+=== dom
+<p id="x">ok</p>

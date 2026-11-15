@@ -1728,6 +1728,18 @@
           "description": "A signals patch arrived and the signals extension is not loaded, so the page can apply it itself. Requires the `ypy-stream` extension."
         },
         {
+          "name": "stream:refresh",
+          "description": "A `ypy-refresh` event is about to make its request, after its debounce and jitter. `detail.selector` is the selector of the event, empty for the page. Cancel it to skip that refresh. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:pause",
+          "description": "The tab went to the background and the stream, which has `pauseOnBackground`, closed its connection. It opens another one when the tab is visible again. Requires the `ypy-stream` extension."
+        },
+        {
+          "name": "stream:resume",
+          "description": "The tab is visible again and the stream that was paused opens its connection now, with `Last-Event-ID`. Requires the `ypy-stream` extension."
+        },
+        {
           "name": "telemetry:error",
           "description": "Fires for every failure of the page, whatever its source: a network failure, a timeout, a lost connection, a response with status 400 or more, a target that matches nothing, a swap that failed or was refused, an error of an extension. `detail` is `{code, url, method, status, target, ctxId}`: `code` is stable (`network`, `offline`, `timeout`, `status:<n>`, `target-missing`, `swap-error`, `blocked:<reason>`, `extension:<name>`, `error`), `url` has no query, fragment or credentials, and `ctxId` is shared by the reports of one request. It never carries a body, a field value, a header, a cookie or an error message. Requires the `ypy-telemetry` extension."
         },

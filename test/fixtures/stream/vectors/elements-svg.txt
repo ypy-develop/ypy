@@ -1,0 +1,13 @@
+=== about
+The svg namespace: a fragment such as circle becomes an SVG element.
+=== page
+<svg id="chart"><g id="g"></g></svg>
+=== input
+event: ypy-patch-elements
+data: mode append
+data: selector #g
+data: namespace svg
+data: elements <circle cx="10" cy="10" r="4"/>
+
+=== dom
+<svg id="chart"><g id="g"><circle cx="10" cy="10" r="4"></circle></g></svg>

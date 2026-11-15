@@ -1,0 +1,14 @@
+=== about
+ypy-refresh without a selector: the client fetches its own page and morphs the answer in.
+=== page
+<p id="n">1</p>
+=== input
+event: ypy-refresh
+data: debounce 10
+
+=== dom
+<p id="n">2</p>
+=== respond
+@page => <div id="room" ypy-stream="/room" ypy-history-elt><p id="n">2</p></div>
+=== requests
+GET @page

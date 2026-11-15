@@ -1,0 +1,13 @@
+=== about
+A signals patch, then defaults that only fill the keys that are missing.
+=== input
+event: ypy-patch-signals
+data: signals {"name":"Ana","online":3}
+
+event: ypy-patch-signals
+data: onlyIfMissing true
+data: signals {"theme":"light"}
+
+=== signals
+{"patch":{"name":"Ana","online":3},"onlyIfMissing":false}
+{"patch":{"theme":"light"},"onlyIfMissing":true}

@@ -1,0 +1,15 @@
+=== about
+ypy-refresh with a selector: the element that has ypy-get is fetched again and morphed; the rest stays.
+=== page
+<div id="cart" ypy-get="/cart"><p>0 items</p></div><p id="other">same</p>
+=== input
+event: ypy-refresh
+data: selector #cart
+data: debounce 10
+
+=== dom
+<div id="cart" ypy-get="/cart"><p>2 items</p></div><p id="other">same</p>
+=== respond
+/cart => <p>2 items</p>
+=== requests
+GET /cart
