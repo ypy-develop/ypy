@@ -691,6 +691,12 @@
           "markdownDescription": "Navigate every link and form of the page with a request and a swap, with no attribute. Off when `nonce` is set. A region turns it off with `ypy-boost=\"false\"`. Requires the `ypy-nav` extension.",
           "type": "boolean"
         },
+        "confirmLeave": {
+          "default": false,
+          "description": "Show the browser's own leave-this-page dialog (`beforeunload`) while a form has changes no request has saved. A control is changed from its first `input` event until a request from it, or from its form, ends with a 2xx other than a GET, or the form is reset. A navigation that only swaps the page does not unload it, so the browser shows nothing then. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Show the browser's own leave-this-page dialog (`beforeunload`) while a form has changes no request has saved. A control is changed from its first `input` event until a request from it, or from its form, ends with a 2xx other than a GET, or the form is reset. A navigation that only swaps the page does not unload it, so the browser shows nothing then. Requires the `ypy-nav` extension.",
+          "type": "boolean"
+        },
         "current": {
           "default": true,
           "description": "Mark the link to the current page with `aria-current=\"page\"` and the class `ypy-current`, and renew the mark on every navigation. Set to `false` to turn it off. Requires the `ypy-nav` extension.",
@@ -735,6 +741,18 @@
           "default": 10000,
           "description": "Milliseconds an unused prefetched response is kept. Requires the `ypy-nav` extension.",
           "markdownDescription": "Milliseconds an unused prefetched response is kept. Requires the `ypy-nav` extension.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "root": {
+          "description": "CSS selector of the root of the app. A boosted response that is a whole page (it has a doctype, `html` or `body`) and does not contain it is not swapped in: its URL is loaded as a plain page. Without it, the element with `ypy-history-elt` of the current page is the root, and a page that has none checks nothing. A response that ended on another origin is always loaded in full. Requires the `ypy-nav` extension.",
+          "markdownDescription": "CSS selector of the root of the app. A boosted response that is a whole page (it has a doctype, `html` or `body`) and does not contain it is not swapped in: its URL is loaded as a plain page. Without it, the element with `ypy-history-elt` of the current page is the root, and a page that has none checks nothing. A response that ended on another origin is always loaded in full. Requires the `ypy-nav` extension.",
+          "type": "string"
+        },
+        "settle": {
+          "default": 1000,
+          "description": "Milliseconds a navigation (a boosted request, or one that pushes a history entry) waits for the requests the form being edited still has in flight, after the field in focus was blurred so its `change` ran. `0` turns the blur and the wait off. Requires the `ypy-nav` extension.",
+          "markdownDescription": "Milliseconds a navigation (a boosted request, or one that pushes a history entry) waits for the requests the form being edited still has in flight, after the field in focus was blurred so its `change` ran. `0` turns the blur and the wait off. Requires the `ypy-nav` extension.",
           "minimum": 0,
           "type": "integer"
         }

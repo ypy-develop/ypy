@@ -2389,4 +2389,24 @@ export interface YpySignalsConfig {
 export interface YpyConfig {
   signals?: YpySignalsConfig;
 }
+
+export interface YpyNavConfig {
+  /**
+   * Milliseconds a navigation waits for the requests the form being edited still has in flight, after the field in
+   * focus was blurred so its `change` ran. `0` turns the blur and the wait off.
+   * @default 1000
+   */
+  settle?: number;
+  /**
+   * Show the browser's leave-this-page dialog (`beforeunload`) while a form has changes no request has saved.
+   * A navigation that only swaps the page does not unload it, so the browser shows nothing then.
+   * @default false
+   */
+  confirmLeave?: boolean;
+  /**
+   * Selector of the root of the app. A boosted whole page that does not contain it is loaded in full instead of
+   * swapped. Default: the `ypy-history-elt` element of the current page; a page that has none checks nothing.
+   */
+  root?: string;
+}
 // #endregion
