@@ -2019,3 +2019,14 @@ export interface YpyDev {
 /** The `code` of the messages that `ypy-dev` adds: a POST, PUT, PATCH or DELETE that `ypy-sync` aborted in flight or dropped. */
 export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
 // #endregion
+
+// #region TASK-075 navigation and forms
+
+export interface YpyRequestCtx {
+  /**
+   * The scroll position `[x, y]` of the page when the swap started, which a pushed history entry
+   * keeps for the page being left (read when the user goes back).
+   */
+  scrollFrom?: [number, number];
+}
+// #endregion

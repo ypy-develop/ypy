@@ -250,7 +250,7 @@
     },
     {
       "name": "ypy-push-url",
-      "description": "Pushes a URL into the browser history after the swap. `true` uses the request URL, `false` suppresses the push of a boosted request.",
+      "description": "Pushes a URL into the browser history once the swap was applied; a swap that failed pushes nothing. `true` uses the request URL, `false` suppresses the push of a boosted request. A boosted request pushes by default only when it is a GET or was redirected to a page: a POST, PUT, PATCH or DELETE answered with a page needs this attribute.",
       "valueType": "string",
       "values": [
         {"name": "true", "description": "Pushes the URL of the request."},

@@ -201,6 +201,7 @@ var ypy = (() => {
         #transitionQueue
         #historyAbort
         #historyInitialized
+        #historyPaths = new Set()
         #processingTransition
 
         //============================================================================================
@@ -1827,8 +1828,9 @@ var ypy = (() => {
          * Swaps the response of a request (ctx.text) into the page. Only orders the phases:
          *
          *   #buildSwapTasks  parses ctx.text into tasks: out-of-band, partials, main
-         *   ypy:before:swap   cancelable; the history entry is updated right after it
+         *   ypy:before:swap   cancelable
          *   #runSwapTasks    inserts every task, in a view transition when asked
+         *   #handleHistoryUpdate  URL, history entry (not when a task failed)
          *   #finishSwap      ypy:after:swap, document title, anchor, focus and scroll policy
          *
          * ypy:finally:swap always fires, also when a phase throws. Used by ypy.ajax() and by
@@ -1845,9 +1847,10 @@ var ypy = (() => {
                     return
                 }
 
-                this.#handleHistoryUpdate(ctx);
+                ctx.scrollFrom = [scrollX, scrollY];   // the page being left, before the swap moves it
 
-                await this.#runSwapTasks(ctx, tasks, mainSwap);
+                let errors = await this.#runSwapTasks(ctx, tasks, mainSwap);
+                if (!errors[0]) this.#handleHistoryUpdate(ctx);   // the URL changes only once the page did
                 this.#finishSwap(ctx, mainSwap);
             } finally {
                 this.#trigger(ctx.sourceElement, "ypy:finally:swap", {ctx});
@@ -1908,7 +1911,7 @@ var ypy = (() => {
          * @param {YpyRequestCtx} ctx
          * @param {YpySwapTask[]} tasks
          * @param {YpySwapTask} [mainSwap] the main task, when there is one
-         * @returns {Promise<void>}
+         * @returns {Promise<Array<[YpySwapTask, any]>>} the failures, [task, error] each; empty when all went well
          */
         async #runSwapTasks(ctx, tasks, mainSwap) {
             let errors = [];
@@ -1940,6 +1943,7 @@ var ypy = (() => {
 
             for (let [task, error] of errors) this.#triggerNative(ctx.sourceElement, 'ypy:swap:error', {ctx, task, error});
             if (errors[0]) this.#trigger(ctx.sourceElement, 'ypy:error', {ctx, error: errors[0][1]});
+            return errors;
         }
 
         /**
@@ -2563,11 +2567,19 @@ var ypy = (() => {
             }
         }
 
-        #pushUrlIntoHistory(path) {
+        /**
+         * Remembers the path of the current entry as one of ours: an entry whose state another
+         * script replaced is still restored (see #restoreHistory).
+         */
+        #markHistoryPath() {
+            this.#historyPaths.add(location.pathname + location.search);
+        }
+
+        #pushUrlIntoHistory(path, scroll = [scrollX, scrollY]) {
             if (!this.config.history) return;
             // remember where the page being left was scrolled to (read by #restoreHistory); other
             // keys of the entry's state are kept, and an entry that another router owns is left alone
-            if (history.state?.ypy) history.replaceState({...history.state, scroll: [scrollX, scrollY]}, '', location.href);
+            if (history.state?.ypy) history.replaceState({...history.state, scroll}, '', location.href);
             history.pushState({ypy: true}, '', path);
             this.#trigger(document, "ypy:after:history:push", {path});
         }
@@ -2601,9 +2613,10 @@ var ypy = (() => {
         async #restoreHistory(state, path) {
             await this.timeout(1);
             state ??= history.state;
-            if (!state?.ypy) return;
-            this.#historyAbort?.abort();
             path = path || location.pathname + location.search;
+            // an entry whose state another script replaced is ours while its path is one we wrote
+            if (!state?.ypy && !this.#historyPaths.has(path)) return;
+            this.#historyAbort?.abort();
             let historyElt = document.querySelector(this.#prefixSelector('[ypy-history-elt]')) || document.body;
             if (this.#trigger(document, "ypy:before:history:restore", {path, cacheMiss: true})) {
                 if (this.config.history === "reload") {
@@ -2626,7 +2639,7 @@ var ypy = (() => {
                         target: historyElt,
                         swap: 'outerSync',
                         select: historyElt !== document.body ? this.#prefixSelector('[ypy-history-elt]') : undefined,
-                        ...(state.scroll && {scroll: 'restore', scrollPosition: state.scroll}),
+                        ...(state?.scroll && {scroll: 'restore', scrollPosition: state.scroll}),
                         request: {
                             headers: {'YPY-History-Restore-Request': 'true', 'YPY-Request': null},
                             signal: abort.signal,
@@ -2647,8 +2660,9 @@ var ypy = (() => {
                 replace = ypy.replaceurl;
             }
 
-            // if this is a boosted element, default to pushing
-            if (push == null && replace == null && this.#isBoosted(sourceElement)) {
+            // a boosted element pushes by default, a GET or a redirect to the page it ends on; the
+            // answer of a POST, PUT, PATCH or DELETE is not a page that can be loaded again
+            if (push == null && replace == null && this.#isBoosted(sourceElement) && (ctx.request.method == 'GET' || ctx.redirected)) {
                 push = 'true';
             }
             
@@ -2672,9 +2686,12 @@ var ypy = (() => {
 
         #handleHistoryUpdate(ctx) {
             if (!this.config.history) return;
-            // Stamp the current entry on the first YPY swap after a fresh page load,
-            // so back traversals to this page are interceptable.
-            if (!history.state?.ypy) history.replaceState({ypy: true}, '', location.href);
+            // Stamp the current entry on the first YPY swap after a fresh page load (or after another
+            // script replaced its state), so back traversals to this page are interceptable.
+            if (!history.state?.ypy) {
+                history.replaceState({...history.state, ypy: true}, '', location.href);
+                this.#markHistoryPath();
+            }
             let action = this.#resolveHistoryAction(ctx);
             if (!action) return;
 
@@ -2685,10 +2702,11 @@ var ypy = (() => {
             };
             if (!this.#trigger(document, "ypy:before:history:update", historyDetail)) return;
             if (action.type === 'push') {
-                this.#pushUrlIntoHistory(action.path);
+                this.#pushUrlIntoHistory(action.path, ctx.scrollFrom);
             } else {
                 this.#replaceUrlInHistory(action.path);
             }
+            this.#markHistoryPath();
             this.#trigger(document, "ypy:after:history:update", historyDetail);
         }
 
