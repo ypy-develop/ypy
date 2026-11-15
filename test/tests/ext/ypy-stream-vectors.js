@@ -8,7 +8,7 @@ describe('ypy-stream conformance vectors', function () {
     // Every vector the SDK has, in the order of its index.txt. A vector added there is added here.
     const NAMES = [
         'elements-by-id', 'elements-modes', 'elements-svg', 'event', 'list-append-limit', 'list-key',
-        'list-key-limit', 'list-prepend-limit', 'refresh-debounce', 'refresh-jitter', 'refresh-page',
+        'list-key-limit', 'list-prepend-limit', 'model-answer', 'model-merge', 'model-plain-text', 'model-stopped', 'refresh-debounce', 'refresh-jitter', 'refresh-page',
         'refresh-selector', 'signals', 'unknown-things'
     ];
     const DIR = '/test/fixtures/stream/vectors/';

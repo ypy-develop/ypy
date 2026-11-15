@@ -1,0 +1,26 @@
+=== about
+A stop in the middle of a code fence: the final outer patch has what was written, the fence closed, data-state stopped and the stop text; a second stop writes nothing.
+=== page
+<div id="chat"></div>
+=== input
+event: ypy-patch-elements
+data: mode append
+data: selector #chat
+data: elements <article id="a1" ypy-untrusted aria-live="off" aria-busy="true"><div id="a1-done"></div><div id="a1-tail"></div></article>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #a1-done
+data: elements <p>Intro</p>
+
+event: ypy-patch-elements
+data: mode inner
+data: selector #a1-tail
+data: elements <pre><code class="language-go">x := 1</code></pre>
+
+event: ypy-patch-elements
+data: selector #a1
+data: elements <article id="a1" ypy-untrusted aria-live="off" data-state="stopped"><p>Intro</p><pre><code class="language-go">x := 1</code></pre><p class="ypy-model-note">Stopped.</p></article>
+
+=== dom
+<div id="chat"><article id="a1" ypy-untrusted="" aria-live="off" data-state="stopped"><p>Intro</p><pre><code class="language-go">x := 1</code></pre><p class="ypy-model-note">Stopped.</p></article></div>

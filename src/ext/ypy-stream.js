@@ -14,6 +14,10 @@
 // pauseOnBackground (ypy.config.stream, or ypy-config='{"stream":{"pauseOnBackground":true}}') closes the
 // connection while the tab is hidden and opens it again, with Last-Event-ID, when it is visible.
 // useViewTransition=true asks for a view transition, which the ypy-transitions extension runs.
+// Events are queued and applied in order, one animation frame apart when config.stream.frame is true (off by default; a model answer turns it on).
+// Consecutive patches of one selector are merged (config.stream.merge, on by default): inner and outer
+// keep the last one, append concatenates, so a model answer of many tokens costs few DOM operations.
+// ypy:abort on the element of the stream closes it (the Stop button of a model answer).
 // Uses only the public API and the extension API. Load it before ypy-sse: an element with
 // ypy-sse:connect stays with that extension.
 //==========================================================
@@ -197,7 +201,20 @@
     const EVENTS = {'ypy-patch-elements': patchElements, 'ypy-patch-signals': patchSignals, 'ypy-redirect': redirect, 'ypy-event': fire, 'ypy-refresh': refresh};
 
     // data lines are "key value"; a repeated key joins its values with a line feed. An unknown event is ignored.
-    async function handle(st, f) {
+    // The events of a stream wait in st.q and run one at a time. A patch that follows another one of the same
+    // mode and selector is merged into it (the optional rule of protocol 5.3), so a slow browser catches up
+    // with the work of one patch, not of all of them.
+    const ONE = ['key', 'limit', 'useViewTransition'];
+
+    function merge(a, b) {
+        let m = b.k.mode || 'outer', x = a.k, y = b.k;
+        if (a.ev != 'ypy-patch-elements' || b.ev != a.ev || !y.selector || y.selector != x.selector || m != (x.mode || 'outer')
+            || (y.namespace || 'html') != (x.namespace || 'html') || !/^(?:inner|outer|append)$/.test(m) || ONE.some(n => n in x || n in y)) return;
+        x.elements = m == 'append' ? (x.elements ?? '') + (y.elements ?? '') : y.elements;
+        return true;
+    }
+
+    function push(st, f) {
         let fn = EVENTS[f.event];
         if (!fn) return;
         let k = Object.create(null);
@@ -205,7 +222,23 @@
             let i = l.indexOf(' '), n = i < 0 ? l : l.slice(0, i), v = i < 0 ? '' : l.slice(i + 1);
             k[n] = n in k ? k[n] + '\n' + v : v;
         }
-        try { await fn(st, k) } catch (e) { fail(st, e) }
+        let q = st.q ??= [], item = {fn, ev: f.event, k};
+        if (st.merge && q.length && merge(q[q.length - 1], item)) return;
+        q.push(item);
+        if (!st.busy) { st.busy = true; st.dp = drain(st) }
+    }
+
+    // one animation frame; a hidden tab has none, so it waits 100 ms at most
+    const frame = () => new Promise(resolve => { let t = setTimeout(resolve, 100); requestAnimationFrame(() => { clearTimeout(t); resolve() }) });
+
+    async function drain(st) {
+        while (st.q.length && !st.stop) {
+            if (st.frame) await frame();
+            let item = st.q.shift();
+            if (st.stop || !item) break;
+            try { await item.fn(st, item.k) } catch (e) { fail(st, e) }
+        }
+        st.busy = false;
     }
 
     //============================================================================================
@@ -213,7 +246,9 @@
     //============================================================================================
     function make(elt, m, url) {
         let cfg = {...ypy.config.stream, ...api.HCON.parse(api.attributeValue(elt, 'ypy-config')).stream};
-        let st = {elt, m, url, id: '', retry: 1000, att: 0, ac: new AbortController(), pause: !!cfg.pauseOnBackground};
+        let st = {elt, m, url, id: '', retry: 1000, att: 0, ac: new AbortController(), pause: !!cfg.pauseOnBackground,
+            merge: cfg.merge !== false, frame: cfg.frame === true, q: [], abort: () => close(st, 'abort')};
+        elt.addEventListener('ypy:abort', st.abort);
         api.ypyProp(elt).stream = st;
         open.add(st);
         (mo ??= new MutationObserver(() => open.forEach(s => s.elt.isConnected || close(s, 'removed')))).observe(document, {childList: true, subtree: true});
@@ -238,6 +273,8 @@
         if (!open.size) mo?.disconnect();
         if (vl && ![...open].some(s => s.pause)) document.removeEventListener('visibilitychange', vl), vl = null;
         st.rf?.forEach(clearTimeout);
+        st.elt.removeEventListener('ypy:abort', st.abort);
+        st.q = [];
         if (st.elt._ypy?.stream === st) delete st.elt._ypy.stream;
         st.ac.abort();
         st.rd?.cancel().catch(() => {});
@@ -264,9 +301,10 @@
                 for (let f of feed(dec.decode(r.value, {stream: true}))) {
                     if (st.stop) break;
                     st.att = 0;
-                    await handle(st, f);
+                    push(st, f);
                 }
             }
+            await st.dp;   // what has arrived is applied before the next connection
         } catch (e) {
             if (!st.stop && e.name != 'AbortError') fail(st, e);
         }

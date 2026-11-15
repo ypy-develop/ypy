@@ -26,6 +26,26 @@
           "description": "Texts for the live region. The core carries none: a message that is not set says nothing.",
           "markdownDescription": "Texts for the live region. The core carries none: a message that is not set says nothing.",
           "properties": {
+            "answerFailed": {
+              "description": "Said, assertive, when a model answer failed. Requires the `ypy-model` extension.",
+              "markdownDescription": "Said, assertive, when a model answer failed. Requires the `ypy-model` extension.",
+              "type": "string"
+            },
+            "answerReady": {
+              "description": "Said when a model answer is finished (also the text of the `ypy-announce` attribute of its container). Requires the `ypy-model` extension.",
+              "markdownDescription": "Said when a model answer is finished (also the text of the `ypy-announce` attribute of its container). Requires the `ypy-model` extension.",
+              "type": "string"
+            },
+            "answerStart": {
+              "description": "Said when a model answer starts. Requires the `ypy-model` extension.",
+              "markdownDescription": "Said when a model answer starts. Requires the `ypy-model` extension.",
+              "type": "string"
+            },
+            "answerStopped": {
+              "description": "Said, assertive, when a model answer was stopped. Requires the `ypy-model` extension.",
+              "markdownDescription": "Said, assertive, when a model answer was stopped. Requires the `ypy-model` extension.",
+              "type": "string"
+            },
             "done": {
               "description": "Said when a request ends and its response was swapped.",
               "markdownDescription": "Said when a request ends and its response was swapped.",
@@ -48,6 +68,13 @@
             }
           },
           "type": "object"
+        },
+        "stream": {
+          "description": "`blocks` says the text of each closed block of a model answer, shortened, at most once every 3 seconds. Unset: only the start and the end of the answer are said. Requires the `ypy-model` extension.",
+          "enum": [
+            "blocks"
+          ],
+          "markdownDescription": "`blocks` says the text of each closed block of a model answer, shortened, at most once every 3 seconds. Unset: only the start and the end of the answer are said. Requires the `ypy-model` extension."
         }
       },
       "type": [
@@ -1119,6 +1146,18 @@
       "description": "Defaults of the ypy-stream extension. A single element overrides them with `ypy-config='{\"stream\":{...}}'`. Requires the `ypy-stream` extension.",
       "markdownDescription": "Defaults of the ypy-stream extension. A single element overrides them with `ypy-config='{\"stream\":{...}}'`. Requires the `ypy-stream` extension.",
       "properties": {
+        "frame": {
+          "default": false,
+          "description": "Apply the events of a stream one animation frame apart (at most 100 ms in a hidden tab), so a fast stream, such as the tokens of a model answer, costs one round of DOM work per frame. Off by default. Requires the `ypy-stream` extension.",
+          "markdownDescription": "Apply the events of a stream one animation frame apart (at most 100 ms in a hidden tab), so a fast stream, such as the tokens of a model answer, costs one round of DOM work per frame. Off by default. Requires the `ypy-stream` extension.",
+          "type": "boolean"
+        },
+        "merge": {
+          "default": true,
+          "description": "Merge consecutive `ypy-patch-elements` events of the same mode (`inner`, `outer`, `append`) and selector that are waiting to be applied: the last `inner` or `outer` wins and `append` payloads join. The page ends the same. On by default. Requires the `ypy-stream` extension.",
+          "markdownDescription": "Merge consecutive `ypy-patch-elements` events of the same mode (`inner`, `outer`, `append`) and selector that are waiting to be applied: the last `inner` or `outer` wins and `append` payloads join. The page ends the same. On by default. Requires the `ypy-stream` extension.",
+          "type": "boolean"
+        },
         "pauseOnBackground": {
           "default": false,
           "description": "Close the connection while the tab is in the background and open it again, at once and with `Last-Event-ID`, when it is visible. Off by default. Requires the `ypy-stream` extension.",

@@ -1,0 +1,26 @@
+=== about
+The low-cost mode: no Markdown and no regions, one append of escaped text per flush, one outer patch at the end.
+=== page
+<div id="chat"></div>
+=== input
+event: ypy-patch-elements
+data: mode append
+data: selector #chat
+data: elements <div id="a7" ypy-untrusted aria-live="off" aria-busy="true"><div id="a7-done"></div></div>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #a7-done
+data: elements Olá, 
+
+event: ypy-patch-elements
+data: mode append
+data: selector #a7-done
+data: elements mundo &lt;b&gt;!&lt;/b&gt;
+
+event: ypy-patch-elements
+data: selector #a7
+data: elements <div id="a7" ypy-untrusted aria-live="off" data-state="done"><div id="a7-done">Olá, mundo &lt;b&gt;!&lt;/b&gt;</div></div>
+
+=== dom
+<div id="chat"><div id="a7" ypy-untrusted="" aria-live="off" data-state="done"><div id="a7-done">Olá, mundo &lt;b&gt;!&lt;/b&gt;</div></div></div>

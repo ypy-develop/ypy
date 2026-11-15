@@ -1,0 +1,55 @@
+=== about
+Consecutive inner patches of one selector and consecutive append patches of one list: a client may merge them (the last inner wins, the appends concatenate); the page is the same applied one by one or merged.
+=== page
+<div id="log"><p id="status">old</p><div id="out"></div></div>
+=== input
+event: ypy-patch-elements
+data: mode inner
+data: selector #status
+data: elements a
+
+event: ypy-patch-elements
+data: mode inner
+data: selector #status
+data: elements b
+
+event: ypy-patch-elements
+data: mode inner
+data: selector #status
+data: elements <i>c</i>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #out
+data: elements <li>1</li>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #out
+data: elements <li>2</li>
+
+event: ypy-patch-elements
+data: mode append
+data: selector #out
+data: elements tx
+
+event: ypy-patch-elements
+data: mode append
+data: selector #out
+data: elements t<b>3</b>
+
+event: ypy-patch-elements
+data: selector #status
+data: elements <p id="status">new</p>
+
+event: ypy-patch-elements
+data: selector #status
+data: elements <p id="status">newer</p>
+
+event: ypy-patch-elements
+data: mode inner
+data: selector #status
+data: elements end
+
+=== dom
+<div id="log"><p id="status">end</p><div id="out"><li>1</li><li>2</li>txt<b>3</b></div></div>

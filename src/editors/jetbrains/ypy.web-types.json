@@ -863,6 +863,57 @@
           }
         },
         {
+          "name": "ypy-untrusted",
+          "description": "Marks a container whose content a language model writes, with the `ypy-model` extension (included in `ypy.max`). Whatever enters it loses scripts, styles, frames, forms, svg, `ypy-*`, `data-ypy-*`, `on*` and framework attributes, `javascript:` and `data:` addresses and media that loads from the network. The value `images` keeps images. Requires the `ypy-model` extension.",
+          "description-sections": {
+            "Values": "- `images`: Images are kept (their handlers and bad addresses are still removed)."
+          },
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-follow",
+          "description": "On the container of a model answer: the page scrolls down while the answer grows, only when the reader was already at the bottom and `prefers-reduced-motion` is not set. Requires the `ypy-model` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "ypy-stop",
+          "description": "On a button: a selector of the elements that get `ypy:abort` when it is clicked, which closes their stream. The answer that was open is closed in the page as stopped. Pair it with a request of the button (`ypy-post`) that tells the server. Requires the `ypy-model` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-announce-start",
+          "description": "The live-region text said when the answer in this container starts. Falls back to `config.announce.messages.answerStart`. Requires the `ypy-model` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-announce-stop",
+          "description": "The live-region text, assertive, said when the answer was stopped (`data-state=\"stopped\"`). Falls back to `config.announce.messages.answerStopped`. Requires the `ypy-model` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
+          "name": "ypy-announce-error",
+          "description": "The live-region text, assertive, said when the answer failed (`data-state=\"failed\"`). Falls back to `config.announce.messages.answerFailed`. Requires the `ypy-model` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "string"
+          }
+        },
+        {
           "name": "ypy-multipart:connect",
           "description": "Opens a long-lived `multipart/mixed` or `multipart/parallel` response with a GET request to the URL, on the element's `ypy-trigger` (default `load`). Each part is swapped like a response and may carry `YPY-*` headers of its own. The connection reconnects with backoff, sends `YPY-Last-Part-ID` and pauses while the tab is in the background. Requires the `ypy-multipart` extension.",
           "value": {
