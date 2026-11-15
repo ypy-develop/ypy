@@ -580,7 +580,7 @@ describe('ypy-stream extension', function () {
             assert.equal(srv.calls()[0].request.headers['X-Room'], '7');
             assert.include(srv.calls()[0].url, 'room=7');
             srv.conns[0].end();
-            await until(() => srv.conns.length == 2);
+            await until(() => srv.conns.length == 2, 3000);   // the first delay is up to a second
             assert.equal(srv.calls()[1].request.headers['X-Room'], '7');
             assert.include(srv.calls()[1].url, 'room=7');
         });
