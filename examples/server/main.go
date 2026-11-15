@@ -78,6 +78,7 @@ type server struct {
 	port int
 	mu   sync.Mutex
 	st   *state
+	site ssrSite // the server-rendered site of ssr.go
 }
 
 // hostOK reports whether the Host header names this server on the loopback
@@ -175,6 +176,10 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(p, "/_lib/") {
 		s.serveLib(w, p)
+		return
+	}
+	if base, rest, ok := ssrPrefix(p); ok {
+		s.ssr(w, r, base, rest)
 		return
 	}
 	parts := strings.SplitN(strings.TrimPrefix(p, "/"), "/", 2)
