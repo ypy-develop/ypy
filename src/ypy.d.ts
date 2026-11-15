@@ -729,6 +729,16 @@ export interface YpyHookMap {
   'ypy:before:morph:node': { oldNode: Node; newNode: Node };
   /** Runs for each attribute a morph is about to set or remove. Return `false` to keep the attribute as it is. */
   'ypy:before:morph:attr': { element: Element; attributeName: string; mutationType: 'update' | 'remove' };
+  /**
+   * Written `ypy_resolve_target(elt, selector)`: runs for every part of a selector (ypy-target, ypy.find()...)
+   * that the core does not know, before it falls to `querySelectorAll`. `elt` is the element the search starts
+   * from (the document for a lookup with no element) and `selector` the trimmed part. Return an element, an
+   * array or a NodeList of them, `null` for no element, or `undefined` when the selector is not yours (the
+   * next extension is asked, then the core). Not an event: it has no detail and no `cancelled`.
+   */
+  'ypy:resolve:target': { elt: Element | Document; selector: string };
+  /** Runs once when `ypy.dispose()` starts, before anything is taken down, so an extension removes what it installed. */
+  'ypy:dispose': {};
   /** Runs for a `<ypy-partial>` of a type that is not built in, so an extension can add swap tasks. Written `ypy:process:<type>`. */
   [hook: `ypy:process:${string}`]: { ctx: YpyRequestCtx; tasks: YpySwapTask[] };
 }
@@ -836,6 +846,14 @@ export interface Ypy {
    * Call manually when loading YPY asynchronously or after a streaming response delivers the full page.
    */
   initialize(): void;
+  /**
+   * Takes YPY apart, for tests and for applications that unmount it: runs the `ypy_dispose` hook of the
+   * extensions, aborts the requests in flight, drops the waiting ones, tears down every processed element of
+   * the document and of its open shadow roots (listeners, timers, observers, queues), removes the document and
+   * window listeners the core installed (history, connection state, start-up) and leaves the object inert:
+   * `process()`, `initialize()` and requests do nothing afterwards. Cannot be undone; calling it again does nothing.
+   */
+  dispose(): void;
   /**
    * Initialize YPY attributes on `root` and all its descendants.
    * When `force` is `true`, tears down and re-initializes already-processed elements.
@@ -1221,12 +1239,20 @@ export interface YpyConfig {
    */
   nonce?: boolean;
   /**
+   * What happens to the `<script>` elements of a response. `"auto"` (the default) lets them run, `"nonce"`
+   * lets run only those with the nonce of the page (`inlineScriptNonce`, else the nonce of the first
+   * `<script nonce>`), and `"block"` runs none. The scripts that do not run are taken out of the response.
+   * Any other value counts as `"block"`.
+   * @default "auto"
+   */
+  scripts?: 'auto' | 'block' | 'nonce';
+  /**
    * Alias of `mode`: `true` is `"same-origin"`, `false` is `"cors"`. Same origin is the default.
    */
   selfRequestsOnly: boolean;
   /**
    * `true` once the configuration is locked: `mode`, `callbacks`, `extensions`, `nonce`,
-   * `inlineScriptNonce` and `ypy.config` itself ignore later assignments (with a console
+   * `inlineScriptNonce`, `scripts` and `ypy.config` itself ignore later assignments (with a console
    * warning). Set `locked:true` in the `ypy-config` meta tag, or call `ypy.config.lock()`.
    */
   readonly locked?: boolean;

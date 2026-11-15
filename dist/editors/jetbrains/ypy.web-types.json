@@ -1039,6 +1039,14 @@
           }
         },
         {
+          "name": "ypy-scope",
+          "description": "Marks an element as a scope. The selector `scope` (in `ypy-target`, `ypy-indicator`, `ypy-include`, `ypy.find()`...) is the closest element with this attribute, the element itself included; `scope <selector>` searches inside it. Two more selectors come with the extension: `layer` (the topmost open layer of `ypy-layers`) and `shadow:<selector>` (a search that enters nested open shadow roots and follows the slots). The value is not used. Requires the `ypy-scope` extension.",
+          "value": {
+            "kind": "plain",
+            "type": "boolean"
+          }
+        },
+        {
           "name": "ypy-signals",
           "description": "Declares signals and makes the element a scope: its signals are visible to the element and its descendants. Values are literals. An existing signal keeps its value when the markup is processed again, so a morph does not reset the state. A name that starts with `_` is local and never sent to the server. Requires the `ypy-signals` extension.",
           "description-sections": {

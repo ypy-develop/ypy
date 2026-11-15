@@ -348,6 +348,7 @@ describe('ypy-stream extension', function () {
 
         describe('view transitions', function () {
             it('useViewTransition true applies the patch inside document.startViewTransition', async function () {
+                await loadExtension('../src/ext/ypy-transitions.js');   // the core hands view transitions to this extension
                 let calls = 0;
                 document.startViewTransition = fn => { calls++; let done = Promise.resolve(fn()); return {finished: done, ready: done, updateCallbackDone: done} };
                 let [, c] = await openRoom(`<div id="room" ypy-stream="/room"><p id="x">0</p></div>`);

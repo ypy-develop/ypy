@@ -107,6 +107,17 @@ function cleanupTest() {
 // Extension backup/restore helpers
 //================================================================================
 
+// Loads an extension script (a path as the tests write it, '../src/ext/ypy-x.js') and resolves when it ran.
+function loadExtension(src) {
+    return new Promise((resolve, reject) => {
+        let script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
 function backupExtensions() {
     if (!SOURCE_BUILD) return {};  // the registry is private in dist/: an extension stays registered
     return {

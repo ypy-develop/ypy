@@ -557,8 +557,8 @@
     },
     "locked": {
       "default": false,
-      "description": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone. Requires the `ypy-lock` extension.",
-      "markdownDescription": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone. Requires the `ypy-lock` extension.",
+      "description": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce`, `scripts` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone. Requires the `ypy-lock` extension.",
+      "markdownDescription": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce`, `scripts` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone. Requires the `ypy-lock` extension.",
       "type": "boolean"
     },
     "logAll": {
@@ -948,6 +948,16 @@
       "description": "Replaces `Function` and `AsyncFunction` with nonce-based script injection, so `ypy-on`, `js:` values and `ypy-confirm` code run without `unsafe-eval` in the CSP. Needs `ypy-csp`. Requires the `ypy-csp` extension.",
       "markdownDescription": "Replaces `Function` and `AsyncFunction` with nonce-based script injection, so `ypy-on`, `js:` values and `ypy-confirm` code run without `unsafe-eval` in the CSP. Needs `ypy-csp`. Requires the `ypy-csp` extension.",
       "type": "boolean"
+    },
+    "scripts": {
+      "default": "auto",
+      "description": "What happens to the `<script>` elements of a response: `auto` lets them run, `nonce` lets run only those with the nonce of the page (`inlineScriptNonce`, else the nonce of the first `<script nonce>`), `block` runs none. The scripts that do not run are taken out of the response. Any other value counts as `block`.",
+      "enum": [
+        "auto",
+        "nonce",
+        "block"
+      ],
+      "markdownDescription": "What happens to the `<script>` elements of a response: `auto` lets them run, `nonce` lets run only those with the nonce of the page (`inlineScriptNonce`, else the nonce of the first `<script nonce>`), `block` runs none. The scripts that do not run are taken out of the response. Any other value counts as `block`."
     },
     "selfRequestsOnly": {
       "deprecated": true,

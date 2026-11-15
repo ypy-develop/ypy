@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 describe('swap() unit tests', function() {
 
+    // `transition:true` swaps need the view transition queue of this extension
+    before(() => loadExtension('../src/ext/ypy-transitions.js'))
+
     beforeEach(function() {
         setupTest(this);
     })

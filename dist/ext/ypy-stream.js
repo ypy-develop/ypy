@@ -13,6 +13,7 @@
 // Reconnects with backoff and jitter; the server answers with the full state (the fat morph).
 // pauseOnBackground (ypy.config.stream, or ypy-config='{"stream":{"pauseOnBackground":true}}') closes the
 // connection while the tab is hidden and opens it again, with Last-Event-ID, when it is visible.
+// useViewTransition=true asks for a view transition, which the ypy-transitions extension runs.
 // Uses only the public API and the extension API. Load it before ypy-sse: an element with
 // ypy-sse:connect stays with that extension.
 //==========================================================
