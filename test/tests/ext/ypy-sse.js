@@ -1870,6 +1870,35 @@ describe('ypy-sse SSE extension', function() {
             stream.close();
         });
 
+        it('the heartbeat aborts the request of the silent connection and gives the new one its own signal', async function() {
+            // Firefox keeps the request open when only the reader is cancelled, and the next request
+            // never leaves: the old request has to be aborted, and the new one must not share its signal.
+            this.timeout(5000);
+            const stream = mockStreamResponse('/hb-abort');
+            connectHTML('/hb-abort', '120ms');
+
+            find('button').click();
+            await waitForEvent('ypy:sse:after:connection');
+            stream.send('one');
+            await waitForEvent('ypy:sse:after:message');
+            // the signal itself: the context that carries it is reused by the reconnection
+            let first = fetchMock.getCalls().find(c => c.url.includes('/hb-abort')).request.signal;
+            assert.isFalse(first.aborted, 'the first request is alive while the stream is silent for less than the heartbeat');
+            await waitForEvent('ypy:sse:after:connection', 2000);
+
+            let calls = fetchMock.getCalls().filter(c => c.url.includes('/hb-abort'));
+            assert.equal(calls.length, 2);
+            let second = calls[1].request.signal;
+            assert.isTrue(first.aborted, 'the request of the silent connection was aborted');
+            assert.isFalse(second.aborted, 'the new request is alive');
+            assert.notStrictEqual(first, second, 'each request has its own signal');
+
+            stream.send('two');
+            await waitForEvent('ypy:sse:after:message');
+            assertTextContentIs('button', 'two');
+            stream.close();
+        });
+
         it('any byte keeps the stream alive, a comment line included', async function() {
             this.timeout(5000);
             const stream = mockStreamResponse('/hb-alive');
