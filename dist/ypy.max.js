@@ -3730,7 +3730,8 @@ ypy.config.historyCache ??= { disable: true };
 // pauseOnBackground (ypy.config.stream, or ypy-config='{"stream":{"pauseOnBackground":true}}') closes the
 // connection while the tab is hidden and opens it again, with Last-Event-ID, when it is visible.
 // useViewTransition=true asks for a view transition, which the ypy-transitions extension runs.
-// Events are queued and applied in order, one animation frame apart when config.stream.frame is true (off by default; a model answer turns it on).
+// Events are queued and applied in order; with config.stream.frame (off by default; a model answer turns it on) the events of one
+// network read are applied together, one animation frame after the last read.
 // Consecutive patches of one selector are merged (config.stream.merge, on by default): inner and outer
 // keep the last one, append concatenates, so a model answer of many tokens costs few DOM operations.
 // ypy:abort on the element of the stream closes it (the Stop button of a model answer).
@@ -3938,7 +3939,7 @@ ypy.config.historyCache ??= { disable: true };
             let i = l.indexOf(' '), n = i < 0 ? l : l.slice(0, i), v = i < 0 ? '' : l.slice(i + 1);
             k[n] = n in k ? k[n] + '\n' + v : v;
         }
-        let q = st.q ??= [], item = {fn, ev: f.event, k};
+        let q = st.q ??= [], item = {fn, ev: f.event, k, g: st.g};
         if (st.merge && q.length && merge(q[q.length - 1], item)) return;
         q.push(item);
         if (!st.busy) { st.busy = true; st.dp = drain(st) }
@@ -3947,11 +3948,16 @@ ypy.config.historyCache ??= { disable: true };
     // one animation frame; a hidden tab has none, so it waits 100 ms at most
     const frame = () => new Promise(resolve => { let t = setTimeout(resolve, 100); requestAnimationFrame(() => { clearTimeout(t); resolve() }) });
 
+    // With frame, one animation frame per network read: the events a server wrote in one flush (the closed
+    // block that goes to the done region and the tail that is emptied) are applied together, so no frame
+    // shows the text twice.
     async function drain(st) {
+        let group;
         while (st.q.length && !st.stop) {
-            if (st.frame) await frame();
+            if (st.frame && st.q[0].g !== group) await frame();
             let item = st.q.shift();
             if (st.stop || !item) break;
+            group = item.g;
             try { await item.fn(st, item.k) } catch (e) { fail(st, e) }
         }
         st.busy = false;
@@ -4014,6 +4020,7 @@ ypy.config.historyCache ??= { disable: true };
         api.triggerEvent(st.elt, 'ypy:stream:open', {stream: st});
         try {
             for (let r; !st.stop && !(r = await rd.read()).done;) {
+                st.g = (st.g || 0) + 1;
                 for (let f of feed(dec.decode(r.value, {stream: true}))) {
                     if (st.stop) break;
                     st.att = 0;

@@ -199,6 +199,7 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 		s.servePage(w, a, "thanks.html")
 	case rest == "/ws":
 		s.websocket(w, r, a)
+	case s.labServe(w, r, rest): // the streaming lab, sse.go
 	case strings.HasPrefix(rest, "/api/"):
 		s.api(w, r, a, strings.TrimPrefix(rest, "/api"))
 	default:
