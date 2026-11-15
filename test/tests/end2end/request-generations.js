@@ -250,6 +250,8 @@ describe('Request generations, sync strategies and trace', function() {
     describe('view transitions', function() {
         let realStart, realMedia, rejections
 
+        before(() => loadExtension('../src/ext/ypy-transitions.js'))
+
         const onRejection = evt => { rejections.push(evt.reason); evt.preventDefault() }
 
         beforeEach(function() {

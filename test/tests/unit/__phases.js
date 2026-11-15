@@ -342,6 +342,7 @@ describe('request phases: event order', function () {
     })
 
     it('records a transition swap', async function () {
+        await loadExtension('../src/ext/ypy-transitions.js')   // the view transition events are fired by this extension
         let {div, ctx} = newRequest('', okFetch('<b>moved</b>'))
         ctx.transition = true
         await ypy.__issueRequest(ctx)
