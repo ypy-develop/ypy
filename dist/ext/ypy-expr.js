@@ -12,7 +12,7 @@
 //   <script src="ext/ypy-expr.min.js"></script>
 //   <meta name="ypy-config" content='callbacks:"all"'>
 //   <input ypy-get="/search" ypy-trigger="keyup[key == 'Enter' || key == '[']">
-//   <button ypy-on:click="this.classList.toggle('on'); count = count + 1">
+//   <button ypy-on:click="this.classList.toggle('ypy-active'); count = count + 1">
 //
 // What it understands: numbers, strings, [list], {object}, this, names (a name the core hands to the
 // code, else a global), . ?. [] and calls (a method keeps its object as `this`), new, unary
