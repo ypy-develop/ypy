@@ -2019,3 +2019,68 @@ export interface YpyDev {
 /** The `code` of the messages that `ypy-dev` adds: a POST, PUT, PATCH or DELETE that `ypy-sync` aborted in flight or dropped. */
 export type YpyDevSyncCode = 'sync-aborted' | 'sync-dropped';
 // #endregion
+
+// #region TASK-081 ypy-test (ypy.idle) and ypy-telemetry (ypy.onError)
+
+/** Options of `ypy.idle()`; the defaults are `ypy.config.test`. A time is milliseconds, or a string such as `"2s"`. */
+export interface YpyIdleOptions {
+  /** How long to wait before the promise rejects with an error that names the work still pending. `0` waits for ever. @default 5000 */
+  timeout?: number | string;
+  /** How long the page must stay without pending work before the promise resolves. `0` resolves at once. @default 50 */
+  quiet?: number | string;
+}
+
+/** Settings of the `ypy-test` extension, in `ypy.config.test`: the defaults of `ypy.idle()`. */
+export interface YpyTestConfig {
+  /** How long `ypy.idle()` waits before it rejects. `0` waits for ever. @default 5000 */
+  timeout?: number | string;
+  /** How long the page must stay without pending work before `ypy.idle()` resolves. @default 50 */
+  quiet?: number | string;
+}
+
+/**
+ * What `ypy-telemetry` reports for a failure. It never holds a body, a field value, a header, a cookie
+ * or the message of an error.
+ */
+export interface YpyTelemetryError {
+  /**
+   * A stable name of what failed: `network`, `offline`, `timeout`, `status:<n>` (`status:500`),
+   * `target-missing`, `swap-error`, `blocked:<reason>` (`blocked:redirect`), `extension:<name>`
+   * (`sse`, `ws`, `stream`, `multipart`, `lazy`, `signals`) or `error` (any other `ypy:error`).
+   */
+  code: string;
+  /** The address of the request, without query, fragment or credentials; `null` when there is none. */
+  url: string | null;
+  /** The HTTP method in upper case; `null` when there is none. */
+  method: string | null;
+  /** The HTTP status of the answer; `null` when there was none. */
+  status: number | null;
+  /** A short selector of the target (`"div#results"`), or the selector that matched nothing; `null` when unknown. */
+  target: string | null;
+  /** A number shared by every report of one request; `null` outside a request. */
+  ctxId: number | null;
+}
+
+export interface Ypy {
+  /**
+   * `ypy-test`: resolves when no request is in flight or queued and no swap or settle is pending,
+   * after a quiet period. Rejects with an `Error` after `timeout`. While work is pending `<html>` has `data-ypy-busy`.
+   * @example await page.evaluate(() => ypy.idle());
+   */
+  idle(options?: YpyIdleOptions): Promise<void>;
+  /** `ypy-telemetry`: calls `handler` for every failure of the page. Returns a function that cancels the subscription. */
+  onError(handler: (error: YpyTelemetryError) => void): () => void;
+}
+
+export interface YpyConfig {
+  /** Defaults of `ypy.idle()` (`ypy-test`). */
+  test?: YpyTestConfig;
+}
+
+export interface YpyEventMap {
+  /** `ypy-test`: a `ypy.idle()` call resolved. Fires on the document; `waited` is in milliseconds. */
+  'ypy:test:idle': { waited: number };
+  /** `ypy-telemetry`: a failure of the page. Fires on the element it belongs to, or on the document when that element is gone. */
+  'ypy:telemetry:error': YpyTelemetryError;
+}
+// #endregion

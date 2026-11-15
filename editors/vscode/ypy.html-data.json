@@ -1101,6 +1101,20 @@
       }
     },
     {
+      "name": "ypy-on::telemetry:error",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:telemetry:error` fires. Fires for every failure of the page, whatever its source: a network failure, a timeout, a lost connection, a response with status 400 or more, a target that matches nothing, a swap that failed or was refused, an error of an extension. `detail` is `{code, url, method, status, target, ctxId}`: `code` is stable (`network`, `offline`, `timeout`, `status:<n>`, `target-missing`, `swap-error`, `blocked:<reason>`, `extension:<name>`, `error`), `url` has no query, fragment or credentials, and `ctxId` is shared by the reports of one request. It never carries a body, a field value, a header, a cookie or an error message."
+      }
+    },
+    {
+      "name": "ypy-on::test:idle",
+      "description": {
+        "kind": "markdown",
+        "value": "Runs the JavaScript when `ypy:test:idle` fires. Fires on the document when a `ypy.idle()` call resolves: no request in flight, no swap or settle pending, and the quiet period passed. `waited` is how long the call waited, in milliseconds."
+      }
+    },
+    {
       "name": "ypy-on::upload:progress",
       "description": {
         "kind": "markdown",

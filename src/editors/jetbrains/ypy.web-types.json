@@ -1728,6 +1728,14 @@
           "description": "A signals patch arrived and the signals extension is not loaded, so the page can apply it itself. Requires the `ypy-stream` extension."
         },
         {
+          "name": "telemetry:error",
+          "description": "Fires for every failure of the page, whatever its source: a network failure, a timeout, a lost connection, a response with status 400 or more, a target that matches nothing, a swap that failed or was refused, an error of an extension. `detail` is `{code, url, method, status, target, ctxId}`: `code` is stable (`network`, `offline`, `timeout`, `status:<n>`, `target-missing`, `swap-error`, `blocked:<reason>`, `extension:<name>`, `error`), `url` has no query, fragment or credentials, and `ctxId` is shared by the reports of one request. It never carries a body, a field value, a header, a cookie or an error message. Requires the `ypy-telemetry` extension."
+        },
+        {
+          "name": "test:idle",
+          "description": "Fires on the document when a `ypy.idle()` call resolves: no request in flight, no swap or settle pending, and the quiet period passed. `waited` is how long the call waited, in milliseconds. Requires the `ypy-test` extension."
+        },
+        {
           "name": "upload:progress",
           "description": "Fires on the source element while a file is sent. `percent` is a whole number from 0 to 100; `total` is 0 when the browser does not know the size of the body. Requires the `ypy-upload` extension."
         },
