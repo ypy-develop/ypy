@@ -1,7 +1,7 @@
 {
   "meta": {
     "schema": 1,
-    "version": "2026.11.1",
+    "version": "2026.11.2",
     "guide": "https://ypy.dev/docs/guides/upgrade-check",
     "lines": {
       "v1": "the oldest generation of the previous markup",
@@ -112,9 +112,10 @@
       "files": [
         "markup",
         "script",
-        "style"
+        "style",
+        "server"
       ],
-      "what": "Legacy state class (the default configuration applies both the legacy and the ypy- class).",
+      "what": "Legacy state class (the default configuration applies both the legacy and the ypy- class); also inside nested CSS and CSS written in a Go string.",
       "fix": "Style the ypy- class (or the data-ypy-state attribute) and drop the legacy one.",
       "native": "ypy-request, ypy-indicator, ypy-swapping, ypy-settling, ypy-added"
     },
@@ -2683,6 +2684,108 @@
       "what": "The {H}Prompt request header needs the prompt extension.",
       "fix": "Load the prompt extension (ypy-prompt.js).",
       "native": "extension ypy-prompt"
+    },
+    {
+      "id": "ANY-EVENT-NOT-EMITTED",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "quebra",
+      "group": "event",
+      "kind": "ypy-event",
+      "match": {},
+      "files": [
+        "markup",
+        "script"
+      ],
+      "what": "The event is written in the ypy: namespace but YPY does not emit it, so the listener never runs (typical after a migration that only swapped the prefix).",
+      "fix": "Use a name of the event table of YPY (ypy:after:swap, ypy:after:settle, ypy:before:request, ypy:finally:request, ypy:after:process...); `ypy migrate --write` repairs the legacy names.",
+      "native": "ypy:<phase>:<verb>, for example ypy:after:settle"
+    },
+    {
+      "id": "ANY-IDENT-PREFIX",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "aviso",
+      "group": "naming",
+      "kind": "identifier",
+      "match": {},
+      "aggregate": true,
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "Identifier named after the legacy prefix (a prop, field or variable such as <P>Target, <p>_request, Is<P>); the templates now say ypy.",
+      "fix": "Rename the whole identifier (`ypy migrate --write` renames it in every file; --no-identifiers keeps it).",
+      "native": "Ypy<Name>, ypy<Name>, IsYpy"
+    },
+    {
+      "id": "V2-DETAIL-ELT",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "muda",
+      "group": "event",
+      "kind": "pattern",
+      "match": {
+        "regex": "\\bdetail\\s*\\??\\.\\s*elt\\b"
+      },
+      "what": "The element is not in the detail of a YPY event: detail.elt is undefined.",
+      "fix": "Read evt.target (the element the event was fired on).",
+      "native": "evt.target"
+    },
+    {
+      "id": "ANY-HEADER-TARGET-PLAIN-ID",
+      "lines": [
+        "v1",
+        "v2",
+        "v4"
+      ],
+      "severity": "muda",
+      "group": "header",
+      "kind": "pattern",
+      "match": {
+        "regex": "\\b(?:{H}|YPY-)Target[\"'`\\]]*\\s*(?:,|:|=>|=)\\s*\\(?[\"'`]([A-Za-z_][\\w-]*)[\"'`]",
+        "flags": "i",
+        "group": 1,
+        "skip": [
+          "body",
+          "html",
+          "main",
+          "section",
+          "article",
+          "aside",
+          "header",
+          "footer",
+          "nav",
+          "div",
+          "span",
+          "form",
+          "ul",
+          "ol",
+          "table",
+          "tbody",
+          "ul",
+          "li",
+          "p"
+        ]
+      },
+      "files": [
+        "markup",
+        "script",
+        "server"
+      ],
+      "what": "The target header carries the plain id of the element; YPY sends tag#id (a request in a test or a client written with the id only does not match).",
+      "fix": "Write the header as tag#id, for example main#content.",
+      "native": "YPY-Target: tag#id"
     }
   ]
 }

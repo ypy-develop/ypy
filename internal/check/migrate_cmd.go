@@ -29,7 +29,8 @@ string, a selector, a template expression; never running text):
   attributes        <prefix>-name and data-<prefix>-name  ->  ypy-name, data-ypy-name
   tags              <prefix>-partial                      ->  <ypy-partial>
   headers           <PREFIX>-Name, Vary, HTTP_<PREFIX>_NAME ->  YPY-Name (server code too)
-  events            <id>:name                             ->  ypy:name (afterSwap stays afterSwap)
+  events            <id>:afterSwap, <id>:load             ->  ypy:after:swap, ypy:after:process (the name YPY emits;
+                    no equivalent, or detail.elt: left as it is and listed)
   global object     <id>.method                           ->  ypy.method
   state classes     <id>-request, <id>-indicator, ...     ->  ypy-request, ypy-indicator, ...
   extensions        <prefix>-sse.js, sse-connect, ws-send ->  ypy-sse.js, ypy-sse:connect, ypy-ws:send
@@ -38,7 +39,8 @@ string, a selector, a template expression; never running text):
   extension names   extensions:"sse,ws" (config setting)  ->  extensions:"ypy-sse,ypy-ws"
   script tag        <id>.min.js                           ->  ypy.min.js
 The prefixes and the identifier of the legacy markup are learned from the project
-(see "ypy check --help"); the files of the library itself are skipped.
+(see "ypy check --help"); the files of the library itself are skipped. A string of server
+code (Go, Python...) is converted only where an attribute, a selector or a class belongs.
 
 Options:
   --write                  apply the changes (default: report only)
@@ -52,7 +54,7 @@ Options:
   --no-identifiers         leave identifiers (<P>Target, <p>_request) alone
   --script-src URL         replace the URL of an external script tag of the legacy markup
                            (without it such tags are left alone and listed)
-  --ext .a,.b              convert more file extensions as templates (repeatable)
+  --ext .a,.b              convert more file extensions as templates (repeatable); .md and .json are read by default
   --json                   print one JSON document (schema 1) instead of text
   --no-diff                text output without the diff
   -v, --version            print the rules version
