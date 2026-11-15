@@ -949,6 +949,34 @@
       ],
       "markdownDescription": "What happens when a target selector matches nothing: `true` falls back to the main target for a whole page or a response with a main, `\"always\"` also for a fragment, `false` never. Unset means on."
     },
+    "test": {
+      "additionalProperties": false,
+      "description": "Defaults of `ypy.idle()` (how long it waits, the quiet period). While work is pending `ypy-test` also writes `data-ypy-busy` on `<html>` and removes it when the work ends: the value lists the kinds of work, space separated (`request` in flight, `queued` in an `ypy-sync` queue, `swap` being inserted, `settle` settling). It is output for tests and styles, never something to write by hand. Requires the `ypy-test` extension.",
+      "markdownDescription": "Defaults of `ypy.idle()` (how long it waits, the quiet period). While work is pending `ypy-test` also writes `data-ypy-busy` on `<html>` and removes it when the work ends: the value lists the kinds of work, space separated (`request` in flight, `queued` in an `ypy-sync` queue, `swap` being inserted, `settle` settling). It is output for tests and styles, never something to write by hand. Requires the `ypy-test` extension.",
+      "properties": {
+        "quiet": {
+          "default": 50,
+          "description": "Milliseconds the page must stay without pending work before `ypy.idle()` resolves; content just swapped in may start the next request (a `load` trigger) in that time. `0` resolves at once. Requires the `ypy-test` extension.",
+          "markdownDescription": "Milliseconds the page must stay without pending work before `ypy.idle()` resolves; content just swapped in may start the next request (a `load` trigger) in that time. `0` resolves at once. Requires the `ypy-test` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "timeout": {
+          "default": 5000,
+          "description": "Milliseconds `ypy.idle()` waits before it rejects with an error that names the work still pending. `0` waits for ever. A time such as `\"2s\"` also works. Requires the `ypy-test` extension.",
+          "markdownDescription": "Milliseconds `ypy.idle()` waits before it rejects with an error that names the work still pending. `0` waits for ever. A time such as `\"2s\"` also works. Requires the `ypy-test` extension.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "transitions": {
       "default": false,
       "description": "Uses the View Transitions API for swap animations.",
