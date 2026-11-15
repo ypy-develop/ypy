@@ -36,6 +36,10 @@ type Options struct {
 	// ChromeFlags adds command line switches to Chrome (Chrome only): the key is
 	// the switch without the leading dashes, the value a string or a bool.
 	ChromeFlags map[string]any
+	// KeepDialogs leaves an alert, confirm or prompt open for the caller to
+	// answer (WebDriver browsers; the default dismisses it at once). The end to
+	// end suite sets it so that a scenario can choose the answer.
+	KeepDialogs bool
 	// Env reads an environment variable; nil means "no variables".
 	Env func(string) string
 }
