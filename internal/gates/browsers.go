@@ -52,6 +52,26 @@ func ResolveBrowsers(requested string, firefoxReady bool, why string, require bo
 	return strings.Join(names, ","), "", nil
 }
 
+// resolveEnvBrowsers settles the browsers of the "browser" and "e2e" gates, which
+// share one choice, and stores them in e.Browsers. A choice already made (by the
+// browser gate, which runs first) is kept, so the warning is given once.
+func resolveEnvBrowsers(e *Env) (warnings []string, err error) {
+	env := e.IO.Env
+	if env == nil {
+		env = os.Getenv
+	}
+	ready, why := browsers.FirefoxReady(env)
+	list, warning, err := ResolveBrowsers(e.Browsers, ready, why, env(RequireFirefoxEnv) == "1")
+	if err != nil {
+		return nil, err
+	}
+	e.Browsers = list
+	if warning != "" {
+		warnings = append(warnings, warning)
+	}
+	return warnings, nil
+}
+
 func browserArgs(e *Env, extra ...string) []string {
 	args := []string{"--root", e.Root, "--browsers", e.Browsers}
 	if e.ChromePath != "" {
@@ -73,21 +93,11 @@ var distSuites = []string{"test/tests/ext/**/*.js", "test/tests/security/**/*.js
 // and security suites against dist/ (the sizes gate, which runs before, has
 // checked that dist/ is the build of the current sources), in the chosen browsers.
 func gateBrowser(ctx context.Context, e *Env) Result {
-	env := e.IO.Env
-	if env == nil {
-		env = os.Getenv
-	}
-	ready, why := browsers.FirefoxReady(env)
-	list, warning, err := ResolveBrowsers(e.Browsers, ready, why, env(RequireFirefoxEnv) == "1")
+	warnings, err := resolveEnvBrowsers(e)
 	if err != nil {
 		return Result{Err: err}
 	}
-	e.Browsers = list
-	var warnings []string
-	if warning != "" {
-		warnings = append(warnings, warning)
-	}
-	fmt.Fprintf(e.Out, "-- browsers: %s\n", list)
+	fmt.Fprintf(e.Out, "-- browsers: %s\n", e.Browsers)
 	fmt.Fprintf(e.Out, "-- suite main\n")
 	if code := testrun.Command().Run(ctx, browserArgs(e, "--suite", "main"), e.IO); code != 0 {
 		return Result{Err: fmt.Errorf("suite main failed (exit %d)", code), Warnings: warnings}
@@ -103,18 +113,31 @@ func gateBrowser(ctx context.Context, e *Env) Result {
 	return Result{Warnings: warnings}
 }
 
-// gateE2E: the end to end scenarios of the example app in Chrome, strict. The suite
-// drives Chrome through the DevTools protocol, so Firefox cannot run it.
-func gateE2E(ctx context.Context, e *Env) Result {
-	args := []string{"--root", e.Root, "--browsers", "chrome", "--suite", "e2e", "--strict"}
+// e2eArgs are the arguments of "ypy test --suite e2e" for the gate: the browsers
+// are the ones of the browser gate.
+func e2eArgs(e *Env) []string {
+	args := []string{"--root", e.Root, "--browsers", e.Browsers, "--suite", "e2e", "--strict"}
 	if e.ChromePath != "" {
 		args = append(args, "--chrome", e.ChromePath)
 	}
 	if e.Port != 0 {
+		// the example server gets its own range, away from the test server's
 		args = append(args, "--port", strconv.Itoa(e.Port+100))
 	}
-	if code := testrun.Command().Run(ctx, args, e.IO); code != 0 {
-		return Result{Err: fmt.Errorf("e2e suite failed (exit %d)", code)}
+	return args
+}
+
+// gateE2E: the end to end scenarios of the example app, strict, in the same
+// browsers as the browser gate (Chrome through the DevTools protocol, Firefox and
+// Safari through WebDriver).
+func gateE2E(ctx context.Context, e *Env) Result {
+	warnings, err := resolveEnvBrowsers(e)
+	if err != nil {
+		return Result{Err: err}
 	}
-	return Result{}
+	fmt.Fprintf(e.Out, "-- browsers: %s\n", e.Browsers)
+	if code := testrun.Command().Run(ctx, e2eArgs(e), e.IO); code != 0 {
+		return Result{Err: fmt.Errorf("e2e suite failed (exit %d)", code), Warnings: warnings}
+	}
+	return Result{Warnings: warnings}
 }

@@ -35,14 +35,16 @@ Options:
   --timeout DUR      limit for one test file (default 2m)
   --root DIR         repository root (default: the current directory)
   --headed           show the browser window (Chrome, Firefox)
-  --logs             print the console output of the pages (Chrome)
+  --logs             print the console output of the pages (Chrome; the e2e suite reports the
+                     console of a failed scenario in every browser)
   --list             print the test files and exit
   --serve            serve src/, test/ and dist/ (and mocha, chai) at http://localhost:PORT/
                      until interrupted, for the manual pages in test/manual and for debugging
   -v, --verbose      one line for every test file, not only for failing ones
   -h, --help         this help
 
-Suite "e2e" drives Chrome against the example server (examples/server) and the native app:
+Suite "e2e" drives the browsers of --browsers (Chrome through DevTools, Firefox and Safari through
+WebDriver, one at a time) against the example server (examples/server) and the native app:
   --apps LIST        example apps to run (default: all; today only native)
   --scenario TEXT    only scenarios whose name contains the text
   --md FILE          also write the result matrix as markdown
