@@ -209,12 +209,12 @@ var ypy = (() => {
         #specCache = new Map()   // trigger string -> parsed specs
         #pfxNames = new Map()   // attribute name -> its spelling per prefix, cached per prefix list
         #pfxSelectors = new Map()   // selector -> the selector per prefix, cached per prefix list
-        #transitionQueue
         #historyAbort
         #historyInitialized
         #historyPaths = new Set()
-        #processingTransition
         #requestSeq = 0         // ctx.id of the last request context
+        #disposed = false
+        #init = () => this.initialize()
 
         //============================================================================================
         // SECTION config: construction, configuration and the extension registry
@@ -253,11 +253,10 @@ var ypy = (() => {
                 triggerEvent: this.__trigger.bind(this),
                 executeJavaScript: this.__executeJavaScript.bind(this)
             };
-            let init = () => this.initialize();
             if (document.readyState === 'loading') {
-                document.addEventListener("DOMContentLoaded", init)
+                document.addEventListener("DOMContentLoaded", this.#init)
             } else {
-                setTimeout(init)
+                setTimeout(this.#init)
             }
         }
 
@@ -561,22 +560,18 @@ var ypy = (() => {
             if ((boosted || this.__shouldInitialize(elt)) && this.__trigger(elt, "ypy:before:init")) {
                 let ypyProp = this.__ypyProp(elt);
                 ypyProp.initialized = true;
-                ypyProp.eventHandler = this.__createEventHandler(elt);
+                ypyProp.eventHandler = async (evt) => {
+                    try {
+                        let ctx = this.__createRequestContext(elt, evt);
+                        await this.__handleTriggerEvent(ctx);
+                    } catch (e) {
+                        this.__trigger(elt, 'ypy:error', { error: e });
+                    }
+                };
                 if (boosted) ypyProp.boosted = boosted;
                 this.__initializeTriggers(elt);
                 this.__trigger(elt, "ypy:after:init")
             }
-        }
-
-        __createEventHandler(elt) {
-            return async (evt) => {
-                try {
-                    let ctx = this.__createRequestContext(elt, evt);
-                    await this.__handleTriggerEvent(ctx);
-                } catch (e) {
-                    this.__trigger(elt, 'ypy:error', { error: e });
-                }
-            };
         }
 
         //============================================================================================
@@ -645,12 +640,6 @@ var ypy = (() => {
             return `${elt.tagName.toLowerCase()}${elt.id ? '#' + encodeURI(elt.id) : ''}`;
         }
 
-        __handleYpyHeaders(elt, ctx) {
-            return this.__getAttributeObject(elt, "ypy-headers", obj => {
-                for (let key in obj) ctx.request.headers[key] = String(obj[key]);
-            }, {ctx});
-        }
-
         /**
          * The element a response is swapped into. An element is returned as it is, a selector is
          * looked up from `elt`, no selector means the source element (the body for a boosted one).
@@ -710,7 +699,9 @@ var ypy = (() => {
             }
 
             // Handle dynamic headers
-            let headersResult = this.__handleYpyHeaders(elt, ctx)
+            let headersResult = this.__getAttributeObject(elt, "ypy-headers", obj => {
+                for (let key in obj) ctx.request.headers[key] = String(obj[key]);
+            }, {ctx})
             if (headersResult) await headersResult  // Only await if it returned a promise
 
             // Setup event-dependent request details
@@ -773,7 +764,7 @@ var ypy = (() => {
          */
         async __issueRequest(ctx) {
             let elt = ctx.sourceElement  // the swap may replace ctx.sourceElement; request events keep this one
-            let release = this.__admitRequest(ctx);
+            let release = !this.#disposed && this.__admitRequest(ctx);
             if (!release) return
 
             try {
@@ -806,7 +797,14 @@ var ypy = (() => {
             let elt = ctx.sourceElement
             let syncStrategy = this.__determineSyncStrategy(elt);
             let requestQueue = this.__getRequestQueue(elt, ctx);
-            this.__initializeAbortListener(elt, requestQueue);
+            let ypyProp = this.__ypyProp(elt);
+            ypyProp.queue = requestQueue;
+            if (!ypyProp.abortInitialized) {
+                ypyProp.abortInitialized = true;
+                let handler = () => ypyProp.queue?.abort();
+                elt.addEventListener("ypy:abort", handler);
+                ypyProp.listeners.push({fromElt: elt, eventName: "ypy:abort", handler});
+            }
 
             let abortRequest = reason => ctx.request.abort(reason)
 
@@ -861,7 +859,12 @@ var ypy = (() => {
          * @param {YpyRequestCtx} ctx
          */
         __beginRequest(ctx) {
-            this.__initTimeout(ctx);
+            let timeout = ctx.request.timeout != null
+                ? this.parseInterval(ctx.request.timeout)
+                : this.config.defaultTimeout;
+            if (timeout) {
+                ctx.requestTimeout = setTimeout(() => ctx.request?.abort?.('timeout'), timeout);
+            }
             this.__showIndicators(ctx);
             this.__disableElements(ctx);
             this.__markBusy(ctx);
@@ -1037,15 +1040,6 @@ var ypy = (() => {
                 opts.disabledElements = ctx.disabledElements;
                 this.ajax('GET', path, opts);
                 return true
-            }
-        }
-
-        __initTimeout(ctx) {
-            let timeout = ctx.request.timeout != null
-                ? this.parseInterval(ctx.request.timeout)
-                : this.config.defaultTimeout;
-            if (timeout) {
-                ctx.requestTimeout = setTimeout(() => ctx.request?.abort?.('timeout'), timeout);
             }
         }
 
@@ -1240,14 +1234,10 @@ var ypy = (() => {
             }
         }
 
-        /** The first `[...]` of a string, with brackets nested up to four deep and quoted text skipped: [index of the `[`, index after its `]` (0 when unclosed)]. */
-        __bracket(str) {
-            let open = str.indexOf('['), m = str.slice(open).match(/^\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[[^\[\]]*\])*\])*\])*\]/);
-            return [open, m ? open + m[0].length : 0];
-        }
-
         __extractFilter(str) {
-            let [open, end] = this.__bracket(str);
+            // the first `[...]`, with brackets nested up to four deep and quoted text skipped: [index of the `[`, index after its `]` (0 when unclosed)]
+            let open = str.indexOf('['), m = str.slice(open).match(/^\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[(?:[^\[\]'"]|'[^']*'|"[^"]*"|\[[^\[\]]*\])*\])*\])*\]/);
+            let end = m ? open + m[0].length : 0;
             return end ? [str.slice(0, open), str.slice(open + 1, end - 1), str.slice(end)] : [str, null];
         }
 
@@ -1355,7 +1345,7 @@ var ypy = (() => {
          * @param {boolean} [force]
          */
         process(root, force) {
-            if (!root?.isConnected) return;
+            if (this.#disposed || !root?.isConnected) return;
             if (!(root instanceof Element)) { // ShadowRoot
                 for (let elt of root.children || []) this.process(elt, force);
                 return;
@@ -1812,11 +1802,23 @@ var ypy = (() => {
         // SECTION security (cont.): re-creating script elements so they run
         //============================================================================================
 
+        /**
+         * Applies config.scripts to the <script> elements of a response: "auto" (the default)
+         * re-creates all of them so they run, "nonce" re-creates only those that carry the nonce of
+         * the page (config.inlineScriptNonce, else the one of the first <script nonce>), and "block",
+         * or any other value, none. The others are taken out of the response: a script parsed inside
+         * a <template> would run when it is inserted, so leaving it as parsed is not inert.
+         */
         __processScripts(container) {
-            // without the 'ypy' policy the scripts stay as parsed, which never run
+            let mode = this.config.scripts ?? 'auto', nonce = this.config.inlineScriptNonce || document.querySelector('script[nonce]')?.nonce;
+            // without the 'ypy' policy no response is parsed
             if (!this.#ttPolicy) return;
             let scripts = this.__queryEltAndDescendants(container, 'script');
             for (let oldScript of scripts) {
+                if (mode !== 'auto' && (mode !== 'nonce' || !nonce || oldScript.nonce !== nonce)) {
+                    oldScript.remove();
+                    continue;
+                }
                 let newScript = document.createElement('script');
                 for (let attr of oldScript.attributes) {
                     newScript.setAttribute(attr.name, attr.value);
@@ -1843,10 +1845,40 @@ var ypy = (() => {
          * __initOffline and __initA11y.
          */
         initialize() {
+            if (this.#disposed) return;
             this.__initHistory();
             this.__initOffline();
             this.__initA11y();
             this.process(document.body);
+        }
+
+        /**
+         * Takes YPY apart, for a test or an application that unmounts: tells the extensions (the
+         * `ypy_dispose` hook, so they remove what they installed), aborts the requests in flight,
+         * drops the waiting ones, tears down every processed element of the document and of its
+         * open shadow roots (listeners, timers, observers, queues), removes the document and
+         * window listeners the core added (history, connection state, start-up) and leaves the
+         * object inert: process, initialize and requests do nothing. It cannot be undone.
+         */
+        dispose() {
+            if (this.#disposed) return;
+            this.__triggerExtensions(document, 'ypy:dispose');
+            this.#disposed = true;
+            this.#historyAbort?.abort();
+            let roots = [document.documentElement];
+            for (let root of roots) {
+                for (let elt of root.querySelectorAll('*')) if (elt.shadowRoot) roots.push(elt.shadowRoot);
+            }
+            for (let root of roots) {
+                for (let elt of root.querySelectorAll('[data-ypy-powered]')) elt._ypy?.queue?.abort();
+                this.__cleanup(root, true);
+            }
+            document.removeEventListener('DOMContentLoaded', this.#init);
+            document.removeEventListener('ypy:before:swap', this.#beforeSwap);
+            window.removeEventListener('popstate', this.#onPopState);
+            window.removeEventListener('offline', this.#onNetworkChange);
+            window.removeEventListener('online', this.#onNetworkChange);
+            window.navigation?.removeEventListener('navigate', this.#onNavigate);
         }
 
         //============================================================================================
@@ -1966,11 +1998,11 @@ var ypy = (() => {
                 }
             }
 
-            // submit all transition tasks in the transition queue w/no CSS transitions
+            // the transition tasks run one after the other, w/no CSS transitions, inside the view transition
+            // queue of the ypy-transitions extension (handle_transition); without it they run at once
             if (transitionTasks.length) {
-                swapPromises.push(this.__submitTransitionTask(async () => {
-                    for (let task of transitionTasks) await insert(task, false)
-                }, ctx));
+                let run = async () => { for (let task of transitionTasks) await insert(task, false) };
+                swapPromises.push(this.__extMethods.get('handle_transition')?.[0]?.(run, ctx) ?? run());
             }
 
             await Promise.all(swapPromises);
@@ -2598,16 +2630,19 @@ var ypy = (() => {
             if (this.config.history && !this.#historyInitialized) {
                 this.#historyInitialized = true;
                 if (window.navigation && !/firefox/i.test(navigator.userAgent)) {
-                    navigation.addEventListener('navigate', (event) => {
-                        if (event.navigationType === 'traverse' && event.canIntercept && !event.hashChange)
-                            event.intercept({handler: () => this.__restoreHistory()});
-                    });
+                    navigation.addEventListener('navigate', this.#onNavigate);
                 /* c8 ignore next 3 */
                 } else {
-                    window.addEventListener('popstate', (event) => this.__restoreHistory(event.state));
+                    window.addEventListener('popstate', this.#onPopState);
                 }
             }
         }
+
+        #onNavigate = event => {
+            if (event.navigationType === 'traverse' && event.canIntercept && !event.hashChange)
+                event.intercept({handler: () => this.__restoreHistory()});
+        }
+        #onPopState = event => this.__restoreHistory(event.state)
 
         /**
          * Remembers the path of the current entry as one of ours: an entry whose state another
@@ -2987,7 +3022,12 @@ var ypy = (() => {
                     }
                     item = elt
                 } else {
-                    unprocessedParts.push(selector)
+                    // an extension may know this target (hook ypy:resolve:target, written ypy_resolve_target(elt, selector)): an element, an
+                    // array or NodeList of them, null for none, undefined for "not mine"
+                    let found;
+                    for (let fn of this.__extMethods.get('ypy_resolve_target') ?? []) if ((found = fn(elt, selector)) !== undefined) break;
+                    if (found === undefined) unprocessedParts.push(selector);
+                    else if (found) result.push(...(found.nodeType ? [found] : found));
                 }
 
                 if (item) {
@@ -3012,11 +3052,7 @@ var ypy = (() => {
         }
 
         __getRootNode(elt, global) {
-            if (elt.isConnected && elt.getRootNode) {
-                return elt.getRootNode?.({composed: global})
-            } else {
-                return document
-            }
+            return elt.isConnected && elt.getRootNode ? elt.getRootNode({composed: global}) : document
         }
 
         __findOrWarn(elt, selector, thisAttr, quiet) {
@@ -3035,24 +3071,6 @@ var ypy = (() => {
         //============================================================================================
         // SECTION request (cont.): aborting
         //============================================================================================
-
-        /**
-         * Makes elt answer ypy:abort by aborting the request in flight in its queue. The queue is
-         * the one the last request of elt used, which is not elt's own when ypy-sync names
-         * another element or `target`.
-         *
-         * @param {Element} elt
-         * @param {RequestQueue} queue the queue of the request that is being admitted
-         */
-        __initializeAbortListener(elt, queue) {
-            let ypyProp = this.__ypyProp(elt);
-            ypyProp.queue = queue;
-            if (ypyProp.abortInitialized) return;
-            ypyProp.abortInitialized = true;
-            let handler = () => ypyProp.queue?.abort();
-            elt.addEventListener("ypy:abort", handler);
-            ypyProp.listeners.push({fromElt: elt, eventName: "ypy:abort", handler});
-        }
 
         //============================================================================================
         // SECTION morph: the morphing algorithm
@@ -3400,22 +3418,6 @@ var ypy = (() => {
             ctx.swap = own[1] || ctx.swap;
             ctx.focus = own[2] ?? ctx.focus;
             if (ctx.focus === 'false') ctx.focus = false;
-            this.__watchError(ctx);
-        }
-
-        /**
-         * Makes the error visible when the request ends, which is after the swap: the target of the
-         * error gets data-ypy-state="error" (and config.classes.error), cleared when the source
-         * element sends its next request. The focus is not here: ctx.focus is applied by
-         * __applyFocus at the end of the swap ("first-invalid" is one of its values). Nothing
-         * happens when the response was not swapped (a header took over, the swap is "none").
-         * Registered by __errorDefaults, it waits for the
-         * ypy:finally:request of this context on the document: the event is always fired once, and
-         * reaches the document even when the swap removed the element it started from.
-         *
-         * @param {YpyRequestCtx} ctx
-         */
-        __watchError(ctx) {
             let done = e => {
                 if (e.detail.ctx !== ctx) return;
                 document.removeEventListener('ypy:finally:request', done);
@@ -3431,45 +3433,6 @@ var ypy = (() => {
         //============================================================================================
         // SECTION swap (cont.): view transitions and CSS transitions
         //============================================================================================
-
-        __submitTransitionTask(task, ctx) {
-            return new Promise((resolve) => {
-                this.#transitionQueue ||= [];
-                this.#transitionQueue.push({ task, resolve, ctx });
-                if (!this.#processingTransition) {
-                    this.__processTransitionQueue();
-                }
-            });
-        }
-
-        async __processTransitionQueue() {
-            if (this.#transitionQueue.length === 0 || this.#processingTransition) {
-                return;
-            }
-
-            this.#processingTransition = true;
-            let { task, resolve, ctx } = this.#transitionQueue.shift();
-
-            try {
-                // a skipped transition (hidden tab, another one started) rejects `ready`: handled here
-                if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    let detail = {task, ctx};
-                    this.__trigger(ctx.sourceElement, "ypy:before:viewTransition", detail)
-                    let transition = document.startViewTransition(detail.task);
-                    transition.ready.catch(() => {});
-                    await transition.finished;
-                    this.__trigger(ctx.sourceElement, "ypy:after:viewTransition", detail)
-                } else {
-                    await task();
-                }
-            } catch (e) {
-                // Transitions can be skipped/aborted - this is normal
-            } finally {
-                this.#processingTransition = false;
-                resolve();
-                this.__processTransitionQueue();
-            }
-        }
 
         __startCSSTransitions(fragment, root) {
             let cssAttrs = ['class', 'style', 'width', 'height'];
@@ -3551,17 +3514,6 @@ var ypy = (() => {
         }
 
         /**
-         * Whether an automatic accessibility behavior is on: the config value when the author
-         * set one (true or false), else on (decision R-6).
-         *
-         * @param {boolean | object | undefined} setting config.ariaBusy or config.announce
-         * @returns {boolean}
-         */
-        __a11yOn(setting) {
-            return !!(setting ?? true);
-        }
-
-        /**
          * The live region for a politeness level, created on first use and again if a swap of
          * the body removed it: a visually hidden div (styled by an adopted style sheet, so no
          * inline style and no CSP exception) marked data-ypy-live.
@@ -3620,7 +3572,7 @@ var ypy = (() => {
          */
         __markBusy(ctx, elt = ctx.target) {
             // also called for each swap target (OOB, <ypy-partial>) once the response names it
-            if (!this.__a11yOn(this.config.ariaBusy) || !(elt instanceof Element) || ctx.busy?.includes(elt)) return;
+            if (!(this.config.ariaBusy ?? true) || !(elt instanceof Element) || ctx.busy?.includes(elt)) return;
             if ((this.__attributeValue(elt, 'ypy-busy') ?? this.__attributeValue(ctx.sourceElement, 'ypy-busy')) === 'false') return;
             let s = this.__ypyState(elt);
             if (!s.bc) s.bv = elt.getAttribute('aria-busy');
@@ -3670,7 +3622,7 @@ var ypy = (() => {
          */
         __announce(ctx) {
             let cfg = this.config.announce;
-            if (ctx.announce === false || !this.__a11yOn(cfg)) return;
+            if (ctx.announce === false || !(cfg ?? true)) return;
             let m = cfg?.messages || {};
             let status = ctx.status + '';
             let kind = ctx.errorKind || (ctx.response?.status >= 400 ? 'server' : /^error: (?!AbortError)/.test(status) && 'network');

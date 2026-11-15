@@ -4,7 +4,7 @@
 //
 // Configuration lock for ypy.
 //
-// Freezes the security settings (mode, callbacks, extensions, nonce, inlineScriptNonce, and
+// Freezes the security settings (mode, callbacks, extensions, nonce, inlineScriptNonce, scripts, and
 // and the config object itself: a later assignment is ignored with a console warning,
 // and the properties cannot be redefined or deleted. The lock cannot be undone.
 //
@@ -35,7 +35,7 @@
             set: v => { if (v !== value) console.warn(`ypy: ${key} is locked`) }
         });
         let config = ypy.config;
-        for (let key of ['mode', 'callbacks', 'extensions', 'nonce', 'inlineScriptNonce']) freeze(config, key, config[key]);
+        for (let key of ['mode', 'callbacks', 'extensions', 'nonce', 'inlineScriptNonce', 'scripts']) freeze(config, key, config[key]);
         freeze(config, 'locked', true);
         // the built core keeps the approved list private, out of reach; the source build exposes it
         if ('__approvedExt' in ypy) freeze(ypy, '__approvedExt', ypy.__approvedExt);

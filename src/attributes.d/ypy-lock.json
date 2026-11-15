@@ -3,7 +3,7 @@
   "config": [
     {
       "name": "locked",
-      "description": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone.",
+      "description": "Set `true` in the `ypy-config` meta tag to freeze `mode`, `callbacks`, `extensions`, `nonce`, `inlineScriptNonce`, `scripts` and `ypy.config` itself when the extension starts. Later assignments are ignored with a console warning. `ypy.config.lock()` does the same at run time. It cannot be undone.",
       "schema": {
         "type": "boolean"
       },

@@ -709,6 +709,18 @@
       "extensionOnly": true
     },
     {
+      "name": "ypy:resolve:target",
+      "description": "Extension hook (`ypy_resolve_target(elt, selector)`): runs for every part of a selector (`ypy-target`, `ypy.find()`...) the core does not know, before it falls to `querySelectorAll`. Return an element, an array or a NodeList of them, `null` for no element, or `undefined` when the selector is not yours. `ypy-scope` uses it. Never dispatched on the DOM.",
+      "detail": {"elt": "Element | Document", "selector": "string"},
+      "extensionOnly": true
+    },
+    {
+      "name": "ypy:dispose",
+      "description": "Extension hook (`ypy_dispose`): runs once when `ypy.dispose()` starts, before anything is taken down, so an extension removes the listeners, timers and observers it installed. Never dispatched on the DOM.",
+      "detail": {},
+      "extensionOnly": true
+    },
+    {
       "name": "ypy:process:*",
       "description": "Extension hook family: `ypy:process:<type>` runs for a `<ypy-partial>` whose `type` is not built in, so an extension can add swap tasks. Never dispatched on the DOM.",
       "detail": {"ctx": "YpyRequestCtx", "tasks": "YpySwapTask[]"},
@@ -859,6 +871,7 @@
     {"name": "announce.messages.offline", "description": "Said when a request failed for lack of a connection.", "schema": {"type": "string"}},
     {"name": "announce.messages.error", "description": "Said when a request failed for any other reason.", "schema": {"type": "string"}},
     {"name": "callbacks", "description": "What author code (`ypy-on`, `js:` values, `[filter]` triggers) may do: `none` never compiles code, `nonce` runs it only through `ypy-csp`, `all` always runs it. Unset means `none`.", "schema": {"enum": ["none", "nonce", "all"]}},
+    {"name": "scripts", "description": "What happens to the `<script>` elements of a response: `auto` lets them run, `nonce` lets run only those with the nonce of the page (`inlineScriptNonce`, else the nonce of the first `<script nonce>`), `block` runs none. The scripts that do not run are taken out of the response. Any other value counts as `block`.", "schema": {"enum": ["auto", "nonce", "block"]}, "default": "auto"},
     {"name": "selfRequestsOnly", "description": "Alias of `mode`: `true` is `same-origin`, `false` is `cors`.", "schema": {"type": "boolean"}, "deprecated": "Use mode."},
     {"name": "historyRestore", "description": "Options of the request that restores a page from history.", "schema": {"type": "object"}},
     {"name": "historyRestore.cache", "description": "The fetch `cache` mode of the request that restores a page on back and forward. The default is `no-cache`.", "schema": {"enum": ["default", "no-store", "reload", "no-cache", "force-cache", "only-if-cached"]}},

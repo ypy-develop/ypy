@@ -193,6 +193,7 @@ describe('bootstrap unit tests', function() {
             'ajax',
             'find',
             'findAll',
+            'dispose',
             'initialize',
             'on',
             'onLoad',
@@ -251,7 +252,7 @@ describe('bootstrap unit tests', function() {
         let initCalls = 0
         let originalSetTimeout = window.setTimeout
         window.setTimeout = function(fn, ...args) {
-            if (fn.name === 'init') {
+            if (/init$/.test(fn.name)) {   // the start-up function, a private field of the class
                 initCalls++
             }
             return originalSetTimeout.call(this, fn, ...args)
