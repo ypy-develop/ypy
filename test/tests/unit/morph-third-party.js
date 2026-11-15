@@ -58,14 +58,43 @@ describe('Morph and third-party elements', function() {
             assert.equal(find('#w').textContent, 'drawn');
         });
 
-        it('morphs the children of a custom element when the response has content', async function() {
-            await morph('<t017-draw id="w"><b>server</b></t017-draw>', '<div id="box"><t017-draw id="w"></t017-draw></div>');
+        it('keeps the children of a defined custom element even when the response has content', async function() {
+            await morph('<t017-draw id="w" label="b"><b>server</b></t017-draw>', '<div id="box"><t017-draw id="w" label="a"></t017-draw></div>');
+            assert.equal(find('#w').innerHTML, '<span class="drawn">drawn</span>');
+            assert.equal(find('#w').getAttribute('label'), 'b', 'the attributes still follow the response');
+        });
+
+        it('keeps them when the response has only an empty element as content', async function() {
+            await morph('<t017-draw id="w"><i></i></t017-draw>', '<div id="box"><t017-draw id="w"></t017-draw></div>');
+            assert.equal(find('#w').innerHTML, '<span class="drawn">drawn</span>');
+        });
+
+        it('keeps the node and the children the element created in connectedCallback, with no id to match', async function() {
+            await morph('<p>new</p><t017-draw label="b"></t017-draw>', '<div id="box"><p>old</p><t017-draw label="a"></t017-draw></div>');
+            assert.equal(find('#box p').textContent, 'new');
+            assert.equal(find('#box t017-draw .drawn').textContent, 'drawn');
+            assert.equal(find('#box t017-draw').children.length, 1);
+        });
+
+        it('lets the response win with ypy-morph-force on the element', async function() {
+            await morph('<t017-draw id="w" ypy-morph-force><b>server</b></t017-draw>', '<div id="box"><t017-draw id="w"></t017-draw></div>');
             assert.equal(find('#w').innerHTML, '<b>server</b>');
         });
 
-        it('morphs a custom element whose response has only an empty element as content', async function() {
-            await morph('<t017-draw id="w"><i></i></t017-draw>', '<div id="box"><t017-draw id="w"></t017-draw></div>');
-            assert.equal(find('#w').innerHTML, '<i></i>');
+        it('lets the response win with ypy-preserve="false" on the element', async function() {
+            await morph('<t017-draw id="w" ypy-preserve="false"><b>server</b></t017-draw>', '<div id="box"><t017-draw id="w" ypy-preserve="false"></t017-draw></div>');
+            assert.equal(find('#w').innerHTML, '<b>server</b>');
+        });
+
+        it('inserts a custom element that is new to the page, which draws itself', async function() {
+            await morph('<t017-draw id="w" label="b"></t017-draw>', '<div id="box"></div>');
+            assert.equal(find('#w .drawn').textContent, 'drawn');
+            assert.equal(find('#w').getAttribute('label'), 'b');
+        });
+
+        it('morphs the children of a custom element that is not defined', async function() {
+            await morph('<t017-later id="w"><b>server</b></t017-later>', '<div id="box"><t017-later id="w"><i>page</i></t017-later></div>');
+            assert.equal(find('#w').innerHTML, '<b>server</b>');
         });
 
         it('leaves an ordinary element alone: an empty response empties it', async function() {

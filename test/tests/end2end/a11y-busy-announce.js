@@ -476,6 +476,17 @@ describe('aria-busy and announcements', function() {
             assert.equal(region().textContent, 'Next page')
         })
 
+        it('a boosted navigation does not say the title again when the focus moved to the heading', async function() {
+            mockResponse('GET', '/page', '<title>Next page</title><main><h1>Next page</h1></main>')
+            createProcessedHTML('<div id="t"></div><a id="a" href="/page" ypy-boost="true" ypy-target="#t" ypy-push-url="false">Go</a>')
+            find('#a').click()
+            await forRequest()
+            await settled()
+            assert.equal(document.activeElement.tagName, 'H1')
+            assert.isTrue(regions().every(r => r.textContent === ''))
+            document.activeElement.blur()
+        })
+
         it('a boosted navigation can opt out with ypy-announce="none"', async function() {
             mockResponse('GET', '/page', '<title>Next page</title><p>ok</p>')
             createProcessedHTML('<div id="t"></div><a id="a" href="/page" ypy-boost="true" ypy-target="#t" ypy-push-url="false" ypy-announce="none">Go</a>')

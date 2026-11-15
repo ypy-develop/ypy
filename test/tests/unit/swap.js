@@ -576,10 +576,24 @@ describe('swap() unit tests', function() {
         find('#content').innerText.should.equal('Main Content');
     })
 
-    it('supports autofocus', async function () {
-        let originalTitle = document.title;
-        await ypy.swap({"target":"#test-playground", "text":"<input id='i1' autofocus>"})
+    it('focuses an autofocus element that asks for it with ypy-focus', async function () {
+        await ypy.swap({"target":"#test-playground", "text":"<input id='i1' autofocus ypy-focus>"})
         document.activeElement.id.should.equal("i1")
+    })
+
+    it('does not focus an autofocus element by itself: web components manage their own focus', async function () {
+        await ypy.swap({"target":"#test-playground", "text":"<input id='i2' autofocus>"})
+        document.activeElement.id.should.not.equal("i2")
+    })
+
+    it('focuses an autofocus element with config.autofocus', async function () {
+        ypy.config.autofocus = true
+        try {
+            await ypy.swap({"target":"#test-playground", "text":"<input id='i3' autofocus>"})
+            document.activeElement.id.should.equal("i3")
+        } finally {
+            delete ypy.config.autofocus
+        }
     })
 
     it('swaps both main target and partial target when both are present', async function () {

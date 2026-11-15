@@ -1338,11 +1338,37 @@ export interface YpyNativeEventMap {
 // #region TASK-017 preserved elements
 export interface YpyConfig {
   /**
-   * Selector of the elements a script other than YPY owns, besides every custom element (a tag name with a
-   * hyphen). A morph keeps the children of such an element when the response gives it
-   * with no content, unless it carries `ypy-preserve="false"`. Default `[data-reactroot],[data-v-app],[x-data]`.
+   * Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps
+   * the children of such an element when the response gives it with no content, unless it carries
+   * `ypy-preserve="false"`. A custom element that is already defined (`customElements.get`) always
+   * keeps its children: only its attributes follow the response, unless the response marks it with
+   * `ypy-morph-force`. Default `[data-reactroot],[data-v-app],[x-data]`.
    */
   morphThirdParty?: string;
+  /**
+   * Focuses the `[autofocus]` element of swapped content. Off by default: the browser does not do it
+   * for content that is inserted later and a component of its own manages the focus of its parts.
+   * An `[autofocus]` element with `ypy-focus` asks for it by itself.
+   */
+  autofocus?: boolean;
+  /**
+   * `ypy-preserve` extension: how long, in milliseconds, a swap waits for the end of an IME composition
+   * in a field its target contains. Default 3000.
+   */
+  compositionTimeout?: number;
+}
+
+export interface YpyRequestCtx {
+  /**
+   * A promise the swap waits for before it changes a target, set by an extension (`ypy-preserve` sets
+   * it while an IME composition is open). The swap carries on when it settles, also when it rejects.
+   */
+  hold?: Promise<unknown>;
+  /**
+   * The element the automatic focus (`ypy-focus="auto"`) moved the focus to. The live region does not
+   * announce the title of the new page then: the screen reader reads the focused heading.
+   */
+  focused?: Element;
 }
 export interface Ypy {
   /**

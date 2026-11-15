@@ -1440,8 +1440,9 @@ var ypy = (() => {
             let newPreservedElts = fragment.querySelectorAll?.(this.#prefixSelector('[ypy-preserve]')) || [];
             for (let preservedElt of newPreservedElts) {
                 let currentElt = document.getElementById(preservedElt.id);
-                // attrs, children and false act in a morph (#morphNode), not on the identity of the node
-                if (currentElt && !/^(attrs|children|false)$/.test(this.#attr(preservedElt, 'ypy-preserve'))) {
+                // attrs, children, false and the modes of ypy-preserve.js act in a morph (#morphNode) or
+                // after the swap, not on the identity of the node
+                if (currentElt && !/^(attrs|children|false|value|selection|focus|scroll)\b/.test(this.#attr(preservedElt, 'ypy-preserve'))) {
                     this.#moveBefore(pantry, currentElt, null);
                 }
             }
@@ -1700,7 +1701,9 @@ var ypy = (() => {
         }
 
         #handleAutoFocus(elt) {
-            let autofocus = this.#queryEltAndDescendants(elt, '[autofocus]')[0];
+            // swapped content focuses its [autofocus] only when it asks (any ypy-focus but "none") or config.autofocus does:
+            // a component of its own manages the focus of its parts
+            let autofocus = this.#queryEltAndDescendants(elt, '[autofocus]').find(e => this.config.autofocus || (this.#attr(e, 'ypy-focus') ?? 'none') != 'none');
             if (autofocus) {
                 this.#setFocus(autofocus);
             }
@@ -1763,9 +1766,10 @@ var ypy = (() => {
          * is also the place for an error target to ask for it: set ctx.focus (a selector, or false)
          * before the swap ends. The place comes from ctx.focus, else from `ypy-focus` on the source
          * element (inheritable with `:inherited`), else "auto":
-         *  - "auto": after a boosted request, the first `h1` of `[ypy-main]` (else of `<main>`), or
-         *    that main itself; nothing for any other request, nothing without a main, and nothing
-         *    when an `[autofocus]` element has the focus;
+         *  - "auto": after a boosted request, the first `h1` of `[ypy-main]` (else of `<main>`, else of
+         *    the swap target), or that element itself; nothing for any other request, and nothing
+         *    when an `[autofocus]` element has the focus. It sets ctx.focused, which keeps
+         *    #announce from saying the title a second time;
          *  - "none" (or false): leaves the focus alone;
          *  - "first-heading": the first heading of the swap target;
          *  - "first-invalid": the first `[aria-invalid="true"]` or invalid field of the swap target
@@ -1782,14 +1786,16 @@ var ypy = (() => {
                 s = ctx.focus ?? (src && this.#attributeValue(src, 'ypy-focus')) ?? 'auto';
             if (s === 'auto') {
                 let main = this.#isBoosted(src) && !document.activeElement.autofocus &&
-                    (document.querySelector(this.#prefixSelector('[ypy-main]')) || document.querySelector('main'));
+                    (document.querySelector(this.#prefixSelector('[ypy-main]')) || document.querySelector('main') || box?.focus && box);
                 if (main) elt = main.querySelector('h1') || main;
             } else if (s === 'first-heading' || s === 'first-invalid') {
                 elt = box?.querySelector?.(s[6] === 'h' ? 'h1,h2,h3,h4,h5,h6' : '[aria-invalid="true"],:is(input,select,textarea):invalid');
             } else if (s && s !== 'none') {
                 elt = this.find(src, s);
             }
-            if (elt) {
+            if (elt && elt !== document.activeElement) {
+                // a screen reader reads a heading or a main that gets the focus: the live region need not say the title too
+                if (s === 'auto' && elt !== box) ctx.focused = elt;
                 if (elt.tabIndex < 0 && !elt.hasAttribute('tabindex')) {
                     elt.tabIndex = -1;
                     elt.addEventListener('blur', () => elt.removeAttribute('tabindex'), {once: true});
@@ -2125,6 +2131,7 @@ var ypy = (() => {
             if (cssTransition && task.swapSpec?.swap) {
                 await this.timeout(task.swapSpec?.swap)
             }
+            if (task.ctx?.hold) await task.ctx.hold;   // set by an extension that has to wait (ypy-preserve: IME composition)
             // the response must not be applied any more when its request was aborted (also during the
             // swap) or superseded (ypy-sync="latest"), or when a newer response already overwrote this
             // target (two queues on one target). Styles that only add content are never stale.
@@ -3263,11 +3270,13 @@ var ypy = (() => {
             if (oldNode instanceof HTMLTextAreaElement && (document.activeElement !== oldNode || (live && newNode.matches(live))) && oldNode.defaultValue != newNode.defaultValue) {
                 oldNode.value = newNode.value;
             }
-            // a custom element or a root of a script's own that the response gives empty draws its own
-            // children: they stay, unless ypy-preserve="false".
+            // a custom element that is defined draws its own children: they stay (the attributes follow),
+            // and so do those of a root of a script's own that the response gives empty. The response
+            // wins with ypy-morph-force on the element, ypy-preserve="false" turns it off here.
             let skipChildren = mode == 'children' || (this.config.morphSkipChildren && oldNode.matches?.(this.config.morphSkipChildren)) ||
-                (ctx.live && oldNode.firstChild && !newNode.firstElementChild && !newNode.textContent.trim() && mode != 'false' &&
-                    (oldNode.localName.includes('-') || oldNode.matches(this.config.morphThirdParty)));
+                (live && mode != 'false' && !newNode.matches(live) && (customElements.get(oldNode.localName) ||
+                    oldNode.firstChild && !newNode.firstElementChild && !newNode.textContent.trim() &&
+                    (oldNode.localName.includes('-') || oldNode.matches(this.config.morphThirdParty))));
             // isEqualNode does not detect template content diff so always morph templates
             if (!skipChildren && (!oldNode.isEqualNode(newNode) || newNode.tagName === 'TEMPLATE' || newNode.querySelector?.('template'))) {
                 this.#morphChildren(ctx, oldNode, newNode);
@@ -3634,7 +3643,7 @@ var ypy = (() => {
                 let target = ctx.target;
                 spec ??= this.#attributeValue(ctx.sourceElement, 'ypy-announce')
                     ?? (target instanceof Element ? this.#attributeValue(target, 'ypy-announce') : null)
-                    ?? (this.#isBoosted(ctx.sourceElement) && ctx.swap !== 'none' ? 'title' : m.done);
+                    ?? (this.#isBoosted(ctx.sourceElement) && ctx.swap !== 'none' && !ctx.focused ? 'title' : m.done);
             }
             if (spec === 'title') spec = ctx.title || document.title;
             if (spec !== 'none') this.#say(ctx, spec, kind ? 'assertive' : 'polite');
@@ -10877,4 +10886,114 @@ ypy.config.historyCache ??= { disable: true };
             next();
         })
     });
+})();
+// SPDX-License-Identifier: MIT
+//==========================================================
+// ypy-preserve.js
+//
+// What the visitor was doing survives a swap: the modes of ypy-preserve that name a state, and the
+// wait for an input method editor (IME).
+//
+// ypy-preserve="value selection focus scroll". A list of words separated by spaces, on the live
+// element. Each word keeps one state of the element and of its descendants that have an `id`,
+// through a morph and through a raw swap (innerHTML, outerHTML) alike:
+//   value      the text, choice or checked state the visitor gave a field, when it differs from the
+//              default the HTML had; a field the visitor did not touch follows the response
+//   selection  the caret or the selected text of a field
+//   focus      the focus, when the element had it before the swap
+//   scroll     the scroll position of the element
+// The modes do not combine with `true`, `all`, `attrs` or `children`, which the core reads. A
+// response that wants the server to win marks the element with `ypy-morph-force`, the same
+// attribute that makes it win over the state of a morph.
+//
+// IME. While the visitor composes text (compositionstart without compositionend, as with
+// Japanese, Chinese or Korean input) in a field that a swap target contains, the swap waits for
+// compositionend, so the candidate text is not cut in half. The wait ends after
+// config.compositionTimeout milliseconds (3000 by default) at the latest. A page without this
+// extension swaps at once.
+//
+// Only the extension API is used. The core waits for ctx.hold, a promise this extension sets.
+//==========================================================
+(() => {
+
+    let api, composing, waiting = [];
+
+    const MODES = ['value', 'selection', 'focus', 'scroll'];
+    const saved = new WeakMap();   // ctx -> the state taken before its swap
+
+    const sel = s => api.prefixSelector(s);
+    const elementOf = t => typeof t === 'string' ? document.querySelector(t) : t;
+
+    // the state of the elements that carry a mode, with their descendants that have an id
+    function capture(targets) {
+        let list = [];
+        for (let elt of document.querySelectorAll(sel('[ypy-preserve]'))) {
+            let modes = (api.attr(elt, 'ypy-preserve') || '').split(/\s+/);
+            if (!modes.some(m => MODES.includes(m)) || !targets.some(t => t.contains(elt) || elt.contains(t))) continue;
+            for (let node of [elt, ...elt.querySelectorAll('[id]')]) {
+                let r = {node, id: node.id}, has = m => modes.includes(m);
+                if (has('value') && /^(INPUT|TEXTAREA|SELECT)$/.test(node.tagName) && node.type !== 'file') {
+                    r.check = /^(checkbox|radio)$/.test(node.type);
+                    r.value = r.check ? node.checked : node.value;
+                    // only what the visitor changed: select has no default, so it always counts
+                    r.dirty = r.check ? node.checked !== node.defaultChecked : node.value !== node.defaultValue;
+                }
+                if (has('selection') && node.selectionStart != null) r.range = [node.selectionStart, node.selectionEnd, node.selectionDirection];
+                if (has('scroll') && (node.scrollTop || node.scrollLeft)) r.scroll = [node.scrollLeft, node.scrollTop];
+                if (has('focus') && node === document.activeElement) r.focus = true;
+                list.push(r);
+            }
+        }
+        return list;
+    }
+
+    // puts the state back on the node that is in the page now, once; `within` limits it to one swap target
+    function restore(list, within) {
+        for (let r of list || []) {
+            let n = r.node.isConnected ? r.node : document.getElementById(r.id);
+            if (r.done || !n || within && !(within.contains(n) || n.contains(within))) continue;
+            r.done = true;
+            // the response asked to win
+            if (n.matches(sel('[ypy-morph-force]'))) continue;
+            if (r.dirty) r.check ? n.checked = r.value : n.value = r.value;
+            if (r.focus && document.activeElement !== n) n.focus({preventScroll: true});
+            try { if (r.range) n.setSelectionRange(...r.range); } catch (e) { /* the field has no selection */ }
+            if (r.scroll) [n.scrollLeft, n.scrollTop] = r.scroll;
+        }
+    }
+
+    ypy.registerExtension('ypy-preserve', {
+        init: a => {
+            api = a;
+            document.addEventListener('compositionstart', e => { composing = e.target; }, true);
+            document.addEventListener('compositionend', () => {
+                composing = null;
+                // the browser may still fire the last input event of the composition
+                setTimeout(() => waiting.splice(0).forEach(done => done()));
+            }, true);
+        },
+
+        ypy_before_swap: (elt, {ctx, tasks}) => {
+            let targets = tasks.map(t => elementOf(t.target)).filter(t => t instanceof Element);
+            let take = () => saved.set(ctx, capture(targets));
+            if (composing?.isConnected && targets.some(t => t.contains(composing))) {
+                ctx.hold = new Promise(done => {
+                    waiting.push(done);
+                    setTimeout(done, ypy.config.compositionTimeout ?? 3000);
+                }).then(take);
+            } else {
+                take();
+            }
+        },
+
+        // right after the DOM work of a task, before the settle delay, so nothing flashes
+        ypy_before_settle: (elt, {task}) => restore(saved.get(task.ctx), elementOf(task.target)),
+
+        // what no task restored (an element that came back with the last one)
+        ypy_after_swap: (elt, {ctx}) => {
+            restore(saved.get(ctx));
+            saved.delete(ctx);
+        }
+    });
+
 })();

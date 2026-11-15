@@ -50,7 +50,7 @@ every extension; set, it refuses any other and `registerExtension` returns
 | `ypy-retry`, `ypy-lock`, `ypy-optimistic` | retry with backoff; lock an element during its request; show the result before the server answers |
 | `ypy-pending`, `ypy-progress`, `ypy-browser-indicator` | pending content, a progress bar, the tab's own spinner |
 | `ypy-validate`, `ypy-upload`, `ypy-prompt`, `ypy-csrf` | per-field server validation; upload progress; a prompt before a request; CSRF token on mutating requests |
-| `ypy-targets`, `ypy-upsert`, `ypy-head`, `ypy-download`, `ypy-lazy`, `ypy-list`, `ypy-layers`, `ypy-persist` | one response into many targets; upsert elements; merge `<head>`; downloads; lazy load; lists; layers (dialogs); keep an element across navigation |
+| `ypy-targets`, `ypy-upsert`, `ypy-head`, `ypy-download`, `ypy-lazy`, `ypy-list`, `ypy-layers`, `ypy-persist`, `ypy-preserve` | one response into many targets; upsert elements; merge `<head>`; downloads; lazy load; lists; layers (dialogs); keep an element across navigation; keep the value, selection, focus or scroll of an element through a swap and wait for an IME composition |
 | `ypy-live` | evaluate expressions when the DOM or a value changes |
 | `ypy-csp` | run under a strict Content Security Policy: author code only through the page nonce |
 | `ypy-alpine-compat` | run beside Alpine.js |

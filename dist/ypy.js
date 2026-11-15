@@ -1440,8 +1440,9 @@ var ypy = (() => {
             let newPreservedElts = fragment.querySelectorAll?.(this.#prefixSelector('[ypy-preserve]')) || [];
             for (let preservedElt of newPreservedElts) {
                 let currentElt = document.getElementById(preservedElt.id);
-                // attrs, children and false act in a morph (#morphNode), not on the identity of the node
-                if (currentElt && !/^(attrs|children|false)$/.test(this.#attr(preservedElt, 'ypy-preserve'))) {
+                // attrs, children, false and the modes of ypy-preserve.js act in a morph (#morphNode) or
+                // after the swap, not on the identity of the node
+                if (currentElt && !/^(attrs|children|false|value|selection|focus|scroll)\b/.test(this.#attr(preservedElt, 'ypy-preserve'))) {
                     this.#moveBefore(pantry, currentElt, null);
                 }
             }
@@ -1700,7 +1701,9 @@ var ypy = (() => {
         }
 
         #handleAutoFocus(elt) {
-            let autofocus = this.#queryEltAndDescendants(elt, '[autofocus]')[0];
+            // swapped content focuses its [autofocus] only when it asks (any ypy-focus but "none") or config.autofocus does:
+            // a component of its own manages the focus of its parts
+            let autofocus = this.#queryEltAndDescendants(elt, '[autofocus]').find(e => this.config.autofocus || (this.#attr(e, 'ypy-focus') ?? 'none') != 'none');
             if (autofocus) {
                 this.#setFocus(autofocus);
             }
@@ -1763,9 +1766,10 @@ var ypy = (() => {
          * is also the place for an error target to ask for it: set ctx.focus (a selector, or false)
          * before the swap ends. The place comes from ctx.focus, else from `ypy-focus` on the source
          * element (inheritable with `:inherited`), else "auto":
-         *  - "auto": after a boosted request, the first `h1` of `[ypy-main]` (else of `<main>`), or
-         *    that main itself; nothing for any other request, nothing without a main, and nothing
-         *    when an `[autofocus]` element has the focus;
+         *  - "auto": after a boosted request, the first `h1` of `[ypy-main]` (else of `<main>`, else of
+         *    the swap target), or that element itself; nothing for any other request, and nothing
+         *    when an `[autofocus]` element has the focus. It sets ctx.focused, which keeps
+         *    #announce from saying the title a second time;
          *  - "none" (or false): leaves the focus alone;
          *  - "first-heading": the first heading of the swap target;
          *  - "first-invalid": the first `[aria-invalid="true"]` or invalid field of the swap target
@@ -1782,14 +1786,16 @@ var ypy = (() => {
                 s = ctx.focus ?? (src && this.#attributeValue(src, 'ypy-focus')) ?? 'auto';
             if (s === 'auto') {
                 let main = this.#isBoosted(src) && !document.activeElement.autofocus &&
-                    (document.querySelector(this.#prefixSelector('[ypy-main]')) || document.querySelector('main'));
+                    (document.querySelector(this.#prefixSelector('[ypy-main]')) || document.querySelector('main') || box?.focus && box);
                 if (main) elt = main.querySelector('h1') || main;
             } else if (s === 'first-heading' || s === 'first-invalid') {
                 elt = box?.querySelector?.(s[6] === 'h' ? 'h1,h2,h3,h4,h5,h6' : '[aria-invalid="true"],:is(input,select,textarea):invalid');
             } else if (s && s !== 'none') {
                 elt = this.find(src, s);
             }
-            if (elt) {
+            if (elt && elt !== document.activeElement) {
+                // a screen reader reads a heading or a main that gets the focus: the live region need not say the title too
+                if (s === 'auto' && elt !== box) ctx.focused = elt;
                 if (elt.tabIndex < 0 && !elt.hasAttribute('tabindex')) {
                     elt.tabIndex = -1;
                     elt.addEventListener('blur', () => elt.removeAttribute('tabindex'), {once: true});
@@ -2125,6 +2131,7 @@ var ypy = (() => {
             if (cssTransition && task.swapSpec?.swap) {
                 await this.timeout(task.swapSpec?.swap)
             }
+            if (task.ctx?.hold) await task.ctx.hold;   // set by an extension that has to wait (ypy-preserve: IME composition)
             // the response must not be applied any more when its request was aborted (also during the
             // swap) or superseded (ypy-sync="latest"), or when a newer response already overwrote this
             // target (two queues on one target). Styles that only add content are never stale.
@@ -3263,11 +3270,13 @@ var ypy = (() => {
             if (oldNode instanceof HTMLTextAreaElement && (document.activeElement !== oldNode || (live && newNode.matches(live))) && oldNode.defaultValue != newNode.defaultValue) {
                 oldNode.value = newNode.value;
             }
-            // a custom element or a root of a script's own that the response gives empty draws its own
-            // children: they stay, unless ypy-preserve="false".
+            // a custom element that is defined draws its own children: they stay (the attributes follow),
+            // and so do those of a root of a script's own that the response gives empty. The response
+            // wins with ypy-morph-force on the element, ypy-preserve="false" turns it off here.
             let skipChildren = mode == 'children' || (this.config.morphSkipChildren && oldNode.matches?.(this.config.morphSkipChildren)) ||
-                (ctx.live && oldNode.firstChild && !newNode.firstElementChild && !newNode.textContent.trim() && mode != 'false' &&
-                    (oldNode.localName.includes('-') || oldNode.matches(this.config.morphThirdParty)));
+                (live && mode != 'false' && !newNode.matches(live) && (customElements.get(oldNode.localName) ||
+                    oldNode.firstChild && !newNode.firstElementChild && !newNode.textContent.trim() &&
+                    (oldNode.localName.includes('-') || oldNode.matches(this.config.morphThirdParty))));
             // isEqualNode does not detect template content diff so always morph templates
             if (!skipChildren && (!oldNode.isEqualNode(newNode) || newNode.tagName === 'TEMPLATE' || newNode.querySelector?.('template'))) {
                 this.#morphChildren(ctx, oldNode, newNode);
@@ -3634,7 +3643,7 @@ var ypy = (() => {
                 let target = ctx.target;
                 spec ??= this.#attributeValue(ctx.sourceElement, 'ypy-announce')
                     ?? (target instanceof Element ? this.#attributeValue(target, 'ypy-announce') : null)
-                    ?? (this.#isBoosted(ctx.sourceElement) && ctx.swap !== 'none' ? 'title' : m.done);
+                    ?? (this.#isBoosted(ctx.sourceElement) && ctx.swap !== 'none' && !ctx.focused ? 'title' : m.done);
             }
             if (spec === 'title') spec = ctx.title || document.title;
             if (spec !== 'none') this.#say(ctx, spec, kind ? 'assertive' : 'polite');

@@ -345,10 +345,10 @@
     },
     {
       "name": "ypy-focus",
-      "description": "Says where the keyboard focus goes when a swap ends. After a boosted navigation it moves to the heading of the new page.",
+      "description": "Says where the keyboard focus goes when a swap ends. After a boosted navigation it moves to the heading of the new page. On an `[autofocus]` element of swapped content, any value makes the swap focus it (the core does not otherwise).",
       "valueType": "string",
       "values": [
-        {"name": "auto", "description": "After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`). Any other request moves nothing."},
+        {"name": "auto", "description": "After a boosted request, the first `h1` of `[ypy-main]` (else `<main>`, else the swap target), with a temporary `tabindex=\"-1\"`. The title is not announced a second time. Any other request moves nothing."},
         {"name": "none", "description": "Leaves the focus where the swap left it."},
         {"name": "first-heading", "description": "The first heading of the swap target."}
       ],
@@ -394,7 +394,11 @@
         {"name": "all", "description": "Keeps the node, its attributes and its children."},
         {"name": "attrs", "description": "The morph does not set, change or remove any attribute. Children merge as usual."},
         {"name": "children", "description": "Attributes follow the response, children are not touched."},
-        {"name": "false", "description": "Switches off the default for third-party elements on this element."}
+        {"name": "false", "description": "Switches off the default for third-party elements on this element."},
+        {"name": "value", "description": "Extension `ypy-preserve`: keeps what the visitor typed or chose in the field and its descendants with an `id`. Words combine with a space: `value selection`."},
+        {"name": "selection", "description": "Extension `ypy-preserve`: keeps the caret or the selected text of the field."},
+        {"name": "focus", "description": "Extension `ypy-preserve`: gives the focus back to the element if it had it before the swap."},
+        {"name": "scroll", "description": "Extension `ypy-preserve`: keeps the scroll position of the element."}
       ],
       "doc": "https://ypy.dev/docs/reference/attributes/ypy-preserve"
     },
@@ -417,7 +421,7 @@
     },
     {
       "name": "ypy-morph-force",
-      "description": "Set in the response: lets the response win over what the user did to the element in a morph, such as the `open` state of `<details>` or the value of a field that has the focus.",
+      "description": "Set in the response: lets the response win over what the user did to the element in a morph, such as the `open` state of `<details>`, the value of a field that has the focus, the children of a custom element or a mode of `ypy-preserve`.",
       "valueType": "none",
       "doc": "https://ypy.dev/docs/reference/swap-and-morph"
     }
@@ -857,7 +861,8 @@
     {"name": "morphScanLimit", "description": "How many siblings a morph scans when it matches nodes.", "schema": {"type": "integer", "minimum": 0}, "default": 10},
     {"name": "morphSkip", "description": "Selector of the elements a morph skips entirely.", "schema": {"type": "string"}, "default": "[ypy-morph-skip],[data-ypy-morph-skip]"},
     {"name": "morphSkipChildren", "description": "Selector of the elements whose children a morph freezes. Their attributes still update.", "schema": {"type": "string"}, "default": "[ypy-morph-skip-children],[data-ypy-morph-skip-children]"},
-    {"name": "morphThirdParty", "description": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element unless it carries `ypy-preserve=\"false\"`.", "schema": {"type": "string"}, "default": "[data-reactroot],[data-v-app],[x-data]"},
+    {"name": "morphThirdParty", "description": "Selector of the elements a script other than YPY owns, besides every custom element. A morph keeps the children of such an element when the response gives it empty, unless it carries `ypy-preserve=\"false\"`. A custom element that is already defined always keeps its children: only the attributes follow the response, unless the response marks it with `ypy-morph-force`.", "schema": {"type": "string"}, "default": "[data-reactroot],[data-v-app],[x-data]"},
+    {"name": "autofocus", "description": "Focuses the `[autofocus]` element of swapped content. Off by default; an `[autofocus]` element with `ypy-focus` asks for it by itself.", "schema": {"type": "boolean"}, "default": false},
     {"name": "noSwap", "description": "HTTP status codes for which YPY does not swap content.", "schema": {"type": "array", "items": {"type": "integer"}}, "default": [204, 304]},
     {"name": "metaCharacter", "description": "Replaces `:` in attribute modifiers, for templating engines that treat `:` specially.", "schema": {"type": "string"}},
     {"name": "allowEmptySwapAfterOOB", "description": "Runs the main swap when the response held only out-of-band elements. `<ypy-partial>` content always prevents the main swap.", "schema": {"type": "boolean"}, "default": false},
